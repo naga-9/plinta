@@ -1,7 +1,10 @@
 """Check plinta's layer and package boundaries by walking the AST.
 
 Nothing is imported, so lazy imports inside functions are caught too.
-Rules: SPEC §2.3 (layer order) and §2.5 (declared sideways dependency).
+
+Three rules: a core layer imports only layers below it, no core module
+imports ``plinta.contrib``, and a contrib package imports another only where
+its ``AppConfig`` declares ``enhances`` or ``composes``.
 """
 from __future__ import annotations
 

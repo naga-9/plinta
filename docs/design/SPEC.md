@@ -3154,6 +3154,26 @@ A docstring or reference page describing a config key must name the code path th
 
 A decision that changes the architecture gets an ADR in `design/adr/`; a decision that only affects one layer belongs on that layer's page.
 
+**Code cites an ADR, never a section of this document.** `ADR 0006` is stable by convention and immutable by design. `§5.4` is a pointer into a numbering that moves — the same name-as-reference defect §8.1 removes from `SavedView.block_name` and §8.9 from block URLs. A docstring naming a section is a broken link waiting for the next reorganisation.
+
+### 20.12 What survives the build
+
+This document is mostly a **plan**, and a plan that outlives its execution becomes a second source of truth for facts the code already states. That is how four of v1's documented behaviours came to describe something the code never did (§21.11).
+
+So when the last layer lands, it splits.
+
+| Part | Fate |
+|---|---|
+| §24 — the eight decision records | **Kept**, one file each under `design/adr/` |
+| §1–§2 — purpose, layers, the membership tests, the dependency rules and their register | **Kept** as `design/architecture.md` |
+| §3–§19 — the layer specifications | **Retired.** The code answers *what*; a consumer's questions are answered by user documentation |
+| §21, §22 — the ledgers | **Retired.** They record what became of v1's features, which stops mattering once nothing is left of it |
+| §23, §25 — build order, the skills plan | **Retired.** They expire on completion by definition |
+
+**Retired means tagged, not deleted** — `v2-spec`, on the same principle as `v1.0` (§23.4). Recoverable, and nobody has to keep it true.
+
+What survives is the part that cannot drift: an ADR records a decision at a moment and never claims to describe current behaviour, and `architecture.md` states rules the import-boundary test enforces mechanically.
+
 ---
 
 ## 21. Feature decisions
@@ -3437,6 +3457,8 @@ Layer 1 is §3, layer 2 is §4, and so on — §1 is scope and architecture.
 **Contrib order is unconstrained, and that is a result rather than a rule.** It holds because no shipped package declares `composes` (§2.5) and the one `enhances` — `reports` on `export` — substitutes rather than requires. A `composes` declaration would constrain the order legitimately; if one appears, build the depended-upon package first and record the edge here.
 
 Suggested first: `audit`. It is the strictest test of the event bus. If audit works as a pure listener, the vocabulary is right; if it needs a pipeline hook, stop and fix layer 7 before building anything else on it.
+
+**The last step is this document.** When the final package lands, tag `v2-spec` and split it as §20.12 says: the ADRs and `architecture.md` stay, the rest retires.
 
 ### 23.2 Definition of done, per layer
 

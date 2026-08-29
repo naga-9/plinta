@@ -54,7 +54,16 @@ def parse_request(request, schema):
         payload, err = parse_request(request, MySchema)
         if err:
             return err
+
+    A body sent as anything but ``application/json`` is a 415. There is no
+    second parser: a form-encoded fallback would be a second contract for the
+    same endpoint, validated differently.
     """
+    content_type = (request.content_type or "").split(";")[0].strip()
+    if content_type and content_type != "application/json":
+        return None, json_response(
+            errors=f"Expected application/json, got {content_type}", status=415
+        )
     try:
         return schema.model_validate_json(request.body or b"{}"), None
     except ValidationError as exc:

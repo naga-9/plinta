@@ -45,8 +45,9 @@ def test_data_is_omitted_not_nulled():
 
 
 class FakeRequest:
-    def __init__(self, raw: bytes):
+    def __init__(self, raw: bytes, content_type: str = "application/json"):
         self.body = raw
+        self.content_type = content_type
 
 
 def test_parse_request_returns_the_validated_schema():
@@ -80,6 +81,31 @@ def test_an_empty_body_is_parsed_as_an_empty_object():
 
     payload, err = parse_request(FakeRequest(b""), AllDefaults)
     assert err is None and payload.count == 0
+
+
+@pytest.mark.parametrize(
+    "content_type",
+    ["application/x-www-form-urlencoded", "multipart/form-data", "text/plain"],
+)
+def test_a_body_that_is_not_json_is_415(content_type):
+    """One content type, so there is never a second contract for one endpoint."""
+    payload, err = parse_request(FakeRequest(b'{"name": "x"}', content_type), Payload)
+    assert payload is None
+    assert err.status_code == 415
+    assert content_type in body(err)["errors"]["_general"][0]
+
+
+def test_a_charset_parameter_is_ignored():
+    _, err = parse_request(
+        FakeRequest(b'{"name": "x"}', "application/json; charset=utf-8"), Payload
+    )
+    assert err is None
+
+
+def test_a_request_with_no_content_type_is_parsed():
+    """Django reports "" for a GET-shaped request; the body still decides."""
+    payload, err = parse_request(FakeRequest(b'{"name": "x"}', ""), Payload)
+    assert err is None and payload.name == "x"
 
 
 @pytest.mark.parametrize(

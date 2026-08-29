@@ -399,7 +399,7 @@ A pydantic schema in, a rendered form and a parsed dict out. Extracted from `com
 |---|---|
 | `fields_for(schema)` | walks `model_fields`, yields a field descriptor per entry |
 | `widget_for(annotation)` | maps a python annotation to an input type |
-| `parse(schema, post)` | POST → coerced dict, validated by the schema itself |
+| `parse(schema, data)` | submitted values → dict, validated by the schema itself |
 | `register_widget(schema, field, template)` | the override registry — a bespoke editor for one field (§12.3) |
 
 **Why it is layer 1.** It knows pydantic and HTML and nothing about plinta: no DataSource, no Block, no permission. It would make sense in a project that had never heard of plinta, which is §3.1's admission test.
@@ -1928,7 +1928,7 @@ Three modes change from today's `AJAX = True` — see §7.3.
 
 **One config schema per component.** Five of the seven `view_config.py` files are pure aliases — `from X.config import XBlockConfig as XViewConfig` — with only `table` and `pivot` genuinely differing. A component declares **one** schema, and a view uses it unless the component says otherwise. Deletes five files and the dispatch that imports them.
 
-**One save-payload parser.** `chart`, `gauge`, `kpi`, `kanban` and `gantt` each define a near-identical `_XViewSaveIn` model and `_parse_save_payload`, differing only by a config key name. `ViewRouterSpec` gains `config_key` and generates both (§7.9).
+**No save-payload parser at all.** `chart`, `gauge`, `kpi`, `kanban` and `gantt` each define a near-identical `_XViewSaveIn` model *and* a `_parse_save_payload` that branches on `request.content_type`. With writes accepting JSON only (§15.2) the branch has nothing to select between, so what remains is one pydantic schema per component — which the component already declares (§11.1's first point). `ViewRouterSpec` gains `config_key` and needs no parser hook.
 
 **Vendor config is namespaced, not flat.** `chart` carries eight Plotly layout keys — `margin_top`, `margin_bottom`, `margin_left`, `margin_right`, `x_tickangle`, `bar_gap`, `pie_textinfo`, `pie_textposition` — and `pivot` carries `formats` and `options`, which are Flexmonster's own structures typed as `dict[str, Any]`.
 

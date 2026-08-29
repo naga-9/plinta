@@ -8,39 +8,36 @@ from pydantic import BaseModel, ValidationError
 
 from plinta.forms.fields import unwrap_optional
 
+#: A cleared form field on a non-optional type: omit it so the schema default
+#: applies, rather than sending "" for the schema to reject.
+ABSENT = object()
+
 
 def coerce(raw: Any, annotation: Any) -> Any:
-    """Coerce one raw POST value to the type its field expects.
+    """Prepare one submitted value for the schema to validate.
 
-    A value that cannot be coerced is returned unchanged so the schema reports
-    it as a field error, rather than being silently replaced.
+    Only the two cases pydantic cannot handle itself. It already turns ``"50"``
+    into ``50``, ``"on"`` and ``"true"`` into ``True``, and ``"1.5"`` into
+    ``1.5``, so nothing here repeats that — a second coercion would be a second
+    contract, differing from the schema's in ways nobody notices.
+
+    A value that cannot be prepared is returned unchanged, so the schema
+    reports it as a field error rather than having a default substituted.
     """
     inner = unwrap_optional(annotation)
-    optional = inner is not annotation
 
+    # An HTML form sends "" for a field the user cleared.
     if raw is None or raw == "":
-        if optional:
-            return None
-        return "" if inner is str else None
+        if inner is not annotation:
+            return None        # optional: cleared means null
+        if inner is str:
+            return ""          # empty is a legitimate string
+        return ABSENT          # no empty int or bool exists; take the default
 
-    if inner is bool:
-        return raw in (True, "true", "True", "on", "1", 1)
-    if inner is int:
-        try:
-            return int(raw)
-        except (TypeError, ValueError):
-            return raw
-    if inner is float:
-        try:
-            return float(raw)
-        except (TypeError, ValueError):
-            return raw
-
+    # A container arrives as a JSON string, which pydantic will not parse.
     origin = get_origin(inner)
     is_model = isinstance(inner, type) and issubclass(inner, BaseModel)
-    if origin in (list, tuple, set, dict, frozenset) or is_model:
-        if not isinstance(raw, str):
-            return raw
+    if isinstance(raw, str) and (origin in (list, tuple, set, dict, frozenset) or is_model):
         try:
             return json.loads(raw)
         except (TypeError, ValueError):
@@ -64,7 +61,9 @@ def parse(schema: type[BaseModel], post, *, editable: set[str] | None = None):
             continue
         if name not in post:
             continue
-        values[name] = coerce(post.get(name), info.annotation)
+        value = coerce(post.get(name), info.annotation)
+        if value is not ABSENT:
+            values[name] = value
 
     try:
         return schema.model_validate(values).model_dump(), None

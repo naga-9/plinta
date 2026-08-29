@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field as PydanticField
 
 from plinta.forms.fields import fields_for, unwrap_optional, widget_for
 from plinta.forms.overrides import OverrideError
-from plinta.forms.parse import coerce, parse
+from plinta.forms.parse import ABSENT, coerce, parse
 
 
 class Config(BaseModel):
@@ -94,21 +94,40 @@ def test_an_override_replaces_the_derived_widget():
 @pytest.mark.parametrize(
     ("raw", "annotation", "expected"),
     [
-        ("true", bool, True),
-        ("on", bool, True),
-        ("false", bool, False),
-        ("", bool, None),
-        ("25", int, 25),
-        ("1.5", float, 1.5),
+        # Scalars pass straight through: pydantic coerces these itself, and a
+        # second coercion here would be a second contract.
+        ("true", bool, "true"),
+        ("on", bool, "on"),
+        ("25", int, "25"),
+        ("1.5", float, "1.5"),
         ("hello", str, "hello"),
-        ("", str, ""),
-        ("", Optional[int], None),
+        # A container arrives as a JSON string, which pydantic will not parse.
         ("[1, 2]", list[int], [1, 2]),
         ('{"a": 1}', dict[str, int], {"a": 1}),
+        # Cleared fields.
+        ("", str, ""),
+        ("", Optional[int], None),
+        ("", int, ABSENT),
+        ("", bool, ABSENT),
+        (None, Optional[str], None),
     ],
 )
 def test_coerce(raw, annotation, expected):
     assert coerce(raw, annotation) == expected
+
+
+def test_scalars_are_left_to_pydantic_and_it_gets_them_right():
+    """The coercion coerce() no longer does still has to happen."""
+    config, errors = parse(Config, {"page_size": "50", "enable_create": "on", "ratio": "1.5"})
+    assert errors is None
+    assert config["page_size"] == 50
+    assert config["enable_create"] is True
+    assert config["ratio"] == 1.5
+
+
+def test_a_cleared_required_field_takes_the_schema_default():
+    config, errors = parse(Config, {"page_size": ""})
+    assert errors is None and config["page_size"] == 25
 
 
 def test_uncoercible_input_is_left_for_the_schema_to_reject():

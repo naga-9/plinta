@@ -5,7 +5,6 @@ here knows what a user is.
 """
 from __future__ import annotations
 
-import types
 from dataclasses import dataclass
 from typing import Any, Union, get_args, get_origin
 
@@ -33,8 +32,7 @@ class Field:
 
 def unwrap_optional(annotation: Any) -> Any:
     """``Optional[X]`` and ``X | None`` become ``X``; anything else is returned as is."""
-    origin = get_origin(annotation)
-    if origin is Union or origin is types.UnionType:
+    if get_origin(annotation) is Union:
         not_none = [a for a in get_args(annotation) if a is not type(None)]
         if len(not_none) == 1:
             return not_none[0]

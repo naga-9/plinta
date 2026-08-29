@@ -1,10 +1,8 @@
 """Shared pydantic adapters for filter-style JSON."""
-from typing import Union
-
 from pydantic import TypeAdapter
 
-_JSONScalar = Union[str, int, float, bool, None]
-_FilterValue = Union[_JSONScalar, list[_JSONScalar]]
+_JSONScalar = str | int | float | bool | None
+_FilterValue = _JSONScalar | list[_JSONScalar]
 
 #: Validates ``{field_path: scalar | list[scalar]}``.
 #:

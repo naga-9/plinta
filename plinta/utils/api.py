@@ -6,8 +6,6 @@
 
 A client reads ``success`` first. Unfielded messages are keyed ``_general``.
 """
-from typing import Optional
-
 from django.http import JsonResponse
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -18,7 +16,7 @@ class EnvelopeOK(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     success: bool = True
-    data: Optional[dict] = None
+    data: dict | None = None
 
 
 class EnvelopeError(BaseModel):

@@ -12,7 +12,9 @@ from dataclasses import dataclass
 from typing import Any
 
 #: ``__NAME__``, uppercase; the registry is keyed by the lowercase name.
-TOKEN = re.compile(r"^__([A-Z][A-Z0-9_]*)__$")
+#: Matched with ``fullmatch``, so the token is the whole value and never a
+#: substring — ``$`` would also accept a trailing newline.
+TOKEN = re.compile(r"__([A-Z][A-Z0-9_]*)__")
 
 _registry: dict[str, Callable[["Context"], Any]] = {}
 
@@ -60,7 +62,7 @@ def resolve(value: Any, ctx: Context) -> Any:
     """
     if not isinstance(value, str):
         return value
-    match = TOKEN.match(value)
+    match = TOKEN.fullmatch(value)
     if match is None:
         return value
     fn = _registry.get(match.group(1).lower())
@@ -83,7 +85,7 @@ def unresolved(values: dict[str, Any]) -> frozenset[str]:
     found = set()
     for value in values.values():
         for item in value if isinstance(value, list) else [value]:
-            if isinstance(item, str) and (m := TOKEN.match(item)):
+            if isinstance(item, str) and (m := TOKEN.fullmatch(item)):
                 name = m.group(1).lower()
                 if name not in _registry:
                     found.add(name)

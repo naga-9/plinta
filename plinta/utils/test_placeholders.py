@@ -50,8 +50,24 @@ def test_an_unregistered_token_is_left_untouched(placeholder_registry):
     assert resolve("__NOBODY__", CTX) == "__NOBODY__"
 
 
-@pytest.mark.parametrize("value", ["plain", "", 7, None, True, "__lower__", "__A B__"])
+@pytest.mark.parametrize(
+    "value",
+    [
+        "plain", "", 7, None, True,
+        "__lower__",     # tokens are uppercase, so data is never mistaken for one
+        "__A B__",
+        "__1ST__",       # must start with a letter
+        "_ME_",          # one underscore is not the delimiter
+    ],
+)
 def test_non_tokens_pass_through(placeholder_registry, value):
+    assert resolve(value, CTX) == value
+
+
+@pytest.mark.parametrize("value", ['__ME__\n', "__ME__ ", " __ME__", "__ME__x"])
+def test_whitespace_or_padding_means_it_is_not_a_token(placeholder_registry, value):
+    """`fullmatch`, not `$` — which in Python also matches before a trailing newline."""
+    register_placeholder("me", lambda ctx: 9)
     assert resolve(value, CTX) == value
 
 

@@ -1419,6 +1419,7 @@ A field renderer is registered, declares how a value renders, and **declares wha
 | Widget feed vs public API | **kept separate**; they share `datasources` underneath, not a URL |
 | Block-shaped output for a caller | the **export path** with a registered `('table', 'json')` renderer |
 | Applying a saved filter by id | **the caller expands it** — publish `FilterSet` with `show_in_api`; no registry |
+| Write request bodies | **`application/json` only** — another content type is a 415 (§15.2); file upload is the one multipart endpoint |
 | Per-widget fetch/error/loading code | **→ one shared client** |
 | `serialize_for_table` / `table_select_related` | **→ registered field renderer** |
 | `expand_for_table` / `expand_color` | **dropped** |
@@ -2711,7 +2712,17 @@ A saved **filter** is different: it is values, not shape, so it belongs here. Th
 
 `contrib.api`. A machine-to-machine API is not required to turn models into screens, so it fails the sentence test. A project that does not want one does not mount it and does not carry the key table.
 
-### 15.2 Private UI transport
+### 15.2 One content type for writes
+
+**A write endpoint accepts `application/json`. Another content type is a 415, not a second parser.**
+
+The exception is file upload, which is `multipart/form-data` because a file cannot travel as JSON without base64. `contrib.attachments` owns the only such endpoint.
+
+This is already paid for: the vendored **`json-enc`** htmx extension (§17) makes plinta's own forms submit JSON, and the shared client (§7.4) builds every other request. Nothing on the wire is form-encoded.
+
+The rule exists because v1's write endpoints branched on `request.content_type` and the two branches had different contracts. The JSON branch validated with pydantic; the form branch hand-rolled it, so `page_size=abc` raised `ValueError` and `columns={` raised `JSONDecodeError` — 500s where the JSON branch returned a 400, and unknown fields silently accepted where the JSON branch rejected them. One validated path and one unvalidated one, selected by a header.
+
+### 15.3 Private UI transport
 
 Plain Django views, per app, with normal URLconfs and `@login_required`.
 
@@ -2739,7 +2750,7 @@ This is not a new routing system: `plinta/urls.py` already existed as a `reverse
 
 `reverse()` splits across namespaces — `api:` for JSON, per-app namespaces for fragments. That is the one real papercut, and it is accepted.
 
-### 15.3 Versioning
+### 15.4 Versioning
 
 The public API owns its path prefix and its version together; a library must not declare a version whose path a consumer chooses. Breaking changes to a published resource require a new version, not an edit.
 

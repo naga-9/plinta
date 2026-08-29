@@ -4,7 +4,7 @@ import json
 import pytest
 from pydantic import BaseModel
 
-from plinta.utils.api import EnvelopeError, EnvelopeOK, json_response, parse_request
+from plinta.utils.api import json_response, parse_request
 
 
 class Payload(BaseModel):
@@ -106,14 +106,3 @@ def test_a_request_with_no_content_type_is_parsed():
     """Django reports "" for a GET-shaped request; the body still decides."""
     payload, err = parse_request(FakeRequest(b'{"name": "x"}', ""), Payload)
     assert err is None and payload.name == "x"
-
-
-@pytest.mark.parametrize(
-    ("envelope", "expected"),
-    [
-        (EnvelopeOK(), {"success": True, "data": None}),
-        (EnvelopeError(errors="x"), {"success": False, "errors": "x"}),
-    ],
-)
-def test_envelope_schemas_match_the_wire_shape(envelope, expected):
-    assert envelope.model_dump() == expected

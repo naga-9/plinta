@@ -1,31 +1,16 @@
-"""The API envelope: one response shape for every endpoint.
+"""The response envelope for plinta's private UI transport.
 
     {"success": true}
     {"success": true,  "data": {...}}
     {"success": false, "errors": {field: [msg, ...]}}
 
 A client reads ``success`` first. Unfielded messages are keyed ``_general``.
+
+The public API does not use this — django-ninja returns a resource on 200 and
+its own ``{"detail": [...]}`` on 422.
 """
 from django.http import JsonResponse
-from pydantic import BaseModel, ConfigDict, ValidationError
-
-
-class EnvelopeOK(BaseModel):
-    """Success envelope, for the OpenAPI schema."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    success: bool = True
-    data: dict | None = None
-
-
-class EnvelopeError(BaseModel):
-    """Failure envelope, for the OpenAPI schema."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    success: bool = False
-    errors: dict[str, list[str]] | str
+from pydantic import ValidationError
 
 
 def json_response(*, data=None, errors=None, status=None) -> JsonResponse:

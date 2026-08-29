@@ -1,10 +1,5 @@
 """Primitives with no knowledge of plinta's own models."""
-from plinta.utils.api import (
-    EnvelopeError,
-    EnvelopeOK,
-    json_response,
-    parse_request,
-)
+from plinta.utils.api import json_response, parse_request
 from plinta.utils.placeholders import (
     Context,
     PlaceholderError,
@@ -18,8 +13,6 @@ from plinta.utils.schemas import FilterValuesAdapter
 
 __all__ = [
     "Context",
-    "EnvelopeError",
-    "EnvelopeOK",
     "FilterValuesAdapter",
     "PlaceholderError",
     "json_response",

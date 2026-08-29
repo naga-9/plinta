@@ -375,7 +375,7 @@ Three packages at the bottom of the stack.
 
 | Holds | Why |
 |---|---|
-| the API envelope — `json_response`, `EnvelopeOK`, `EnvelopeError` | one response shape, so a client parses one thing |
+| the API envelope — `json_response` | one response shape for the private transport, so its one client parses one thing (§15.2) |
 | `parse_request(request, schema)` | request → validated parameters, shared by every router |
 | `schemas.py` — `FilterValuesAdapter` | shared pydantic adapters for filter-style JSON |
 
@@ -1419,7 +1419,7 @@ A field renderer is registered, declares how a value renders, and **declares wha
 | Widget feed vs public API | **kept separate**; they share `datasources` underneath, not a URL |
 | Block-shaped output for a caller | the **export path** with a registered `('table', 'json')` renderer |
 | Applying a saved filter by id | **the caller expands it** — publish `FilterSet` with `show_in_api`; no registry |
-| Write request bodies | **`application/json` only** — another content type is a 415 (§15.2); file upload is the one multipart endpoint |
+| Write request bodies | **`application/json` only** — another content type is a 415 (§15.3); file upload is the one multipart endpoint |
 | Per-widget fetch/error/loading code | **→ one shared client** |
 | `serialize_for_table` / `table_select_related` | **→ registered field renderer** |
 | `expand_for_table` / `expand_color` | **dropped** |
@@ -1928,7 +1928,7 @@ Three modes change from today's `AJAX = True` — see §7.3.
 
 **One config schema per component.** Five of the seven `view_config.py` files are pure aliases — `from X.config import XBlockConfig as XViewConfig` — with only `table` and `pivot` genuinely differing. A component declares **one** schema, and a view uses it unless the component says otherwise. Deletes five files and the dispatch that imports them.
 
-**No save-payload parser at all.** `chart`, `gauge`, `kpi`, `kanban` and `gantt` each define a near-identical `_XViewSaveIn` model *and* a `_parse_save_payload` that branches on `request.content_type`. With writes accepting JSON only (§15.2) the branch has nothing to select between, so what remains is one pydantic schema per component — which the component already declares (§11.1's first point). `ViewRouterSpec` gains `config_key` and needs no parser hook.
+**No save-payload parser at all.** `chart`, `gauge`, `kpi`, `kanban` and `gantt` each define a near-identical `_XViewSaveIn` model *and* a `_parse_save_payload` that branches on `request.content_type`. With writes accepting JSON only (§15.3) the branch has nothing to select between, so what remains is one pydantic schema per component — which the component already declares (§11.1's first point). `ViewRouterSpec` gains `config_key` and needs no parser hook.
 
 **Vendor config is namespaced, not flat.** `chart` carries eight Plotly layout keys — `margin_top`, `margin_bottom`, `margin_left`, `margin_right`, `x_tickangle`, `bar_gap`, `pie_textinfo`, `pie_textposition` — and `pivot` carries `formats` and `options`, which are Flexmonster's own structures typed as `dict[str, Any]`.
 
@@ -2712,7 +2712,24 @@ A saved **filter** is different: it is values, not shape, so it belongs here. Th
 
 `contrib.api`. A machine-to-machine API is not required to turn models into screens, so it fails the sentence test. A project that does not want one does not mount it and does not carry the key table.
 
-### 15.2 One content type for writes
+### 15.2 Each surface uses its framework's shape
+
+**The public API returns what django-ninja returns.** A resource on 200, and ninja's own `{"detail": [...]}` on 422 for a validation failure. No envelope, and no `NinjaValidationError` override to impose one.
+
+v1 wrapped every response in `{"success": …}` and overrode ninja's error handler so validation failures matched. That is fighting the framework for a contract it already has — and the OpenAPI spec then documents a shape ninja did not generate, so the two drift.
+
+**The private transport uses the envelope** (§3.1), because nothing else gives it one. Plain Django views have no response convention, one client consumes all of them, and `{"success": true|false}` is simpler for that client than branching on status across forty-odd endpoints.
+
+| | Public API | Private transport |
+|---|---|---|
+| Success | `200` + the resource | `{"success": true, "data": …}` |
+| Failure | `422` + `{"detail": […]}` | `{"success": false, "errors": {field: […]}}` |
+| Body parsed by | ninja, from `body: Schema` | `parse_request` |
+| Specified | OpenAPI | not at all |
+
+Two surfaces with two contracts is ADR 0007 (§24) applied rather than restated. The consequence is that `EnvelopeOK` and `EnvelopeError` are deleted: they were pydantic models nothing ever constructed, declared so ninja could document the envelope — and ninja no longer serves one.
+
+### 15.3 One content type for writes
 
 **A write endpoint accepts `application/json`. Another content type is a 415, not a second parser.**
 
@@ -2722,7 +2739,7 @@ This is already paid for: the vendored **`json-enc`** htmx extension (§17) make
 
 The rule exists because v1's write endpoints branched on `request.content_type` and the two branches had different contracts. The JSON branch validated with pydantic; the form branch hand-rolled it, so `page_size=abc` raised `ValueError` and `columns={` raised `JSONDecodeError` — 500s where the JSON branch returned a 400, and unknown fields silently accepted where the JSON branch rejected them. One validated path and one unvalidated one, selected by a header.
 
-### 15.3 Private UI transport
+### 15.4 Private UI transport
 
 Plain Django views, per app, with normal URLconfs and `@login_required`.
 
@@ -2750,7 +2767,7 @@ This is not a new routing system: `plinta/urls.py` already existed as a `reverse
 
 `reverse()` splits across namespaces — `api:` for JSON, per-app namespaces for fragments. That is the one real papercut, and it is accepted.
 
-### 15.4 Versioning
+### 15.5 Versioning
 
 The public API owns its path prefix and its version together; a library must not declare a version whose path a consumer chooses. Breaking changes to a published resource require a new version, not an edit.
 

@@ -2,6 +2,7 @@
 import pytest
 
 from plinta.utils.placeholders import (
+    TOKEN,
     Context,
     PlaceholderError,
     register_placeholder,
@@ -66,9 +67,16 @@ def test_non_tokens_pass_through(placeholder_registry, value):
 
 @pytest.mark.parametrize("value", ['__ME__\n', "__ME__ ", " __ME__", "__ME__x"])
 def test_whitespace_or_padding_means_it_is_not_a_token(placeholder_registry, value):
-    """`fullmatch`, not `$` — which in Python also matches before a trailing newline."""
+    """A token is the whole value; padding makes it a different value."""
     register_placeholder("me", lambda ctx: 9)
     assert resolve(value, CTX) == value
+
+
+def test_the_pattern_is_anchored_whatever_method_a_caller_uses():
+    """Locks the invariant: search() must not find a token inside a longer value."""
+    assert TOKEN.search("owner__ME__x") is None
+    assert TOKEN.match("__ME__" + chr(10)) is None
+    assert TOKEN.fullmatch("__ME__").group(1) == "ME"
 
 
 def test_resolves_inside_a_filter_dict(placeholder_registry):

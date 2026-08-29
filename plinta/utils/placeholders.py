@@ -12,9 +12,11 @@ from dataclasses import dataclass
 from typing import Any
 
 #: ``__NAME__``, uppercase; the registry is keyed by the lowercase name.
-#: Matched with ``fullmatch``, so the token is the whole value and never a
-#: substring — ``$`` would also accept a trailing newline.
-TOKEN = re.compile(r"__([A-Z][A-Z0-9_]*)__")
+#:
+#: Anchored with ``\A`` and ``\Z`` rather than ``^`` and ``$``, so the token is
+#: the whole value under any match method: ``$`` also matches before a trailing
+#: newline, and an unanchored pattern would find a token inside ``owner__ME__x``.
+TOKEN = re.compile(r"\A__([A-Z][A-Z0-9_]*)__\Z")
 
 _registry: dict[str, Callable[["Context"], Any]] = {}
 

@@ -1230,16 +1230,21 @@ Not ninja. §15 keeps ninja for the public API alone, and this is neither a publ
 
 #### It is not the public API, and must not become it
 
-Tempting, since both return rows over a DataSource. But they are shaped by different things:
+Tempting, since both return rows over a DataSource.
+
+**The reason is not that block config is editable.** `DataSourceField` rows are edited in a browser too (§12.1), and the public API is generated from them (§15.1), so both surfaces take their columns from configuration a user can change. That distinction does not separate them.
+
+**The reason is that the widget feed's shape depends on who is asking.** A saved view is a per-viewer delta over the block's config, so two people requesting the same URL get different columns. No versioned contract can promise that, and no OpenAPI schema can describe it. The public API's shape varies with configuration; the widget feed's varies with the *viewer*, and that is a different kind of thing.
 
 | | Widget feed | Public API |
 |---|---|---|
 | Scoped to | a **Block** | a **DataSource** |
-| Shaped by | its columns, `base_filter`, queryset modifier, and the viewer's saved-view delta | the DataSource's fields |
-| Versioned | no — changes with the UI | yes |
-| Stability | none | a promise |
+| Shaped by | block config **and the viewer's saved view** | the DataSource's fields |
+| Same URL, two users | **different columns** | the same columns |
+| Cardinality | many blocks per model, rearranged daily | one DataSource per model (§6.1) |
+| Versioned | no | yes |
 
-Unifying them would leak block knowledge into the public contract — `/api/v1/data/instruments/?block=instruments-table` — and freeze the UI's data shape behind a version guarantee. The frontend could then no longer change its own payload without a breaking API change.
+Unifying them would put a per-viewer response behind a version guarantee, and leak block identity into the public contract — `/api/v1/data/instruments/?block=instruments-table`.
 
 **What they do share is underneath**: both go through `get_queryset`, `get_available_fields` and `search_q` (§6.3), so both inherit the same row filtering, the same field permissions and the same search behaviour. That is the part that should be common, and it already is — the layer below both.
 

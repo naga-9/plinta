@@ -1570,6 +1570,7 @@ It does **not** own: the export endpoint (`contrib.export`, §14) or anything a 
 |---|---|
 | `base_filter`, `queryset_modifier` | keep — configuration-level narrowing |
 | `queryset_modifier` help text | **fix** — it stores a registered key, not a dotted path |
+| Union validation errors | **collapse here** — pydantic reports one error per union branch, so a bad `base_filter` value yields five messages under one field. `loc[1]` names the branch; collapse to one message stating the rule, which only this layer can word |
 | `mode` on the block | **add** — overrides the component default |
 | `sync_labels`, `fire_notifications`, `audit_changes` stages | **deleted** — become event subscribers |
 | `recompute_siblings` flag | **dropped**; the refetch becomes unconditional — the capability stays |

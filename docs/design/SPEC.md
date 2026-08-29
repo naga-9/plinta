@@ -436,6 +436,8 @@ So §3.4's claim that the fiscal split resolves the coupling is **incomplete**. 
 
 ### 3.6 The placeholder registry
 
+**It lives in `utils`, not `dates`.** Its own examples are `__CURRENT_USER__` and `my_watchlist`; only some tokens are date-shaped, and a package named `dates` holding a resolver that returns a list of instrument ids is the drift §10.5 renames `deployment_env` to avoid. `dates` keeps what is calendar arithmetic.
+
 What those two core modules actually do is resolve **magic tokens inside filter values** before querying — `__CURRENT_FISCAL_YEAR__` becomes 2026, `__CURRENT_MONTH__` becomes 8.
 
 That is a generic mechanism wearing a fiscal costume. Core owns the registry; providers register into it:
@@ -449,7 +451,15 @@ register_placeholder('current_fiscal_year', lambda ctx: fiscal_year_for(ctx.user
 
 Core then calls `resolve_placeholders(values, ctx)` and never imports a fiscal helper. A token with no registered provider is left untouched and reported by the startup check (§5.13) — not silently blanked, which would widen a filter.
 
-**One registry, three consumers:**
+#### Ranges and placeholders are two registries
+
+They look like one and are not, which §20.4's test settles: a **range** takes `(field, today)` and returns a `Q` over a date field; a **placeholder** takes a context and returns a value. Neither the input nor the output shape matches, so they are separate — `dates.register_range` and `utils.register_placeholder`.
+
+Both are extension points. `contrib.organization` registers fiscal ranges into the first and fiscal tokens into the second, and core imports no fiscal helper either way.
+
+So the design carries **four** registries, not three: annotations (§6.9), queryset modifiers (§6.4), placeholders (§3.6) and ranges.
+
+#### One placeholder registry, three consumers:
 
 - filter values (`__CURRENT_FISCAL_YEAR__`, today's `resolve_fiscal_placeholders`)
 - `create_defaults` on a block (`__CURRENT_USER__` today — §6 records that it should become named placeholders)
@@ -508,6 +518,8 @@ Not in block config generally, not in column definitions. Those five already sha
 | `__CURRENT_USER__` magic string | **→ the same registry**, as a named placeholder |
 | An unresolvable token | left untouched **and reported**, never blanked |
 | Who may register a token | core, contrib and consumers — the same door |
+| Where the placeholder registry lives | **`utils`** — most tokens are not dates |
+| Named date ranges | a **second** registry, in `dates`; `(field, today) → Q` |
 | What a token may return | a **value** only; never a field path, never an operator |
 | Where tokens are honoured | filter-style dicts only (five call sites, one validator) |
 
@@ -1278,7 +1290,7 @@ The cost is a second round trip.
 
 `?filterset=42` resolved server-side would mean `contrib.api` reaching into `pages` for a `FilterSet`, which is legal — contrib may import any core layer — but would still add a fourth registry.
 
-Rejected because the design already carries three registries — annotations (§6.9), queryset modifiers (§6.4) and placeholders (§3.6) — and a fourth must earn its place. One boolean on one model achieves the same thing.
+Rejected because the design already carries four registries — annotations (§6.9), queryset modifiers (§6.4), placeholders (§3.6) and date ranges (§3.6) — and a fifth must earn its place. One boolean on one model achieves the same thing.
 
 **The test before adding a registry:** if a proposed registry shares an input shape and an output shape with an existing one, it is the same registry under another name. The four differ genuinely — the query-parameter one is the only one the *caller* drives rather than configuration — but "genuinely different" is not the same as "worth its weight."
 
@@ -2861,7 +2873,7 @@ Eight are `register_*` functions; the rest are a signal receiver, a `Rule` subcl
 
 Every bundled package uses these and only these. A private path for bundled code would make the contract fiction, so there isn't one.
 
-### 18.1 Add a placeholder — `dates` (§3.6)
+### 18.1 Add a placeholder — `utils` (§3.6)
 
 ```python
 @register_placeholder('current_quarter')
@@ -3103,7 +3115,7 @@ The rule is enforced mechanically because a rule enforced by discipline is a rul
 
 ### 20.4 Before adding a registry
 
-The design carries registries for annotations, queryset modifiers and placeholders. Before a fourth: **if a proposed registry shares an input shape and an output shape with an existing one, it is the same registry under another name.**
+The design carries registries for annotations, queryset modifiers, placeholders and date ranges. Before a fifth: **if a proposed registry shares an input shape and an output shape with an existing one, it is the same registry under another name.**
 
 Passing that test is necessary, not sufficient. A mechanism must also be worth its weight — a query-parameter registry for resolving saved filters by id was genuinely distinct and still rejected, because one boolean on one model achieved the same thing.
 
@@ -3372,7 +3384,7 @@ Everything decided as "not in v2", in one place, each with the use case that wou
 |---|---|---|
 | **`PageFilterMapping`** — one filter across several DataSources | New (`pages/0003`), never exercised. A page whose blocks share a DataSource needs nothing, and a mixed page can declare a filter per source. | A dashboard that genuinely needs one control mapping to `sector`, `instrument__sector` and `instrument__sector__code` across three blocks. |
 | **A general `visibility` field** on shareables | The single-axis model — public means owner-less — is accepted, and publishing means giving up ownership (§14.1). | A second shareable needing *owned and public*. Reports needed it and was normalised instead; a second case means the spine is wrong, not the app. |
-| **A query-parameter registry** for the public API | The caller expands a saved filter in two calls, and the design already carries three registries — a fourth must earn its weight (§20.4). | `?filterset=` being asked for repeatedly, by someone real. |
+| **A query-parameter registry** for the public API | The caller expands a saved filter in two calls, and the design already carries four registries — a fifth must earn its weight (§20.4). | `?filterset=` being asked for repeatedly, by someone real. |
 | **Bulk write endpoints** in core | The write pipeline is single-row by design; its per-row authorise, validate and emit are what make it the only mutation path. | A contrib importer, which loops the pipeline inside `events.batch()` rather than bypassing it. |
 | **A bundler and TypeScript** | Vendored assets solve the CDN problem without importing npm's maintenance surface (§17). | The JS settling into one client and N adapters, at which point what would be compiled is clear. |
 | **Custom elements** for adapter mounting | ES modules with an import map do the job. | HTMX swaps making manual mount-scanning painful enough to notice. |

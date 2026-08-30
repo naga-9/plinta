@@ -966,11 +966,19 @@ Note the rename: today `checks.py` means "permission checks", colliding with Dja
 
 ### 5.13 Startup validation
 
-Because a missing policy fails open (§5.3), misconfiguration must be visible at boot rather than in production:
+Because a missing policy fails open (§5.3), misconfiguration must be visible at boot rather than in production.
 
-- a DataSource-backed model with **no registered policy** — informational, since it is a legitimate choice
-- a policy referencing a **rule that no longer exists**, or a `HasPerm` naming an **unminted codename** — error
-- a `DataSourceField` naming an **unregistered annotation** — error
+**Each check belongs to the layer that can see what it validates.** Two of the three need a DataSource, which `permissions` (layer 3) cannot import — the same split §3.6 makes for unresolved placeholders.
+
+| Check | Severity | Owned by |
+|---|---|---|
+| a `HasPerm` naming an **unminted codename** | error | **`permissions`** — it has the policy registry and the permission table |
+| a DataSource-backed model with **no registered policy** | informational — it is a legitimate choice | `datasources` |
+| a `DataSourceField` naming an **unregistered annotation** | error | `datasources` |
+
+A missing `HasPerm` codename is not a silent no-op: the rule denies, so a policy written to admit rows refuses all of them, and the trace in `explain` says only that the branch failed. The check names the model, the action and the codename.
+
+**A check must survive an unmigrated database.** Checks run during `migrate`, before the tables exist, so one that queries rows returns nothing rather than raising — failing there would block the migration that fixes it.
 
 ### 5.14 `explain(user, action, target)`
 

@@ -102,6 +102,18 @@ class _Not(Rule):
         return not self.a.evaluate(user, instance)
 
 
+def walk(rule: Rule):
+    """Yield every rule in a tree, parents before children.
+
+    Lets a check inspect what a policy composed without evaluating it.
+    """
+    yield rule
+    for attr in ("a", "b"):
+        child = getattr(rule, attr, None)
+        if isinstance(child, Rule):
+            yield from walk(child)
+
+
 class Owner(Rule):
     """The row belongs to this user."""
 

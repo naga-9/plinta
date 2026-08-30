@@ -1000,9 +1000,21 @@ It is a **diagnostic**, not a decision path: `can()` must never call it, so an e
 
 **A non-superuser may only grant permissions they themselves hold.**
 
-Without this invariant, anyone able to administer permissions can promote themselves — which is exactly the privilege-escalation defect the 28-app audit found in `toggle_user_permission`. The general defence is one check in the apply path, and it closes the class rather than the instance.
+Without this invariant, anyone able to administer permissions can promote themselves. v1's `apply_permission_changes` took an `actor` argument and used it **only for the audit row** — so the trail recorded who escalated, and nothing stopped them. The defence is one check in the apply path, and it closes the class rather than the instance.
 
-Corollaries: revoking is unrestricted (removing access is not escalation), and granting a **group** membership is bounded by the permissions the granter holds, not by the group's name.
+| | |
+|---|---|
+| Grant | only what the granter holds, directly or through a group |
+| Grant to a **group** | the same rule — a group grant reaches every member, so it cannot be looser |
+| Revoke | **unrestricted**; removing access cannot escalate anyone |
+| Join a group | bounded by what the group **carries**, never by its name |
+| Superuser | may grant anything |
+
+**All or nothing.** A grant naming several permissions applies none of them if one is refused. A partial grant leaves the caller unable to tell what happened, and re-running it compounds the difference.
+
+**The group rule is about contents, not names.** A group called *Read only* that carries `delete_book` is exactly the case a name-based rule misses, so joining one requires holding everything in it.
+
+This module enforces escalation only. Whether someone may administer permissions at all is an ordinary `can(user, "change", Permission)` question, asked by whatever exposes the screen.
 
 ### 5.16 Anonymous users
 

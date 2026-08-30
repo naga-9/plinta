@@ -14,11 +14,6 @@ Nothing else is published yet, because nothing else is true yet. Documentation f
 
 ## v1
 
-The previous version is the tag **`v1.0`**: eighteen Django apps, ~29k LOC, all mandatory, with its own documentation set.
-
-```
-git show v1.0:plinta/permissions/rules.py
-git show v1.0:docs/building/permissions.md
-```
+The previous version — eighteen Django apps, ~29k LOC, all mandatory — keeps its own repository and is not part of this history.
 
 It is a reference, not a target. Where v1 and the specification disagree, the specification is the decision and v1 is the thing being replaced — including where v1's documentation described behaviour its code never had.

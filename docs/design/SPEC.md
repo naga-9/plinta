@@ -3373,7 +3373,7 @@ So when the last layer lands, it splits.
 | §21, §22 — the ledgers | **Retired.** They record what became of v1's features, which stops mattering once nothing is left of it |
 | §23, §25 — build order, the skills plan | **Retired.** They expire on completion by definition |
 
-**Retired means tagged, not deleted** — `v2-spec`, on the same principle as `v1.0` (§23.4). Recoverable, and nobody has to keep it true.
+**Retired means tagged, not deleted** — `v2-spec`: recoverable, and nobody has to keep it true. Recoverable, and nobody has to keep it true.
 
 What survives is the part that cannot drift: an ADR records a decision at a moment and never claims to describe current behaviour, and `architecture.md` states rules the import-boundary test enforces mechanically.
 
@@ -3701,12 +3701,12 @@ Every coupling found in the previous design, and where each is resolved. The reb
 
 Two template includes of the attachment section were also flagged during the audit and needed no change — both are already guarded on context variables that only populate when the app is installed.
 
-### 23.4 v1 is a git tag, not a directory
+### 23.4 v1 is another repository, not a directory
 
-**v1 is deleted in the first commit of the rebuild**, package and tests together, and reached afterwards through the tag `v1.0`:
+**v1 is not in this repository.** This history begins at an empty package; v1 keeps its own repository, and is read from a clone of it:
 
 ```
-git show v1.0:plinta/permissions/rules.py
+cd ../bmscore && git show HEAD:plinta/permissions/rules.py
 ```
 
 An earlier draft kept v1 on disk, unrun, to be deleted layer by layer. That is worse for three reasons, and the third is the one that matters.
@@ -3715,7 +3715,7 @@ An earlier draft kept v1 on disk, unrun, to be deleted layer by layer. That is w
 - **v1's migrations conflict with the fresh `0001_initial` §20.7 requires**, and its `app_label`s collide.
 - **The import-boundary test (§20.3) would be unenforceable** until the last v1 file left. With v1 absent from the working tree it passes from commit one, which is the point of writing it at layer 1.
 
-Reading v1 and *having* v1 are different needs. A tag serves the first without the second, and makes an accidental import impossible rather than merely discouraged.
+Reading v1 and *having* v1 are different needs. A separate repository serves the first without the second, makes an accidental import impossible rather than merely discouraged, and lets this repository be shared without sharing what preceded it.
 
 **The tests are rewritten per layer, never ported.** A v1 test asserts v1's shape — eighteen permission functions, a fifteen-stage pipeline, `block_name` as a string — so porting one ports the design it was written against. Read the v1 test for the behaviour it captures, then write the v2 test against §N.
 

@@ -2125,7 +2125,19 @@ Build layer 9. The chrome every screen renders inside, and the only layer a brow
 
 One base template, not two. Today `plinta/templates/plinta/base.html` and `plinta/templates/shell/base.html` both exist and `seed_platform_pages`' docstring names the second while the pages render through the first. **v2 ships one**, under `shell/`.
 
-It provides: the document head and asset loading, the topbar, the sidebar, the notification bell, the theme toggle, and the blocks `body` / `extra_css` / `extra_js` a page fills.
+It provides: the document head and asset loading, the topbar, the sidebar, the theme toggle, and the blocks `body` / `extra_css` / `extra_js` a page fills.
+
+**Not the notification bell.** A bell is `contrib.notifications`', and a base template that drew one would be core naming a package that may not be installed — the line §10 draws in its own `Must not know`. The shell offers a **topbar registry** instead and renders whatever is in it, exactly as it does for the sidebar's fixed links (§10.2).
+
+```python
+register_topbar_item(
+    "notifications",
+    template="plinta/notifications/bell.html",
+    permission="plinta_notifications.view_notification",
+)
+```
+
+An item naming a permission is drawn only for a holder, so an app's chrome disappears with its access rather than showing a control that refuses.
 
 **One base, and its regions in separate files**, because a template is the unit someone overrides (§10.9). v1's single file meant changing the sidebar required forking the document head with it.
 
@@ -2280,6 +2292,7 @@ A consumer wanting Bootstrap specifically loads it there and writes a bridge sty
 | Theme attribute | `data-theme`, not `data-bs-theme` |
 | Template granularity | split by override boundary; blocks for partial changes |
 | Class names, template context, block names | **public API** (§18.16) |
+| The notification bell | **contributed, not built in** — a topbar registry (§10.1) |
 | `LoginRequiredMiddleware` | **required**, with a system check |
 | Fixed sidebar links | shell-rendered, shell-gated |
 | `pivot_provider_settings` context processor | **→ the pivot package that needs it** |
@@ -2773,9 +2786,15 @@ So connecting twice is harmless — `ready()` can run more than once — and so 
 
 **A uid must be matched to remove it.** Django looks a uid-registered receiver up by uid alone, so `disconnect(the_function)` removes nothing and returns as though it worked. The package exposes `connect()` and `disconnect()` for that reason rather than leaving callers to pair them.
 
+##### The screen is a Page, not a view
+
+An audit log is rows with filters, which is what a page of blocks is for — so `seed_audit_page` creates a DataSource over `AuditEntry`, a `table_plinta` block and a Page, and the trail appears in the menu through the ordinary permission-filtered path (§9.5).
+
+That it needs no bespoke screen is the point: the app registers its model and plinta draws it, the same as a consumer's own.
+
 ##### Degrades when absent
 
-No change history. Nothing else changes: no core behaviour, and no other contrib app, depends on audit being installed.
+No change history, and the page goes with the app rather than leaving a dead menu entry. Nothing else changes: no core behaviour, and no other contrib app, depends on audit being installed.
 
 #### `checklist`
 
@@ -3025,6 +3044,18 @@ Email is queued, never sent inline. Delivery is a scheduled command, so a mail s
 Every sideways dependency in the previous design pointed here: comments called it, actions called it, the workflow mixin called it, the write pipeline called it. Four contrib apps and one core module all reached into it directly, which is what made it effectively mandatory.
 
 All four are now emitters of core signals that this app subscribes to. Nothing imports it. It can be absent and every one of those paths still runs.
+
+##### The screens
+
+Three, and none of them a `Page`: a bell, a list and a preference grid are views rather than compositions, so they are reached by a registered topbar item and a registered shell link (§10.2).
+
+**The preference grid takes both axes from their registries** — kinds down, channels across. A package adding a channel adds a column and one adding a subscription adds a row, and neither touches the view.
+
+**A channel the viewer cannot use is not offered.** No address, no email column: an unusable checkbox is a lie about what will happen.
+
+**An unticked box is a stored `no`**, not an absent row. Left absent, the default would drift back the next time it changed.
+
+**The bell counts what is unread and says nothing when there is none.** A zero badge is noise. It reads its count from a template tag rather than a context processor, so a screen that never draws the bell pays no query for it.
 
 ##### Failure policy
 

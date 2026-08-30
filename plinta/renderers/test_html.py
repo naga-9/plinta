@@ -48,6 +48,22 @@ def test_a_missing_attribute_is_none():
     assert value_of(Row(), "nonesuch") is None
 
 
+def test_a_choices_field_shows_its_label():
+    """A column showing `placed` where the model says "Placed" is showing the
+    database's answer to a question the reader asked of the application."""
+    row = Row(status="placed", get_status_display=lambda: "Placed")
+    assert value_of(row, "status") == "Placed"
+
+
+def test_a_choices_field_across_a_relation_shows_its_label():
+    order = Row(status="placed", get_status_display=lambda: "Placed")
+    assert value_of(Row(order=order), "order__status") == "Placed"
+
+
+def test_a_plain_field_is_unaffected():
+    assert value_of(Row(title="Dune"), "title") == "Dune"
+
+
 # --- a cell ----------------------------------------------------------------
 
 

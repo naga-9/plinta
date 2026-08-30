@@ -1,0 +1,46 @@
+{% extends "plinta/shell/base.html" %}
+{# Kinds down, channels across. Both axes come from their registries, so a
+   package adding either adds a row or a column and touches nothing here. #}
+{% block title %}Notification preferences · {{ site_name }}{% endblock %}
+{% block topbar_title %}Notification preferences{% endblock %}
+
+{% block body %}
+    <div class="pl-page__header"><h1>Notification preferences</h1></div>
+
+    <form method="post">
+        {% csrf_token %}
+        <article class="pl-card"><div class="pl-card__body pl-card__body--flush">
+            <div class="pl-table-wrap">
+                <table class="pl-table">
+                    <thead><tr>
+                        <th>What</th>
+                        {% for channel in channels %}<th>{{ channel.label }}</th>{% endfor %}
+                    </tr></thead>
+                    <tbody>
+                        {% for row in rows %}
+                            <tr>
+                                <td>{{ row.kind.name }}</td>
+                                {% for cell in row.cells %}
+                                    <td>
+                                        <label class="pl-checkbox">
+                                            <input type="checkbox"
+                                                   name="{{ row.kind.name }}:{{ cell.channel.name }}"
+                                                   {% if cell.enabled %}checked{% endif %}>
+                                        </label>
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% empty %}
+                            <tr class="pl-table__empty">
+                                <td colspan="{{ channels|length|add:1 }}">
+                                    Nothing subscribes to anything yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div></article>
+        <button type="submit" class="pl-btn pl-btn--primary"
+                style="margin-top: var(--pl-space-4)">Save</button>
+    </form>
+{% endblock %}

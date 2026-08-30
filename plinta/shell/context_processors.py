@@ -28,8 +28,13 @@ def menu(request) -> dict[str, Any]:
     from plinta.pages.menu import build
 
     from plinta.shell.links import visible_links
+    from plinta.shell.topbar import visible_items
 
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return {"menu_sections": [], "shell_links": []}
-    return {"menu_sections": build(user), "shell_links": visible_links(user)}
+        return {"menu_sections": [], "shell_links": [], "topbar_items": []}
+    return {
+        "menu_sections": build(user),
+        "shell_links": visible_links(user),
+        "topbar_items": visible_items(user),
+    }

@@ -1,0 +1,42 @@
+{% extends "plinta/shell/base.html" %}
+{% block title %}Notifications · {{ site_name }}{% endblock %}
+{% block topbar_title %}Notifications{% endblock %}
+
+{% block body %}
+    <div class="pl-page__header">
+        <h1>Notifications</h1>
+        {% if unread %}<span class="pl-muted">{{ unread }} unread</span>{% endif %}
+        <span class="pl-spacer"></span>
+        {% if unread %}
+            <a class="pl-btn pl-btn--sm" href="{% url 'notifications:mark_all_read' %}">
+                Mark all read</a>
+        {% endif %}
+        <a class="pl-btn pl-btn--sm" href="{% url 'notifications:preferences' %}">
+            Preferences</a>
+    </div>
+
+    <div class="pl-stack">
+        {% for notification in notifications %}
+            <article class="pl-card">
+                <div class="pl-card__body">
+                    <div class="pl-row">
+                        <strong>{{ notification.title }}</strong>
+                        {% if not notification.is_read %}
+                            <span class="pl-chip">New</span>
+                        {% endif %}
+                        <span class="pl-spacer"></span>
+                        <span class="pl-muted">{{ notification.created_at }}</span>
+                    </div>
+                    {% if notification.body %}<p>{{ notification.body }}</p>{% endif %}
+                    <a class="pl-btn pl-btn--sm"
+                       href="{% url 'notifications:mark_read' notification.pk %}">
+                        {% if notification.url %}Open{% else %}Mark read{% endif %}</a>
+                </div>
+            </article>
+        {% empty %}
+            <article class="pl-card"><div class="pl-card__body">
+                <p class="pl-muted">Nothing yet.</p>
+            </div></article>
+        {% endfor %}
+    </div>
+{% endblock %}

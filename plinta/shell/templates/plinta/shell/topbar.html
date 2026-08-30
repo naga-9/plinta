@@ -8,6 +8,7 @@
     <span class="pl-topbar__title">{% block topbar_title %}{{ page.name|default:"" }}{% endblock %}</span>
     <div class="pl-topbar__actions">
         {% block topbar_actions %}
+            {% for item in topbar_items %}{% include item.template %}{% endfor %}
             <button type="button" class="pl-btn pl-btn--ghost pl-btn--sm"
                     data-plinta-theme-toggle aria-label="Switch theme">◐</button>
             {% if user.is_authenticated %}

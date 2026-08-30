@@ -8,8 +8,14 @@ class AuditConfig(AppConfig):
     verbose_name = "plinta audit"
     default_auto_field = "django.db.models.BigAutoField"
 
-    #: Checked at boot: audit cannot record what it cannot describe.
-    requires = ["plinta.events", "plinta.permissions"]
+    #: The listener needs the first two; `seed_audit_page` needs the rest.
+    requires = [
+        "plinta.events",
+        "plinta.permissions",
+        "plinta.datasources",
+        "plinta.blocks",
+        "plinta.pages",
+    ]
 
     def ready(self):
         # Imported for its side effect: connecting the receivers. This is the

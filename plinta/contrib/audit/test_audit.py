@@ -289,3 +289,81 @@ def test_a_broken_trail_does_not_fail_the_write(writer, monkeypatch, caplog):
     saved, _ = write(Book(owner=writer), {"title": "Dune"}, writer)
     assert saved.pk is not None
     assert "audit could not record" in caplog.text
+
+
+# --- the screen ------------------------------------------------------------
+
+
+def test_the_seeder_makes_a_page(writer):
+    from django.core.management import call_command
+
+    from plinta.pages.models import Page
+
+    call_command("seed_audit_page", verbosity=0)
+    assert Page.objects.filter(slug="audit-trail").exists()
+
+
+def test_the_page_is_a_page_and_not_a_view(writer):
+    """So it appears in the menu through the ordinary permission-filtered
+    path, and disappears with the app rather than leaving a dead link."""
+    from django.contrib.auth.models import Permission
+    from django.core.management import call_command
+
+    from plinta.pages.menu import build
+    from plinta.pages.models import Page
+
+    call_command("seed_audit_page", verbosity=0)
+    perm, _ = Permission.objects.get_or_create(
+        codename="view_page",
+        content_type=ContentType.objects.get_for_model(Page),
+        defaults={"name": "view page"},
+    )
+    writer.user_permissions.add(perm)
+    reader = User.objects.get(pk=writer.pk)
+    names = [p.name for section in build(reader) for p in section.pages]
+    assert "Audit trail" in names
+
+
+def test_the_seeder_is_idempotent(writer):
+    from django.core.management import call_command
+
+    from plinta.blocks.models import Block
+    from plinta.pages.models import Page
+
+    call_command("seed_audit_page", verbosity=0)
+    counts = (Page.objects.count(), Block.objects.count())
+    call_command("seed_audit_page", verbosity=0)
+    assert (Page.objects.count(), Block.objects.count()) == counts
+
+
+def test_the_page_reads_the_trail(writer):
+    """Through the ordinary table component, over a DataSource like any other
+    model — an audit log is rows, and plinta already draws rows."""
+    from django.contrib.auth.models import Permission
+    from django.core.management import call_command
+
+    from plinta.blocks.models import Block
+    from plinta.blocks.rendering import render_block
+    from plinta.permissions.fields import sync_model
+
+    write(Book(owner=writer), {"title": "Dune"}, writer)
+    call_command("seed_audit_page", verbosity=0)
+
+    sync_model(AuditEntry, {f.field_name: False for f in
+                            Block.objects.get(name="audit-trail").data_source.fields.all()})
+    ct = ContentType.objects.get_for_model(AuditEntry)
+    for perm in Permission.objects.filter(content_type=ct):
+        writer.user_permissions.add(perm)
+    for model in (Block,):
+        perm, _ = Permission.objects.get_or_create(
+            codename="view_block",
+            content_type=ContentType.objects.get_for_model(model),
+            defaults={"name": "view block"},
+        )
+        writer.user_permissions.add(perm)
+    reader = User.objects.get(pk=writer.pk)
+
+    out = render_block(Block.objects.get(name="audit-trail"), reader)
+    # "Created", not "created": a choices field renders its label.
+    assert "Created" in out
+    assert "Book object" in out

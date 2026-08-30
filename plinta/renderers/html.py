@@ -31,11 +31,21 @@ def value_of(row: Any, path: str) -> Any:
 
     Traverses ``region__name``, and stops at the first missing or null step
     rather than raising: a null relation is an empty cell, not an error.
+
+    A field with ``choices`` yields its **label**, through Django's own
+    ``get_<field>_display``. A column showing `placed` where the model says
+    "Placed" is showing the database's answer to a question the reader asked
+    of the application.
     """
+    parts = path.split("__")
     value = row
-    for part in path.split("__"):
+    for index, part in enumerate(parts):
         if value is None:
             return None
+        if index == len(parts) - 1:
+            display = getattr(value, f"get_{part}_display", None)
+            if callable(display):
+                return display()
         value = getattr(value, part, None)
     return value
 

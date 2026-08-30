@@ -1231,6 +1231,8 @@ This is deduplication more than a new feature. The same "2 decimals" is declared
 
 Declared once on the field, every renderer honours it — the rule §7.1 already states for dates ("a date renders identically in HTML and in a spreadsheet because both call the same helper"). It also pulls vendor-shaped structure out of block config: a pivot may keep vendor config for vendor concerns, but formatting is universal.
 
+**`currency` on `DataSourceField`.** Decided. An ISO code, blank by default. The column declares what its numbers are denominated in; `renderers` prefixes it and does nothing else. Conversion and symbols live in `contrib.organization`, reached through a field renderer (§7.8) — core carries neither a rate table nor a symbol map.
+
 ### 6.9 Checks this layer registers
 
 Two, both from §5.13, which could not live in `permissions` because that layer
@@ -1332,7 +1334,9 @@ Three decisions the helpers settle once:
 
 **Dates go through Django's format machinery, so the active locale decides.** Django 6 localises unconditionally; `DATE_FORMAT` is reached only when the locale module lacks it. That choice is Django's and plinta does not second-guess it.
 
-**One currency symbol per installation** — `PLINTA_CURRENCY_SYMBOL` (§19.1). A screen showing two currencies at once needs a field renderer (§7.8), because the currency is then a property of the row rather than of the column.
+**Currency belongs to the column, and core does not convert.** A `currency` column declares an ISO code on its `DataSourceField` (§6.8); core prefixes it — "USD 1,234.50" — and knows no symbols and no rates. Which symbol to draw and what rate to apply are `contrib.organization`'s, supplied through a field renderer (§7.8).
+
+A setting would put a domain fact in core and could not express a screen showing USD and EUR side by side, which is the ordinary case for the consumer this exists for.
 
 `components` imports this layer for those helpers. That is the only direction allowed.
 
@@ -3251,7 +3255,6 @@ Every setting plinta reads. A consuming project sets none of them to get a worki
 | `PLINTA_LOGIN_EXEMPT_PREFIXES` | the auth paths | which URLs `LoginRequiredMiddleware` lets through (§10) |
 | `PLINTA_API_PREFIX` | `"/api/v1/"` | where the public API mounts (§15) — leading and trailing slash, because it is prefix-matched |
 | `TOPBAR_COLOR` | unset | pins the topbar colour in light mode, so staging does not look like production |
-| `PLINTA_CURRENCY_SYMBOL` | `"$"` | the symbol on a `currency` column (§7.1) |
 
 `AUTH_USER_MODEL`, `LOGIN_URL`, `DEFAULT_FROM_EMAIL`, `MEDIA_ROOT`, `MEDIA_URL` and `STATIC_URL` are Django's; plinta reads but never requires them. `LOGIN_URL`, `STATIC_URL` and `MEDIA_URL` are read by `LoginRequiredMiddleware` alone, to build its exempt list.
 

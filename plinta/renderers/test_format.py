@@ -2,7 +2,6 @@
 import datetime
 from decimal import Decimal
 
-import pytest
 from django.test import override_settings
 from django.utils import translation
 
@@ -19,10 +18,11 @@ from plinta.renderers.format import (
 class Field:
     """The parts of a DataSourceField a formatter reads."""
 
-    def __init__(self, format="", decimals=None, thousands_separator=False):
+    def __init__(self, format="", decimals=None, thousands_separator=False, currency=""):
         self.format = format
         self.decimals = decimals
         self.thousands_separator = thousands_separator
+        self.currency = currency
 
 
 # --- nothing ---------------------------------------------------------------
@@ -115,8 +115,8 @@ def test_thousands_grouping_is_opt_in():
 
 
 def test_it_rounds_rather_than_truncates():
-    """Django's number_format truncates; $1.99 for 1.999 is a wrong number."""
-    assert format_value(Decimal("1.999"), Field(format="currency")) == "$2.00"
+    """Django's number_format truncates; 1.99 for 1.999 is a wrong number."""
+    assert format_value(Decimal("1.999"), Field(format="currency")) == "2.00"
 
 
 def test_a_half_rounds_up():
@@ -131,22 +131,36 @@ def test_a_non_number_in_a_number_column_is_not_a_crash():
 # --- currency --------------------------------------------------------------
 
 
-def test_currency_defaults_to_two_places_and_a_symbol():
-    assert format_value(Decimal("1234.5"), Field(format="currency")) == "$1234.50"
+def test_currency_defaults_to_two_places():
+    assert format_value(Decimal("1234.5"), Field(format="currency")) == "1234.50"
 
 
-def test_currency_keeps_the_sign_outside_the_symbol():
-    """-$5.00, not $-5.00."""
-    assert format_value(Decimal("-5"), Field(format="currency")) == "-$5.00"
+def test_the_column_declares_its_currency():
+    """Two currencies on one screen — which a setting could never express."""
+    usd = Field(format="currency", currency="USD")
+    eur = Field(format="currency", currency="EUR")
+    assert format_value(Decimal("5"), usd) == "USD 5.00"
+    assert format_value(Decimal("5"), eur) == "EUR 5.00"
 
 
-@override_settings(PLINTA_CURRENCY_SYMBOL="€")
-def test_the_symbol_is_a_setting():
-    assert format_value(Decimal("5"), Field(format="currency")) == "€5.00"
+def test_core_draws_no_symbol():
+    """Which symbol, and at what rate, is contrib.organization's — supplied
+    through a field renderer (§7.8). Core knows the code and nothing else."""
+    assert "$" not in format_value(Decimal("5"), Field(format="currency", currency="USD"))
+
+
+def test_a_currency_column_without_a_code_is_just_a_number():
+    assert format_value(Decimal("5"), Field(format="currency")) == "5.00"
+
+
+def test_a_negative_amount_keeps_its_sign():
+    assert format_value(Decimal("-5"), Field(format="currency", currency="USD")) == "USD -5.00"
 
 
 def test_a_currency_column_may_override_its_precision():
-    assert format_value(Decimal("1.2345"), Field(format="currency", decimals=4)) == "$1.2345"
+    """Four places on a price column — the ceiling v1 had."""
+    field = Field(format="currency", currency="USD", decimals=4)
+    assert format_value(Decimal("1.2345"), field) == "USD 1.2345"
 
 
 # --- percent ---------------------------------------------------------------

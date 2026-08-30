@@ -124,6 +124,13 @@ class DataSourceField(models.Model):
         null=True, blank=True, help_text="Decimal places. Honoured by every renderer."
     )
     thousands_separator = models.BooleanField(default=False)
+    currency = models.CharField(
+        max_length=3,
+        blank=True,
+        default="",
+        help_text="ISO code for a currency column, e.g. 'USD'. Core prefixes it; "
+        "converting it or showing a symbol is a field renderer's job.",
+    )
 
     # --- sorting and filtering ---
     sorter = models.CharField(max_length=10, choices=Sorter, default=Sorter.STRING)

@@ -28,16 +28,6 @@ DEFAULT_DECIMALS = {"currency": 2, "percent": 1, "number": 0}
 NUMERIC_FORMATS = frozenset(DEFAULT_DECIMALS)
 
 
-def currency_symbol() -> str:
-    """The symbol prefixed to a ``currency`` column.
-
-    One symbol for the installation. A screen showing two currencies at once
-    needs a field renderer (§7.8), because the currency is then a property of
-    the row rather than of the column.
-    """
-    return getattr(settings, "PLINTA_CURRENCY_SYMBOL", "$")
-
-
 def decimals_for(field: DataSourceField | None) -> int | None:
     """How many decimal places this column asks for, or None to leave it alone."""
     if field is None:
@@ -96,6 +86,11 @@ def format_datetime(value: datetime.datetime) -> str:
 def format_number(value: Any, field: DataSourceField | None = None) -> str:
     """A number with the column's precision, grouping, symbol and sign.
 
+    A ``currency`` column is prefixed with the ISO code it declares — "USD
+    1,234.50". Core knows no symbols and performs no conversion: which symbol
+    to draw and what rate to apply are `contrib.organization`'s, supplied
+    through a field renderer (§7.8).
+
     ``percent`` treats the **stored value as the percentage**: 15 renders as
     "15.0%". Multiplying by a hundred here would make a renderer change the
     meaning of the data, and a column storing a 0–1 fraction is the rarer case
@@ -120,8 +115,8 @@ def format_number(value: Any, field: DataSourceField | None = None) -> str:
     )
 
     if fmt == "currency":
-        symbol = currency_symbol()
-        return f"-{symbol}{text[1:]}" if text.startswith("-") else f"{symbol}{text}"
+        code = (getattr(field, "currency", "") or "") if field is not None else ""
+        return f"{code} {text}" if code else text
     if fmt == "percent":
         return f"{text}%"
     return text

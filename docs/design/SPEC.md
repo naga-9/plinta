@@ -1324,6 +1324,16 @@ A format the caller **explicitly** requests over HTTP and which is not installed
 
 **Shared format helpers live here.** Dates, numbers, currency, booleans and related objects format identically in HTML, a spreadsheet and an email because all three call the same helper. This is where `decimals` and `thousands_separator` (§6.8) land — declared once on the field, honoured by every format.
 
+Three decisions the helpers settle once:
+
+**`percent` treats the stored value as the percentage.** 15 renders as "15.0%". Multiplying by a hundred here would make a renderer change the meaning of the data; a column storing a 0–1 fraction declares an annotation that multiplies, where the arithmetic is visible.
+
+**Numbers round, they do not truncate.** Django's `number_format` truncates to `decimal_pos`, so 1.999 in a currency column would show as $1.99. The value is quantized before formatting.
+
+**Dates go through Django's format machinery, so the active locale decides.** Django 6 localises unconditionally; `DATE_FORMAT` is reached only when the locale module lacks it. That choice is Django's and plinta does not second-guess it.
+
+**One currency symbol per installation** — `PLINTA_CURRENCY_SYMBOL` (§19.1). A screen showing two currencies at once needs a field renderer (§7.8), because the currency is then a property of the row rather than of the column.
+
 `components` imports this layer for those helpers. That is the only direction allowed.
 
 ### 7.2 Components — config in, HTML out
@@ -3241,6 +3251,7 @@ Every setting plinta reads. A consuming project sets none of them to get a worki
 | `PLINTA_LOGIN_EXEMPT_PREFIXES` | the auth paths | which URLs `LoginRequiredMiddleware` lets through (§10) |
 | `PLINTA_API_PREFIX` | `"/api/v1/"` | where the public API mounts (§15) — leading and trailing slash, because it is prefix-matched |
 | `TOPBAR_COLOR` | unset | pins the topbar colour in light mode, so staging does not look like production |
+| `PLINTA_CURRENCY_SYMBOL` | `"$"` | the symbol on a `currency` column (§7.1) |
 
 `AUTH_USER_MODEL`, `LOGIN_URL`, `DEFAULT_FROM_EMAIL`, `MEDIA_ROOT`, `MEDIA_URL` and `STATIC_URL` are Django's; plinta reads but never requires them. `LOGIN_URL`, `STATIC_URL` and `MEDIA_URL` are read by `LoginRequiredMiddleware` alone, to build its exempt list.
 

@@ -84,6 +84,16 @@ def test_today_defaults_to_the_real_today():
     assert bounds(resolve_q("due", "past"))["due__lt"] == date.today()
 
 
+def test_registers_as_a_decorator(range_registry):
+    @range_registry.register_range("current_fiscal_year", "Current Fiscal Year")
+    def cfy(field, today):
+        return Q(**{f"{field}__year": today.year})
+
+    assert bounds(resolve_q("due", "current_fiscal_year", TODAY)) == {"due__year": 2026}
+    assert cfy is not None, "the decorator returns the function, not the Range"
+    assert callable(cfy)
+
+
 def test_a_contrib_package_registers_its_own(range_registry):
     range_registry.register_range(
         "current_fiscal_year",

@@ -33,8 +33,13 @@ class RangeError(Exception):
     """A range was registered twice, or under an unusable name."""
 
 
-def register_range(name: str, label: str, resolve: Resolver) -> Range:
-    """Register a range.
+def register_range(name: str, label: str, resolve: Resolver | None = None):
+    """Register a range, as a call or a decorator.
+
+        register_range("past", "Past", _past)
+
+        @register_range("current_fiscal_year", "Current Fiscal Year")
+        def _cfy(field, today): ...
 
     Raises:
         RangeError: the name is already taken, or is not lowercase
@@ -45,8 +50,12 @@ def register_range(name: str, label: str, resolve: Resolver) -> Range:
         raise RangeError(f"{name!r} must be lowercase [a-z][a-z0-9_]*")
     if name in _registry:
         raise RangeError(f"{name!r} is already registered")
-    _registry[name] = Range(name=name, label=label, resolve=resolve)
-    return _registry[name]
+
+    def _register(func: Resolver) -> Resolver:
+        _registry[name] = Range(name=name, label=label, resolve=func)
+        return func
+
+    return _register if resolve is None else _register(resolve)
 
 
 def options() -> list[Range]:

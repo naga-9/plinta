@@ -540,7 +540,7 @@ Not in block config generally, not in column definitions. Those five already sha
 
 
 
-The signal bus. Core emits; contrib listens.
+The signal bus. Anyone may emit — core, a contrib package, a consumer's own importer (§4.5); what is fixed is the vocabulary, not who uses it.
 
 It exists to remove the coupling that is **behavioural** — "do something when this happens" — which is the kind that never needed an import in the first place. All four sideways imports in the current tree are that kind, and all four point at `notifications`. Coupling that is structural or functional is declared instead, not evented away (§2.5).
 
@@ -571,7 +571,7 @@ The same shape as a registry (§20.4): core owns the vocabulary, contrib owns th
 |---|---|---|
 | `object_writing` | `blocks` write pipeline, pre-save | `obj`, `mode`, `fields`, `actor`, `source` |
 | `object_written` | `blocks` write pipeline, post-M2M | `obj`, `mode`, `changes`, `actor`, `source` |
-| `object_deleted` | `blocks` write pipeline | `obj`, `actor`, `source` |
+| `object_deleted` | `blocks` write pipeline | `obj`, **`pk`**, `actor`, `source` |
 | `state_changed` | `contrib.workflow` | `obj`, `from_state`, `to_state`, `actor`, `comment`, `metadata`, `source` |
 | `comment_posted` | `contrib.comments` | `obj`, `actor`, `body`, `metadata`, `source` |
 
@@ -582,6 +582,8 @@ A listener imports the signal from **core**, never from the emitter, so `audit` 
 `source` names the path that performed the write. Three exist today — `block_edit`, `block_delete`, `permission_admin` — and v2 adds at least `api` and `import`. It answers what the diff cannot: the same actor changing the same field means something different through the UI, the nightly import, or the API.
 
 An earlier draft of this table gave `comment_posted` neither `source` nor `obj`, naming its row `target` instead. Both were composition oversights rather than decisions, and each forced a listener to special-case exactly one signal.
+
+`object_deleted` carries `pk` separately because Django's `Collector.delete` sets the primary key attribute to None on the instance. By the time a listener runs, `obj.pk` is gone — so the caller captures it before deleting, or the audit trail cannot say what was deleted.
 
 The payload carries **no request**. That is a web concern, and an event must be emittable from a management command. `actor` and `source` therefore default, so an emit from a script needs neither.
 

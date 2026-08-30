@@ -79,11 +79,17 @@ def test_create_uses_the_same_shape_with_no_before(listen, seen):
     assert payload["changes"]["title"][0] is None
 
 
-def test_object_deleted(listen, seen):
+def test_object_deleted_carries_the_pk_separately(listen, seen):
+    """Django clears obj.pk on delete, so the payload has to hold it."""
     listen(object_deleted, seen)
-    emit_deleted(Book(), actor="ada", source="block_delete")
+    book = Book(pk=7)
+    book.pk = None                      # what Django leaves behind
+    emit_deleted(book, pk=7, actor="ada", source="block_delete")
+
     _, payload = seen.captured[0]
-    assert set(payload) == {"obj", "actor", "source"}
+    assert set(payload) == {"obj", "pk", "actor", "source"}
+    assert payload["pk"] == 7, "the listener can still say what was deleted"
+    assert payload["obj"].pk is None
 
 
 def test_state_changed_carries_codes_not_models(listen, seen):
@@ -116,7 +122,7 @@ def test_comment_posted_names_the_row_it_is_attached_to(listen, seen):
 @pytest.mark.parametrize("emit", [
     lambda o: emit_writing(o, mode="create", fields=[]),
     lambda o: emit_written(o, mode="create", changes={}),
-    lambda o: emit_deleted(o),
+    lambda o: emit_deleted(o, pk=1),
     lambda o: emit_state_changed(o, from_state=None, to_state="x"),
     lambda o: emit_comment_posted(o),
 ])
@@ -169,13 +175,13 @@ def test_the_failing_listener_is_named_in_the_log(listen, caplog):
 
     listen(object_deleted, broken_handler)
     with caplog.at_level(logging.ERROR):
-        emit_deleted(Book())
+        emit_deleted(Book(), pk=1)
     assert "broken_handler" in caplog.text
 
 
 def test_emitting_with_no_listeners_is_a_no_op():
     emit_written(Book(), mode="create", changes={})
-    emit_deleted(Book())
+    emit_deleted(Book(), pk=1)
 
 
 def test_has_listeners_reports_whether_work_is_worth_doing(listen, seen):
@@ -195,7 +201,7 @@ def test_one_listener_reads_all_five_with_no_special_case(listen):
     rows = []
 
     def audit(sender, signal, **kw):
-        rows.append((signal._plinta_name, kw["obj"], kw["actor"], kw["source"]))
+        rows.append((signal.plinta_name, kw["obj"], kw["actor"], kw["source"]))
 
     for sig in (object_writing, object_written, object_deleted, state_changed, comment_posted):
         listen(sig, audit)
@@ -203,7 +209,7 @@ def test_one_listener_reads_all_five_with_no_special_case(listen):
     book = Book()
     emit_writing(book, mode="update", fields=[], actor="ada", source="block_edit")
     emit_written(book, mode="update", changes={}, actor="ada", source="block_edit")
-    emit_deleted(book, actor="ada", source="api")
+    emit_deleted(book, pk=book.pk, actor="ada", source="api")
     emit_state_changed(book, from_state="draft", to_state="ordered", actor="ada", source="workflow")
     emit_comment_posted(book, body="reprint?", actor="ada", source="comment_post")
 

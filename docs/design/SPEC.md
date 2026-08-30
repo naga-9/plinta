@@ -1180,7 +1180,9 @@ All nine call the same `get_queryset(data_source, user)`. Four re-implement a fr
 
 **No config option.** Declarative hints would duplicate what derivation computes. The one case derivation cannot see — a custom field renderer touching a relation no column names — is handled by the renderer **declaring what it needs joined** as part of its registration, which also removes the duck-typed `table_select_related()` model protocol.
 
-**Verify during the rebuild:** the five components with no optimisation are presumed to N+1 on relation columns. Confirm before and after.
+**The derived path is the default, not an opt-in.** `get_queryset(ds, user)` derives from every column the user may view; a caller narrows by passing `columns=[…]`, or opts out with `columns=[]`. Leaving derivation to the caller would have moved the defect rather than fixed it — five of v1's nine components did not call it, and a tenth would have been one more chance to forget.
+
+**Verified**, on three rows with a relation column: four queries reading it without derivation, one with. A many-to-many costs two rather than one per row.
 
 ### 6.6 Search
 

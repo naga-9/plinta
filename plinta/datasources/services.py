@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from django.db.models import CharField, Q, QuerySet, TextField
 
+from plinta.datasources import prefetch
 from plinta.datasources.models import DataSource, DataSourceField
 from plinta.permissions import allowed, fields as permitted_fields
 
@@ -40,11 +41,24 @@ def _model(datasource: DataSource):
     return model
 
 
-def get_queryset(datasource: DataSource, user) -> QuerySet:
-    """The rows of ``datasource`` this user may view."""
+def get_queryset(
+    datasource: DataSource, user, *, columns: list[str] | None = None
+) -> QuerySet:
+    """The rows of ``datasource`` this user may view, with the joins they need.
+
+    ``columns`` names what will be read. Left unset it means every column this
+    user may view, so the default is the optimised one — a caller cannot lose
+    the joins by forgetting to ask for them, which is how five of v1's nine
+    components ended up issuing a query per row.
+
+    Pass an explicit list to narrow it, or ``[]`` for rows with no joins at all.
+    """
     _require_user(user)
     model = _model(datasource)
-    return allowed(user, "view", model._default_manager.all())
+    rows = allowed(user, "view", model._default_manager.all())
+    if columns is None:
+        columns = [f.field_name for f in get_available_fields(datasource, user)]
+    return prefetch.apply(rows, columns)
 
 
 def get_available_fields(datasource: DataSource, user) -> list[DataSourceField]:

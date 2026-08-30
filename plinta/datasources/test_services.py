@@ -111,6 +111,34 @@ def test_a_datasource_whose_app_is_gone_says_so():
         get_queryset(ds, User.objects.create(username="x"))
 
 
+def test_the_joins_are_derived_by_default(books_ds, rows, ada, policy_registry,
+                                          django_assert_num_queries):
+    """A caller cannot lose them by forgetting to ask — five of v1's nine
+    components did exactly that."""
+    policy_registry.register_policy(Book, BookPolicy)
+    ada = grant(ada, "view_book", "view_book_title", "view_book_region__name")
+
+    qs = get_queryset(books_ds, ada)
+    with django_assert_num_queries(1):
+        [(b.title, b.region.name if b.region else None) for b in qs]
+
+
+def test_columns_may_be_narrowed(books_ds, rows, ada, policy_registry,
+                                 django_assert_num_queries):
+    policy_registry.register_policy(Book, BookPolicy)
+    ada = grant(ada, "view_book", "view_book_title", "view_book_region__name")
+
+    qs = get_queryset(books_ds, ada, columns=["title"])
+    with django_assert_num_queries(2):          # books, then the one region
+        [(b.title, b.region.name if b.region else None) for b in qs]
+
+
+def test_no_columns_means_no_joins(books_ds, rows, ada, policy_registry):
+    policy_registry.register_policy(Book, BookPolicy)
+    ada = grant(ada, "view_book")
+    assert get_queryset(books_ds, ada, columns=[]).query.select_related is False
+
+
 # --- get_available_fields --------------------------------------------------
 
 

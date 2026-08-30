@@ -139,13 +139,47 @@ def test_someone_elses_default_is_not_applied(block):
     assert effective_config(b, ada)["page_size"] == 10
 
 
-def test_a_public_default_view_is_not_applied(block):
-    """It is offered in the picker; it is not imposed."""
+def test_a_public_default_applies_when_the_viewer_has_none(block):
+    """How someone who may change views but not the block curates a start."""
     b, ada = block
     b.config = {"page_size": 10}
     b.save()
     SavedView.objects.create(
         block=b, name="shared", owner=None, config={"page_size": 5}, is_default=True
+    )
+    assert effective_config(b, ada)["page_size"] == 5
+
+
+def test_the_viewers_own_default_beats_the_public_one(block):
+    b, ada = block
+    b.config = {"page_size": 10}
+    b.save()
+    SavedView.objects.create(
+        block=b, name="shared", owner=None, config={"page_size": 5}, is_default=True
+    )
+    SavedView.objects.create(
+        block=b, name="mine", owner=ada, config={"page_size": 7}, is_default=True
+    )
+    assert effective_config(b, ada)["page_size"] == 7
+
+
+def test_a_public_view_not_marked_default_is_not_applied(block):
+    """Nothing is picked by accident: only a mark someone made deliberately."""
+    b, ada = block
+    b.config = {"page_size": 10}
+    b.save()
+    SavedView.objects.create(block=b, name="aaa", owner=None, config={"page_size": 5})
+    assert effective_config(b, ada)["page_size"] == 10
+
+
+def test_a_public_default_the_viewer_may_not_see_is_not_applied(block):
+    """The chain runs through `allowed`, so it cannot show what a policy hides."""
+    b, ada = block
+    b.config = {"page_size": 10}
+    b.save()
+    bob = User.objects.create(username="bob")
+    SavedView.objects.create(
+        block=b, name="bob's", owner=bob, config={"page_size": 5}, is_default=True
     )
     assert effective_config(b, ada)["page_size"] == 10
 

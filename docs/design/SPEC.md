@@ -1697,6 +1697,10 @@ Blocks are shareable: `Owner | Public | InstancePerm` to view, `Owner | Instance
 `render_block(block, user)`:
 
 1. **Resolve the effective config** — the block's config merged with the viewer's `SavedView` delta. No hook and no optionality: this layer owns both models (§8.1).
+
+   **Which delta, when the viewer chose none:** their own default, then a public default, then none — leaving the block's own config. Both steps are a mark someone made deliberately. Falling back further, to whichever view sorts first, would let adding a view silently change what everyone sees; the block config is the explicit base and is what an admin edits to change it.
+
+   A **public default** is how someone holding `change_savedview` but not `change_block` curates a starting view. The chain runs through `allowed`, so it can never surface a view a policy hides.
 2. **Look up the component.** Not registered → empty slot, not an exception.
 3. **Fetch** rows and fields through `datasources`, passing the user.
 4. **Call the component** with the resolved config (§7.2).

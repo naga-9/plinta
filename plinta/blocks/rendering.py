@@ -18,17 +18,25 @@ EMPTY_SLOT = ""
 
 
 def default_view(block: Block, user) -> SavedView | None:
-    """The viewer's default saved view of this block, if they have one.
+    """The saved view that applies when the viewer chose none.
 
-    Their own only. A public view is offered in the picker but is not applied
-    behind someone's back.
+    Their own default first, then a public one. Both are deliberate marks
+    someone made; nothing is picked by accident. With neither, the block's own
+    config applies — the explicit, authored base, and what an admin edits to
+    change what everyone gets.
+
+    A public default is how someone with ``change_savedview`` but not
+    ``change_block`` curates a starting view.
     """
     from plinta.permissions import allowed
 
     if user is None or not getattr(user, "is_authenticated", False):
         return None
-    views = allowed(user, "view", block.saved_views.filter(owner=user, is_default=True))
-    return views.first()
+    defaults = allowed(user, "view", block.saved_views.filter(is_default=True))
+    return (
+        defaults.filter(owner=user).first()
+        or defaults.filter(owner__isnull=True).first()
+    )
 
 
 def merge(base: dict[str, Any], delta: dict[str, Any] | None) -> dict[str, Any]:

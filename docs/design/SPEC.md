@@ -2193,8 +2193,14 @@ The shell owns the theme, and the theme is generated rather than written.
 
 **`design/tokens.json` is the single source of truth.** `build_tokens` resolves its aliases, computes the `-rgb` companions a translucent surface needs, and emits:
 
-- `static/plinta/css/tokens.css` — `:root` for light, `[data-theme="dark"]` for dark
+- `static/plinta/css/tokens.css` — three blocks in order: `:root` for light, a `prefers-color-scheme` query guarded by `:not([data-theme="light"])`, then `[data-theme="dark"]`
 - `static/plinta/js/tokens.js` — the chart palette and a `read()` helper
+
+**The operating system decides until the viewer does.** The middle block follows the machine's setting; the guard means a viewer who explicitly chose light keeps light on a dark-mode machine, and the attribute block last means an explicit choice wins over both.
+
+**A primitive is emitted as its own variable**, not inlined into the semantic that references it, so a browser's dev tools show which one a colour came from.
+
+**A token asking for an `rgb` companion must be a primitive alias.** A computed value — `color-mix`, say — resolves in the browser, so its channels are unknowable at build time; asking is refused rather than answered wrongly.
 
 `theme-toggle.js` switches `data-theme` and remembers the choice. It and `tokens.js` are the shell's only JS. The attribute is `data-theme`, not `data-bs-theme`: nothing about it belongs to a vendor.
 

@@ -1992,6 +1992,10 @@ Usage across a live install of 36 pages:
 
 `PageBlock` places a block at a grid position and carries its own title, visibility and context filter. It travels with its page, is never independently shareable, and the same block may appear on several pages at different sizes.
 
+**Both coordinates are stored**, in grid cells: `column`, `row`, `width`, `height`. The layout has no gravity — a block stays exactly where it was dropped, rather than floating up to close a gap — so a row cannot be derived from the order. `order` survives as a tie-breaker and as the sequence on a page with no grid.
+
+The position is written by drag and resize in the browser and read straight into CSS grid; nothing recomputes it server-side.
+
 **Blocks resolve by foreign key**, never by name — §8.10's reasoning, applied here: a name is unique only per owner and cannot address a shared resource.
 
 **Two degradations, both normal states rather than errors:**

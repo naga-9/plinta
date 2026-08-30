@@ -143,7 +143,18 @@ def test_a_placement_without_a_title_uses_the_blocks_name(screen):
 
 def test_the_grid_position_travels_with_the_placement(screen):
     page, _, ada = screen
-    assert render_page(page, ada)[0].width == 6
+    page.placements.update(column=6, row=2, width=6, height=3)
+    drawn = render_page(page, ada)[0]
+    assert (drawn.column, drawn.row, drawn.width, drawn.height) == (6, 2, 6, 3)
+
+
+def test_a_row_is_stored_rather_than_derived(screen):
+    """A block stays where it was dropped, so nothing pulls it up to fill a
+    gap and a row cannot be inferred from the order."""
+    page, block, ada = screen
+    page.placements.update(row=3)
+    PageBlock.objects.create(page=page, block=block, row=0, order=1)
+    assert [p.row for p in render_page(page, ada)] == [3, 0]
 
 
 def test_a_tab_selects_its_placements(screen):

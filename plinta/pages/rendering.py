@@ -19,8 +19,9 @@ class Placement:
     placement: PageBlock
     html: str
     column: int
+    row: int
     width: int
-    height: str
+    height: int
 
     @property
     def title(self) -> str:
@@ -130,6 +131,7 @@ def render_page(
                 placement=placement,
                 html=html,
                 column=placement.column,
+                row=placement.row,
                 width=placement.width,
                 height=placement.height,
             )

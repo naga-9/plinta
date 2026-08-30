@@ -167,13 +167,17 @@ class PageBlock(models.Model):
         default="",
         help_text="Shown instead of the block's own name. Blank uses it.",
     )
-    #: Twelve-column grid.
+    # Position on a twelve-column grid, in cells. Both coordinates are stored
+    # because a block stays exactly where it was dropped — there is no gravity
+    # pulling it up, so a row cannot be derived from the order.
     column = models.PositiveSmallIntegerField(default=0)
-    width = models.PositiveSmallIntegerField(default=12)
-    order = models.PositiveIntegerField(default=0)
-    height = models.CharField(
-        max_length=20, blank=True, default="", help_text="CSS length. Blank lets "
-        "the block decide."
+    row = models.PositiveSmallIntegerField(default=0)
+    width = models.PositiveSmallIntegerField(default=6)
+    height = models.PositiveSmallIntegerField(
+        default=4, help_text="In grid cells, not pixels."
+    )
+    order = models.PositiveIntegerField(
+        default=0, help_text="Tie-breaker, and the order on a page with no grid."
     )
     is_visible = models.BooleanField(default=True)
     context_filter = models.JSONField(
@@ -190,7 +194,7 @@ class PageBlock(models.Model):
     )
 
     class Meta:
-        ordering = ["order", "pk"]
+        ordering = ["order", "row", "column"]
 
     def __str__(self) -> str:
         return f"{self.page.name}: {self.block.name}"

@@ -840,6 +840,24 @@ if can(user, "export", Book):                  # the capability
 
 Django's four are not registered, so nothing here applies to them.
 
+#### Action names are one flat namespace
+
+A consumer may register their own — `approve`, `reconcile`, `settle` — on the
+same footing as a contrib package, and refusing would achieve nothing: they own
+their models, so `Meta.permissions` gets them the same action without the
+registry. All registration adds is that it appears in the console beside
+everyone else's.
+
+**A duplicate name raises at startup.** One namespace, no shadowing, as with
+placeholders, ranges and queryset modifiers. The consequence to state plainly:
+a consumer who registers `approve` and later upgrades into a contrib package
+registering the same name gets a **boot failure**, not a warning.
+
+That is the right trade for permissions — silently merging two meanings of
+`approve` would grant one app's users the other's access — but it is a surprise
+worth warning about, so it belongs in the `start-consumer-app` skill (§25.1)
+when that is written.
+
 A capability with no policy rule is tier-1 only: the model permission decides. A policy may still narrow one — `export = HasPerm('…') & ~Public` — but rarely needs to.
 
 **An undeclared action on a policy falls back to the model permission alone.** It does not inherit `view`, and it does not deny. Consistent with §5.3: when tier 2 has nothing to say, tier 1 decides.

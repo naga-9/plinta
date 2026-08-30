@@ -1,0 +1,40 @@
+{# The comments capability's section, shipped with the app that registers it.
+
+   Thin on purpose: a consumer restyles it by overriding this path, and the
+   markup uses plinta's own class names (§10.8) so it inherits the theme. #}
+<section class="pl-stack" data-plinta-capability="comments">
+    <h3>{% block comments_heading %}Comments{% endblock %}</h3>
+
+    {% for comment in comments %}
+        <article class="pl-card" style="margin-left: calc(var(--pl-space-5) * {{ comment.depth }})">
+            <div class="pl-card__body">
+                <div class="pl-row">
+                    <strong>{{ comment.author|default:"Someone" }}</strong>
+                    <span class="pl-muted">{{ comment.posted_at }}</span>
+                    {% if comment.is_private %}<span class="pl-chip">Private</span>{% endif %}
+                    {% if comment.edited_at %}<span class="pl-muted">edited</span>{% endif %}
+                </div>
+                {% if comment.is_deleted %}
+                    <p class="pl-muted">This comment was withdrawn.</p>
+                {% else %}
+                    <p>{{ comment.body }}</p>
+                {% endif %}
+            </div>
+        </article>
+    {% empty %}
+        <p class="pl-muted">No comments yet.</p>
+    {% endfor %}
+
+    {% block comment_form %}
+        {% if can_comment %}
+            <form method="post" action="{{ comment_post_url }}" class="pl-stack">
+                {% csrf_token %}
+                <div class="pl-field">
+                    <label class="pl-label" for="pl-comment-body">Add a comment</label>
+                    <textarea class="pl-textarea" id="pl-comment-body" name="body"></textarea>
+                </div>
+                <button type="submit" class="pl-btn pl-btn--primary">Post</button>
+            </form>
+        {% endif %}
+    {% endblock %}
+</section>

@@ -74,3 +74,35 @@ def test_it_catches_a_token_whose_provider_was_removed(ds, placeholder_registry)
     assert check_base_filter_placeholders() == []
     placeholder_registry._registry.clear()
     assert check_base_filter_placeholders() != []
+
+
+# --- a capability's template -----------------------------------------------
+
+
+def test_a_capability_with_no_template_is_quiet(capability_registry):
+    from plinta.blocks.checks import check_capability_templates
+
+    capability_registry.register_capability("plain", "Plain")
+    assert check_capability_templates() == []
+
+
+def test_a_template_that_exists_is_quiet(capability_registry):
+    from plinta.blocks.checks import check_capability_templates
+
+    capability_registry.register_capability(
+        "block", "Block", template="plinta/pages/block.html"
+    )
+    assert check_capability_templates() == []
+
+
+def test_a_template_no_loader_can_find_is_an_error(capability_registry):
+    """The declaration is otherwise only checked when something draws it,
+    which may be months later on the one screen that uses it."""
+    from plinta.blocks.checks import check_capability_templates
+
+    capability_registry.register_capability(
+        "ghost", "Ghost", template="nowhere/at/all.html"
+    )
+    errors = check_capability_templates()
+    assert [e.id for e in errors] == ["plinta.blocks.E002"]
+    assert "nowhere/at/all.html" in errors[0].msg

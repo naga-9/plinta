@@ -8,5 +8,6 @@ class RenderersConfig(AppConfig):
     verbose_name = "plinta renderers"
 
     def ready(self):
-        # Imported for its side effect: registering the boot check.
-        from plinta.renderers import checks  # noqa: F401
+        # Imported for their side effects: registering the HTML renderer and
+        # the boot check.
+        from plinta.renderers import checks, html  # noqa: F401

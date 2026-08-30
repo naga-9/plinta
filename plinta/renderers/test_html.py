@@ -1,0 +1,164 @@
+"""Rows as a table, and what is escaped on the way."""
+from decimal import Decimal
+
+import pytest
+from django.utils.safestring import SafeString
+
+from plinta.renderers.html import HtmlRenderer, cell, value_of
+
+
+class Field:
+    def __init__(self, field_name, label="", renderer="", format="", **display):
+        self.field_name = field_name
+        self.label = label or field_name
+        self.renderer = renderer
+        self.format = format
+        self.decimals = display.get("decimals")
+        self.prefix = display.get("prefix", "")
+        self.suffix = display.get("suffix", "")
+        self.thousands_separator = display.get("thousands_separator", False)
+
+
+class Row:
+    def __init__(self, **kw):
+        self.__dict__.update(kw)
+
+
+def render(rows, fields, user=None):
+    return HtmlRenderer().render(rows, fields, {}, user)
+
+
+# --- reading a value -------------------------------------------------------
+
+
+def test_a_plain_attribute():
+    assert value_of(Row(title="Dune"), "title") == "Dune"
+
+
+def test_a_traversed_path():
+    assert value_of(Row(region=Row(name="North")), "region__name") == "North"
+
+
+def test_a_null_relation_is_an_empty_cell():
+    """Not an AttributeError one row into the page."""
+    assert value_of(Row(region=None), "region__name") is None
+
+
+def test_a_missing_attribute_is_none():
+    assert value_of(Row(), "nonesuch") is None
+
+
+# --- a cell ----------------------------------------------------------------
+
+
+def test_a_value_is_formatted():
+    field = Field("price", decimals=2, prefix="$")
+    assert cell(Row(price=Decimal("5")), field) == "$5.00"
+
+
+def test_a_null_is_empty():
+    assert cell(Row(title=None), Field("title")) == ""
+
+
+def test_a_consumers_data_is_escaped():
+    """A cell is escaped here, not by whoever inserts it."""
+    row = Row(title="<script>alert(1)</script>")
+    assert "<script>" not in cell(row, Field("title"))
+    assert "&lt;script&gt;" in cell(row, Field("title"))
+
+
+def test_a_cell_is_safe_to_insert():
+    assert isinstance(cell(Row(title="Dune"), Field("title")), SafeString)
+
+
+def test_an_escaped_cell_is_not_escaped_twice():
+    out = render([Row(title="a & b")], [Field("title")])
+    assert "a &amp; b" in out
+    assert "&amp;amp;" not in out
+
+
+def test_an_html_column_is_not_escaped(field_renderer_registry):
+    """Rich text a consumer stored as markup, declared as such."""
+    row = Row(body="<b>bold</b>")
+    assert cell(row, Field("body", format="html")) == "<b>bold</b>"
+
+
+def test_a_field_renderer_may_emit_markup(field_renderer_registry):
+    field_renderer_registry.register_field_renderer("chip")(
+        lambda value, **kw: f"<span>{value}</span>"
+    )
+    row = Row(state="new")
+    assert cell(row, Field("state", renderer="chip")) == "<span>new</span>"
+
+
+def test_a_field_renderer_sees_the_whole_row(field_renderer_registry):
+    field_renderer_registry.register_field_renderer("both")(
+        lambda value, *, obj, **kw: f"{value}/{obj.region}"
+    )
+    row = Row(title="Dune", region="North")
+    assert cell(row, Field("title", renderer="both")) == "Dune/North"
+
+
+def test_a_field_renderer_sees_the_user(field_renderer_registry):
+    field_renderer_registry.register_field_renderer("mine")(
+        lambda value, *, user, **kw: f"{value} for {user}"
+    )
+    assert cell(Row(title="Dune"), Field("title", renderer="mine"), "ada") == "Dune for ada"
+
+
+# --- the table -------------------------------------------------------------
+
+
+def test_a_header_per_column():
+    out = render([], [Field("title", "Title"), Field("price", "Price")])
+    assert "<th>Title</th><th>Price</th>" in out
+
+
+def test_a_row_per_object():
+    rows = [Row(title="Dune"), Row(title="Emma")]
+    out = render(rows, [Field("title")])
+    assert out.count("<tr>") == 3  # one header, two body
+
+
+def test_a_cell_per_column():
+    out = render([Row(title="Dune", pages=412)], [Field("title"), Field("pages")])
+    assert "<td>Dune</td><td>412</td>" in out
+
+
+def test_no_rows_is_an_empty_body():
+    out = render([], [Field("title", "Title")])
+    assert "<tbody></tbody>" in out
+
+
+def test_no_columns_is_an_empty_header():
+    out = render([Row(title="Dune")], [])
+    assert "<thead><tr></tr></thead>" in out
+
+
+def test_the_output_is_safe_to_insert():
+    assert isinstance(render([], [Field("title")]), SafeString)
+
+
+def test_a_column_label_is_escaped():
+    """A label is configuration, and configuration is written by people."""
+    out = render([], [Field("title", "<b>Title</b>")])
+    assert "<b>Title</b>" not in out
+
+
+@pytest.mark.django_db
+def test_the_renderer_asks_no_questions_of_the_database(django_assert_num_queries):
+    """It draws what it was handed; it cannot fetch what it was not given."""
+    rows = [Row(title="Dune"), Row(title="Emma")]
+    with django_assert_num_queries(0):
+        render(rows, [Field("title")])
+
+
+def test_it_renders_only_the_fields_it_was_given():
+    """Field permission narrowed them upstream; the renderer cannot widen it."""
+    row = Row(title="Dune", secret="hidden")
+    assert "hidden" not in render([row], [Field("title")])
+
+
+@pytest.mark.parametrize("value,expected", [(True, "Yes"), (False, "No"), (0, "0")])
+def test_values_go_through_the_shared_formatter(value, expected):
+    assert f"<td>{expected}</td>" in render([Row(v=value)], [Field("v")])

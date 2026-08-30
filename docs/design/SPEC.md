@@ -1336,6 +1336,8 @@ A format the caller **explicitly** requests over HTTP and which is not installed
 
 **Core ships HTML.** Excel, PDF and email ship with `contrib.export`, for dependency weight rather than size: `openpyxl`, `pandas` and `weasyprint` — the last needing GTK native libraries — are the heaviest things in the project and none is required to render a screen.
 
+**Escaping happens in the cell, not in whoever inserts it.** A field renderer's output and an `html` column are markup by intent and pass through; everything else is escaped where it is drawn, so there is no way to use `cell()` and get it wrong. A column **label** is escaped too — configuration is written by people.
+
 **Shared format helpers live here.** Dates, numbers, currency, booleans and related objects format identically in HTML, a spreadsheet and an email because all three call the same helper. This is where `decimals` and `thousands_separator` (§6.8) land — declared once on the field, honoured by every format.
 
 Formatting is driven entirely by what the column declares — `decimals`, `thousands_separator`, `prefix`, `suffix` — and core imposes nothing (§6.8). Three decisions the helpers settle once:

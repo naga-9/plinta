@@ -44,7 +44,7 @@ def current_fiscal_year(field, today):
 | Name | lowercase `[a-z][a-z0-9_]*` — it is stored in configuration |
 | Label | what a filter bar shows; free text |
 | Signature | `fn(field, today) -> Q` |
-| `field` | the column being filtered, possibly traversed (`order__due`) |
+| `field` | the column being filtered, possibly traversed (`purchase_order__order_date`) |
 | `today` | passed in, never called inside — so the range is testable at any date |
 
 ## Rules
@@ -64,10 +64,10 @@ scheduled report run at midnight.
 from datetime import date
 from plinta.dates import resolve_q, registered
 
-resolve_q("due_date", "current_fiscal_year", date(2026, 8, 15))
+resolve_q("sale_date", "current_fiscal_year", date(2026, 8, 15))
 [(r.name, r.label) for r in registered()]
 ```
 
-Several names OR together: `resolve_q("due", ["past", "current_month"])`.
+Several names OR together: `resolve_q("expected_date", ["past", "current_month"])`.
 An unknown name is ignored; when nothing matches, the result is `None`, which
 means *no date filter* rather than *match nothing*.

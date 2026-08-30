@@ -3910,13 +3910,30 @@ A skill is the **executable half of this document**. The spec says what a thing 
 
 Fourteen points, fourteen skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
 
-### 25.2 A skill is written with its layer, never before
+### 25.2 Examples use the demo domain
+
+Every skill, and every example in this document, draws its nouns from
+`example/catalog` — the bookshop chain: `Book`, `Sale`, `PurchaseOrder`,
+`Promotion`, over stores and regions.
+
+A reader who has never seen plinta understands a book and an order. They do not
+understand an instrument, a watchlist or a work order, and an example written in
+one consumer's vocabulary reads as though plinta were built for that consumer.
+This is the same reason plinta ships no domain application (§1.4): the moment
+the documentation speaks one tenant's language, that tenant stops being a
+consumer.
+
+The domain is fixed now and used from the first skill, though `example/catalog`
+itself is ported last (§23.4) — the vocabulary costs nothing to settle early and
+everything to change late.
+
+### 25.3 A skill is written with its layer, never before
 
 A skill written against a layer that does not exist yet is fiction. §21 records four documented behaviours the code never had, and a skill is documentation that people follow *more* literally than prose — so the failure mode is worse.
 
 So: a layer is not done until its extension points have skills, and a skill is not written until the layer is.
 
-### 25.3 The v1 skills are not ported
+### 25.4 The v1 skills are not ported
 
 Sixteen exist today — `add-block-type`, `setup-datasource`, `add-workflow` and the rest. They encode v1 structure: module paths that move, the `AJAX` class constant that becomes a mode, model-driven field permissions that become DSF-driven, `is_staff` gates that become permissions.
 
@@ -3924,13 +3941,13 @@ Sixteen exist today — `add-block-type`, `setup-datasource`, `add-workflow` and
 
 The old skills stay readable in git history for reference, exactly as the v1 code does.
 
-### 25.4 A skill and its section change together
+### 25.5 A skill and its section change together
 
 If §7.2's component contract changes, `add-component` changes **in the same commit**. A skill that lags its section is worse than no skill, because it is confidently wrong.
 
 This is the same coupling the design applies elsewhere: permissions follow the column, adapters ship with their components, vendors ship with the package that needs them.
 
-### 25.5 Section-by-section, as we go
+### 25.6 Section-by-section, as we go
 
 The document is updated **as each layer is built**, not afterwards:
 

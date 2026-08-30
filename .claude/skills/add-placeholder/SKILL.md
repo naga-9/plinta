@@ -14,7 +14,7 @@ A placeholder is a token written into stored configuration that resolves to a
 
 ## When to use this
 
-- the value depends on **who is asking** — the current user, their team, their watchlist
+- the value depends on **who is asking** — the current user, their team, their stores
 - the value depends on **when the query runs** — today, this quarter
 - the value belongs to a package core must not import, such as a fiscal calendar
 
@@ -27,9 +27,10 @@ Do **not** use it when the value is fixed at configuration time. Write the value
 ```python
 from plinta.utils import register_placeholder
 
-@register_placeholder("my_watchlist")
-def my_watchlist(ctx):
-    return list(ctx.user.watchlists.values_list("instrument_id", flat=True))
+@register_placeholder("my_stores")
+def my_stores(ctx):
+    """Stores the requesting user manages."""
+    return list(ctx.user.managed_stores.values_list("id", flat=True))
 ```
 
 2. Import that module from `AppConfig.ready()` so it registers at startup.
@@ -71,7 +72,7 @@ that reads as yours.
 
 ```python
 from plinta.utils import Context, resolve_values
-resolve_values({"id__in": "__MY_WATCHLIST__"}, Context(user=some_user))
+resolve_values({"store_id__in": "__MY_STORES__"}, Context(user=some_user))
 ```
 
 An unregistered token is returned **unchanged**, not blanked — blanking would

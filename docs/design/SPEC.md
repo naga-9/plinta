@@ -557,11 +557,15 @@ Five signals. Core declares all five, including the two that contrib emits — a
 | `object_written` | `blocks` write pipeline, post-M2M | `obj`, `mode`, `changes`, `actor`, `source` |
 | `object_deleted` | `blocks` write pipeline | `obj`, `actor`, `source` |
 | `state_changed` | `contrib.workflow` | `obj`, `from_state`, `to_state`, `actor`, `comment`, `metadata`, `source` |
-| `comment_posted` | `contrib.comments` | `target`, `actor`, `body`, `metadata`, `source` |
+| `comment_posted` | `contrib.comments` | `obj`, `actor`, `body`, `metadata`, `source` |
 
 A listener imports the signal from **core**, never from the emitter, so `audit` observing a workflow transition creates no dependency between the two apps.
 
-`source` is a short string naming the path that performed the write. Three exist today — `block_edit`, `block_delete`, `permission_admin` — and v2 adds at least `api` and `import`. **Every signal carries it**, `comment_posted` included, so a listener subscribing to all five reads one payload shape rather than special-casing one.
+**Every signal carries the same envelope — `obj`, `actor`, `source`** — and adds its own payload on top. A listener subscribing to several reads one shape; without that it branches on which signal fired before it can find the row or the actor.
+
+`source` names the path that performed the write. Three exist today — `block_edit`, `block_delete`, `permission_admin` — and v2 adds at least `api` and `import`. It answers what the diff cannot: the same actor changing the same field means something different through the UI, the nightly import, or the API.
+
+An earlier draft of this table gave `comment_posted` neither `source` nor `obj`, naming its row `target` instead. Both were composition oversights rather than decisions, and each forced a listener to special-case exactly one signal.
 
 The payload carries **no request**. That is a web concern, and an event must be emittable from a management command. `actor` and `source` therefore default, so an emit from a script needs neither.
 

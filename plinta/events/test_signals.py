@@ -104,12 +104,12 @@ def test_state_changed_allows_no_previous_state(listen, seen):
     assert seen.captured[0][1]["from_state"] is None
 
 
-def test_comment_posted_names_its_target(listen, seen):
+def test_comment_posted_names_the_row_it_is_attached_to(listen, seen):
     listen(comment_posted, seen)
     book = Book()
     emit_comment_posted(book, actor="ada", body="reprint?", source="comment_post")
     _, payload = seen.captured[0]
-    assert payload["target"] is book
+    assert payload["obj"] is book
     assert payload["body"] == "reprint?"
 
 
@@ -188,3 +188,26 @@ def test_has_listeners_respects_the_sender(listen, seen):
     listen(object_written, seen, sender=Book)
     assert has_listeners(object_written, Book) is True
     assert has_listeners(object_written, Sale) is False
+
+
+def test_one_listener_reads_all_five_with_no_special_case(listen):
+    """The envelope is uniform: obj, actor, source, whichever signal fired."""
+    rows = []
+
+    def audit(sender, signal, **kw):
+        rows.append((signal._plinta_name, kw["obj"], kw["actor"], kw["source"]))
+
+    for sig in (object_writing, object_written, object_deleted, state_changed, comment_posted):
+        listen(sig, audit)
+
+    book = Book()
+    emit_writing(book, mode="update", fields=[], actor="ada", source="block_edit")
+    emit_written(book, mode="update", changes={}, actor="ada", source="block_edit")
+    emit_deleted(book, actor="ada", source="api")
+    emit_state_changed(book, from_state="draft", to_state="ordered", actor="ada", source="workflow")
+    emit_comment_posted(book, body="reprint?", actor="ada", source="comment_post")
+
+    assert [r[0] for r in rows] == [
+        "object_writing", "object_written", "object_deleted", "state_changed", "comment_posted",
+    ]
+    assert all(obj is book and actor == "ada" and src for _, obj, actor, src in rows)

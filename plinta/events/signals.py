@@ -3,6 +3,10 @@
 Core emits; contrib listens. A listener imports the signal from here, never
 from whatever emits it, so two packages observing each other's writes create no
 dependency between themselves.
+
+Every signal carries the same envelope — ``obj``, ``actor``, ``source`` — so a
+listener subscribing to several reads one shape. What differs is the payload
+each adds.
 """
 from __future__ import annotations
 
@@ -95,13 +99,13 @@ def emit_state_changed(
 
 
 def emit_comment_posted(
-    target, *, actor=None, body: str = "", metadata: dict | None = None, source: str = ""
+    obj, *, actor=None, body: str = "", metadata: dict | None = None, source: str = ""
 ) -> None:
-    """Announce a comment posted against ``target``."""
+    """Announce a comment posted against ``obj``, the row it is attached to."""
     _send(
         comment_posted,
-        type(target),
-        target=target,
+        type(obj),
+        obj=obj,
         actor=actor,
         body=body,
         metadata=metadata or {},

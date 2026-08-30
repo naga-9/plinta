@@ -449,7 +449,19 @@ register_placeholder('current_month',    lambda ctx: date.today().month)
 register_placeholder('current_fiscal_year', lambda ctx: fiscal_year_for(ctx.user))
 ```
 
-Core then calls `resolve_placeholders(values, ctx)` and never imports a fiscal helper. A token with no registered provider is left untouched and reported by the startup check (§5.13) — not silently blanked, which would widen a filter.
+Core then calls `resolve_placeholders(values, ctx)` and never imports a fiscal helper. A token with no registered provider is **left untouched** — not silently blanked, which would widen a filter.
+
+**Each layer reports its own unresolved tokens.** `utils` supplies `unresolved(values)`; the check that walks stored configuration belongs to the layer that owns it, because `utils` cannot read a `Block` and `permissions` (layer 3) cannot import one either:
+
+| Owns the config | Checks |
+|---|---|
+| `blocks` | `Block.base_filter`, `create_defaults` |
+| `pages` | `PageFilter` values, `FilterSet.values` |
+| `contrib.reports` | `ScheduledReport.filters` |
+
+This is the same shape as the shell registering its own middleware check (§10.4): §5.13's list is `permissions`' checks, not a place other layers file theirs.
+
+These read rows, so they run as a management command rather than a `django.core.checks` function — a system check runs during `migrate` against a database that may not have the tables yet.
 
 #### Ranges and placeholders are two registries
 

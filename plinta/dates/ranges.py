@@ -58,8 +58,11 @@ def register_range(name: str, label: str, resolve: Resolver | None = None):
     return _register if resolve is None else _register(resolve)
 
 
-def options() -> list[Range]:
-    """Every registered range, in registration order, for a filter UI."""
+def registered() -> list[Range]:
+    """Every registered range, in registration order.
+
+    A filter UI reads ``name`` and ``label`` from each.
+    """
     return list(_registry.values())
 
 

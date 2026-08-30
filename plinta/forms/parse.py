@@ -1,4 +1,4 @@
-"""Coerce a submitted form back into a schema-validated dict."""
+"""Turn submitted form values back into a schema-validated dict."""
 from __future__ import annotations
 
 import json
@@ -45,23 +45,23 @@ def coerce(raw: Any, annotation: Any) -> Any:
     return raw
 
 
-def parse(schema: type[BaseModel], post, *, editable: set[str] | None = None):
+def parse(schema: type[BaseModel], data, *, editable: set[str] | None = None):
     """Validate a submitted form against ``schema``.
 
     Returns ``(config, errors)`` with exactly one of them set. ``config`` is a
     plain dict ready to store; ``errors`` is ``{field: [messages]}``, keyed
     ``_general`` for anything not tied to a field.
 
-    Fields absent from ``post`` are omitted, so the schema's own defaults
+    Fields absent from ``data`` are omitted, so the schema's own defaults
     apply. Fields not in ``editable`` are ignored even if submitted.
     """
     values: dict[str, Any] = {}
     for name, info in schema.model_fields.items():
         if editable is not None and name not in editable:
             continue
-        if name not in post:
+        if name not in data:
             continue
-        value = coerce(post.get(name), info.annotation)
+        value = coerce(data.get(name), info.annotation)
         if value is not ABSENT:
             values[name] = value
 

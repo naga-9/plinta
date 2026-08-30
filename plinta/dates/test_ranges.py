@@ -9,7 +9,7 @@ from plinta.dates.ranges import (
     add_months,
     month_end,
     month_start,
-    options,
+    registered,
     resolve_q,
 )
 
@@ -116,8 +116,8 @@ def test_a_duplicate_name_is_refused(range_registry):
         range_registry.register_range("x", "X again", lambda field, today: Q())
 
 
-def test_options_offers_core_seven_in_order():
-    assert [r.name for r in options()] == [
+def test_registered_offers_core_seven_in_order():
+    assert [r.name for r in registered()] == [
         "past",
         "current_month",
         "next_month",
@@ -128,8 +128,8 @@ def test_options_offers_core_seven_in_order():
     ]
 
 
-def test_options_carry_a_label_for_the_filter_ui():
-    assert {r.label for r in options()} >= {"Past", "Current Month", "Next 12 Months"}
+def test_ranges_carry_a_label_for_the_filter_ui():
+    assert {r.label for r in registered()} >= {"Past", "Current Month", "Next 12 Months"}
 
 
 @pytest.mark.parametrize(

@@ -2,7 +2,7 @@
 from typing import Any, Optional
 
 import pytest
-from pydantic import BaseModel, Field as PydanticField
+from pydantic import BaseModel, Field
 
 from plinta.forms.fields import fields_for, unwrap_optional, widget_for
 from plinta.forms.overrides import OverrideError
@@ -15,7 +15,7 @@ class Config(BaseModel):
     enable_create: bool = False
     ratio: float = 1.0
     height: Optional[int] = None
-    series: list[dict[str, Any]] = PydanticField(
+    series: list[dict[str, Any]] = Field(
         default_factory=list, description="one entry per plotted series"
     )
 
@@ -165,7 +165,7 @@ def test_a_json_field_round_trips():
 
 
 class OtherConfig(BaseModel):
-    series: list[dict[str, Any]] = PydanticField(default_factory=list)
+    series: list[dict[str, Any]] = Field(default_factory=list)
 
 
 def test_register_widget_is_per_schema_and_field(override_registry):

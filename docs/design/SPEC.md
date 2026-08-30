@@ -397,7 +397,7 @@ A pydantic schema in, a rendered form and a parsed dict out. Extracted from `com
 
 | Function | Does |
 |---|---|
-| `fields_for(schema)` | walks `model_fields`, yields a field descriptor per entry |
+| `fields_for(schema)` | walks `model_fields`, yields a `FormField` descriptor per entry |
 | `widget_for(annotation)` | maps a python annotation to an input type |
 | `parse(schema, data)` | submitted values → dict, validated by the schema itself |
 | `register_widget(schema, field, template)` | the override registry — a bespoke editor for one field (§12.3). Keyed by the schema **class**, so a rename cannot orphan an override and a misspelled field raises at import |

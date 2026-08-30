@@ -5,7 +5,7 @@ from plinta.dates.ranges import (
     add_months,
     month_end,
     month_start,
-    options,
+    registered,
     register_range,
     resolve_q,
 )
@@ -16,7 +16,7 @@ __all__ = [
     "add_months",
     "month_end",
     "month_start",
-    "options",
+    "registered",
     "register_range",
     "resolve_q",
 ]

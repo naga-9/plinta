@@ -10,13 +10,9 @@ from typing import Any, Union, get_args, get_origin
 
 from pydantic import BaseModel
 
-#: Widget names this module derives. A component may override any one of them
-#: for a single field through ``plinta.forms.overrides``.
-WIDGETS = ("bool", "number", "text", "json")
-
 
 @dataclass(frozen=True)
-class Field:
+class FormField:
     """One row of a derived form."""
 
     name: str
@@ -65,7 +61,7 @@ def fields_for(
     *,
     editable: set[str] | None = None,
     overrides: dict[str, str] | None = None,
-) -> list[Field]:
+) -> list[FormField]:
     """Describe every field of ``schema``, in declaration order.
 
     Args:
@@ -74,10 +70,10 @@ def fields_for(
         overrides: field name to template path, replacing the derived widget.
     """
     overrides = overrides or {}
-    out: list[Field] = []
+    out: list[FormField] = []
     for name, info in schema.model_fields.items():
         out.append(
-            Field(
+            FormField(
                 name=name,
                 widget=widget_for(info.annotation),
                 annotation=info.annotation,

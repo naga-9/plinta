@@ -120,17 +120,16 @@ def affix(text: str, field: DataSourceField | None, fmt: str) -> str:
     """Put the column's prefix and suffix around a formatted number.
 
     A declared affix **replaces** what the format would have drawn, so a
-    ``percent`` column with ``suffix='%'`` shows one sign rather than two. With
-    neither declared, ``currency`` prefixes its code and ``percent`` appends a
-    sign — a number is never left bare of what it means.
+    ``percent`` column with ``suffix='%'`` shows one sign rather than two.
+    ``percent`` is the only format that draws anything of its own: a sign is
+    what the format *means*, where a currency symbol is a fact about the data
+    that core has no way to know.
     """
     prefix = (getattr(field, "prefix", "") or "") if field is not None else ""
     suffix = (getattr(field, "suffix", "") or "") if field is not None else ""
-
-    if not prefix and not suffix:
-        if fmt == "currency":
-            prefix = (getattr(field, "currency", "") or "") if field is not None else ""
-            return f"{prefix} {text}" if prefix else text
-        if fmt == "percent":
-            suffix = "%"
+    if not prefix and not suffix and fmt == "percent":
+        suffix = "%"
+    if prefix and text.startswith("-"):
+        # -$5.00, which is what every spreadsheet writes, not $-5.00.
+        return f"-{prefix}{text[1:]}{suffix}"
     return f"{prefix}{text}{suffix}"

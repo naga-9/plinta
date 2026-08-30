@@ -1231,13 +1231,9 @@ This is deduplication more than a new feature. The same "2 decimals" is declared
 
 Declared once on the field, every renderer honours it — the rule §7.1 already states for dates ("a date renders identically in HTML and in a spreadsheet because both call the same helper"). It also pulls vendor-shaped structure out of block config: a pivot may keep vendor config for vendor concerns, but formatting is universal.
 
-**`prefix`, `suffix` and `currency` on `DataSourceField`.** Decided.
+**`prefix` and `suffix` on `DataSourceField`.** Decided. Free text drawn around the value — a symbol, a unit, anything. Generic on purpose: `$`, `kg`, `ms`, `°C` and `%` become one mechanism, and core never learns what any of them mean.
 
-`prefix` and `suffix` are free text drawn around the value — a symbol, a unit, anything. Generic on purpose: `$`, `kg`, `ms`, `°C` and `%` are one mechanism, and core never learns what any of them mean.
-
-`currency` is an ISO code, and is **semantic rather than display**: it says what the numbers are denominated in, so conversion knows. A column showing dollars declares `currency='USD'` *and* `prefix='$'` — the first is read by `contrib.organization`, the second is drawn.
-
-Conversion and symbol tables live in `contrib.organization`, reached through a field renderer (§7.8). Core carries neither.
+**No `currency` field.** It was written and removed: nothing in core would have read it, and a currency code is a domain noun, which §2.2's noun test places in contrib. A consumer needing per-column denomination — for conversion, or a rate table — declares it in `contrib.organization` with an FK to the `DataSourceField`, the way every contrib app hangs data off core.
 
 ### 6.9 Checks this layer registers
 
@@ -1342,11 +1338,11 @@ Three decisions the helpers settle once:
 
 **A column draws its own affixes, and core does not convert.** `prefix` and `suffix` (§6.8) go around the formatted value, whatever its type. One rule governs them:
 
-> A declared affix **replaces** what the format would have drawn. With neither declared, `currency` prefixes its ISO code and `percent` appends a sign — so a number is never bare of what it means.
+> A declared affix **replaces** what the format would have drawn. `percent` is the only format that draws anything of its own — a sign is what the format *means*, where a currency symbol is a fact about the data that core has no way to know.
 
-So `percent` with `suffix='%'` shows one sign rather than two, and a `SEK` column with `suffix=' kr'` shows no stray code beside it. An empty cell takes no affix, or a blank currency column would render as a lone symbol.
+So `percent` with `suffix='%'` shows one sign rather than two. An empty cell takes no affix, or a blank currency column would render as a lone symbol. A negative amount puts its sign outside the prefix — `-$5.00`, which is what every spreadsheet writes.
 
-A setting could not express a screen showing USD and EUR side by side, which is the ordinary case for the consumer this exists for. Rates and symbol tables stay in `contrib.organization`, reached through a field renderer (§7.8).
+A setting could not express a screen showing dollars and euros side by side, which is the ordinary case for the consumer this exists for. Rates and symbol tables stay in `contrib.organization`, reached through a field renderer (§7.8).
 
 `components` imports this layer for those helpers. That is the only direction allowed.
 

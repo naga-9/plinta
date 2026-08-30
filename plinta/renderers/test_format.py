@@ -23,14 +23,12 @@ class Field:
         format="",
         decimals=None,
         thousands_separator=False,
-        currency="",
         prefix="",
         suffix="",
     ):
         self.format = format
         self.decimals = decimals
         self.thousands_separator = thousands_separator
-        self.currency = currency
         self.prefix = prefix
         self.suffix = suffix
 
@@ -145,44 +143,41 @@ def test_currency_defaults_to_two_places():
     assert format_value(Decimal("1234.5"), Field(format="currency")) == "1234.50"
 
 
-def test_a_column_may_draw_its_own_symbol():
-    field = Field(format="currency", currency="USD", prefix="$")
-    assert format_value(Decimal("5"), field) == "$5.00"
+def test_a_column_draws_its_own_symbol():
+    assert format_value(Decimal("5"), Field(format="currency", prefix="$")) == "$5.00"
 
 
 def test_two_currencies_on_one_screen():
     """Which a setting could never express."""
-    usd = Field(format="currency", currency="USD", prefix="$")
-    eur = Field(format="currency", currency="EUR", prefix="€")
+    usd = Field(format="currency", prefix="$")
+    eur = Field(format="currency", prefix="€")
     assert format_value(Decimal("5"), usd) == "$5.00"
     assert format_value(Decimal("5"), eur) == "€5.00"
 
 
-def test_the_code_is_prefixed_when_no_symbol_is_declared():
-    """A number is never left bare of what it means."""
-    assert format_value(Decimal("5"), Field(format="currency", currency="USD")) == "USD 5.00"
-
-
-def test_the_code_is_semantic_and_the_prefix_is_display():
-    """Declaring a symbol does not erase what the numbers are denominated in —
-    that is what conversion reads."""
-    field = Field(format="currency", currency="USD", prefix="$")
-    assert field.currency == "USD"
-    assert "USD" not in format_value(Decimal("5"), field)
+def test_core_draws_no_symbol_of_its_own():
+    """Which symbol a column wants is a fact about the data. Core formats the
+    number and draws whatever the column declared — nothing more."""
+    assert format_value(Decimal("5"), Field(format="currency")) == "5.00"
 
 
 def test_a_currency_column_without_a_code_is_just_a_number():
     assert format_value(Decimal("5"), Field(format="currency")) == "5.00"
 
 
-def test_a_negative_amount_keeps_its_sign():
-    assert format_value(Decimal("-5"), Field(format="currency", currency="USD")) == "USD -5.00"
+def test_a_negative_amount_puts_its_sign_outside_the_prefix():
+    """-$5.00, which is what every spreadsheet writes, not $-5.00."""
+    assert format_value(Decimal("-5"), Field(format="currency", prefix="$")) == "-$5.00"
+
+
+def test_a_negative_with_only_a_suffix_is_untouched():
+    assert format_value(Decimal("-5"), Field(format="number", suffix="kg")) == "-5kg"
 
 
 def test_a_currency_column_may_override_its_precision():
     """Four places on a price column — the ceiling v1 had."""
-    field = Field(format="currency", currency="USD", decimals=4)
-    assert format_value(Decimal("1.2345"), field) == "USD 1.2345"
+    field = Field(format="currency", prefix="$", decimals=4)
+    assert format_value(Decimal("1.2345"), field) == "$1.2345"
 
 
 # --- affixes ---------------------------------------------------------------
@@ -206,10 +201,8 @@ def test_an_affix_replaces_what_the_format_would_draw():
     assert format_value(15, Field(format="percent", suffix="%")) == "15.0%"
 
 
-def test_a_currency_column_with_only_a_suffix_drops_the_code():
-    """The affix was declared, so it decides — no code sneaks in beside it."""
-    field = Field(format="currency", currency="SEK", suffix=" kr")
-    assert format_value(Decimal("5"), field) == "5.00 kr"
+def test_a_currency_column_may_put_its_symbol_after():
+    assert format_value(Decimal("5"), Field(format="currency", suffix=" kr")) == "5.00 kr"
 
 
 def test_an_empty_column_draws_nothing_extra():

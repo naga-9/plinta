@@ -182,6 +182,31 @@ def test_the_generated_stylesheet_is_allowed(tmp_path):
     assert offenders(tmp_path) == []
 
 
+def test_a_literal_colour_function_is_caught(tmp_path):
+    """Catching only hex would let rgb(0 0 0 / 0.4) through, which is just as
+    blind to the theme."""
+    (tmp_path / "rogue.css").write_text(
+        ".x { background: rgb(0 0 0 / 0.4); }", encoding="utf-8"
+    )
+    assert offenders(tmp_path) != []
+
+
+def test_a_token_used_inside_a_colour_function_is_fine(tmp_path):
+    """Which is what the rgb companions exist for."""
+    (tmp_path / "ok.css").write_text(
+        ".x { background: rgb(var(--pl-accent-rgb) / 0.1); }", encoding="utf-8"
+    )
+    assert offenders(tmp_path) == []
+
+
+def test_the_stylesheet_is_written_only_in_tokens(tmp_path):
+    """The shipped stylesheet names no colour of its own."""
+    from plinta.shell import tokens as token_module
+
+    css = token_module.STATIC / "css" / "plinta.css"
+    assert offenders(css.parent) == []
+
+
 def test_a_python_file_is_not_scanned(tmp_path):
     """The linter guards what is served, not what generates it."""
     (tmp_path / "thing.py").write_text('COLOUR = "#ff0000"', encoding="utf-8")

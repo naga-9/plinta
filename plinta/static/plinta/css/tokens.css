@@ -87,6 +87,7 @@
   --pl-hover-bg: color-mix(in srgb, var(--pl-fg) 5%, transparent);
   --pl-active-bg: color-mix(in srgb, var(--pl-accent) 10%, transparent);
   --pl-focus-ring: color-mix(in srgb, var(--pl-accent) 35%, transparent);
+  --pl-backdrop: rgb(15 23 42 / 0.4);
   --pl-shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
   --pl-shadow: 0 2px 6px rgb(15 23 42 / 0.08);
   --pl-shadow-lg: 0 8px 24px rgb(15 23 42 / 0.12);
@@ -130,6 +131,7 @@
     --pl-hover-bg: color-mix(in srgb, var(--pl-fg) 8%, transparent);
     --pl-active-bg: color-mix(in srgb, var(--pl-accent) 22%, transparent);
     --pl-focus-ring: color-mix(in srgb, var(--pl-accent) 45%, transparent);
+    --pl-backdrop: rgb(0 0 0 / 0.6);
     --pl-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
     --pl-shadow: 0 2px 6px rgb(0 0 0 / 0.5);
     --pl-shadow-lg: 0 8px 24px rgb(0 0 0 / 0.6);
@@ -173,6 +175,7 @@
   --pl-hover-bg: color-mix(in srgb, var(--pl-fg) 8%, transparent);
   --pl-active-bg: color-mix(in srgb, var(--pl-accent) 22%, transparent);
   --pl-focus-ring: color-mix(in srgb, var(--pl-accent) 45%, transparent);
+  --pl-backdrop: rgb(0 0 0 / 0.6);
   --pl-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
   --pl-shadow: 0 2px 6px rgb(0 0 0 / 0.5);
   --pl-shadow-lg: 0 8px 24px rgb(0 0 0 / 0.6);

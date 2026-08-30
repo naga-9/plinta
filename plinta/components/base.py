@@ -81,8 +81,17 @@ class Component:
     #: Pydantic, with ``extra='forbid'``.
     config_schema: ClassVar[type[ComponentConfig]] = ComponentConfig
 
-    #: Overridable per block (§7.3).
+    #: The default. A block may override it, within ``supported_modes``.
     mode: ClassVar[Mode] = Mode.FETCH
+
+    #: Which modes this component can actually draw in. A component with no
+    #: client adapter cannot be fetched; one that embeds a finished blob may
+    #: have nothing to fetch. None means both.
+    supported_modes: ClassVar[frozenset[Mode] | None] = None
+
+    def supports(self, mode: Mode) -> bool:
+        """Whether this component can draw in ``mode``."""
+        return self.supported_modes is None or mode in self.supported_modes
 
     def validate(self, config: dict[str, Any]) -> ComponentConfig:
         """Parse ``config`` against the schema.

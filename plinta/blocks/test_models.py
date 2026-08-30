@@ -49,3 +49,35 @@ def test_an_uninstalled_component_cannot_judge_its_config(ds):
     """It has no schema to check against, so the config is left as written —
     the same reason it renders an empty slot instead of failing."""
     block(ds, component_type="heatmap", config={"anything": 1}).full_clean()
+
+
+# --- the mode ---------------------------------------------------------------
+
+
+def test_inheriting_the_mode_is_always_valid(ds):
+    block(ds).full_clean()
+
+
+def test_a_mode_the_component_supports_is_accepted(ds, component_registry):
+    from plinta.components.base import Component
+    from plinta.components.registry import register_component
+
+    @register_component("either")
+    class Either(Component):
+        def render(self, config, user, **context):
+            return ""
+
+    block(ds, component_type="either", mode="fetch").full_clean()
+    block(ds, component_type="either", mode="inline").full_clean()
+
+
+def test_a_mode_the_component_cannot_draw_is_refused(ds):
+    """table is server-rendered and has no adapter, so a fetch would render
+    nothing and say nothing."""
+    with pytest.raises(ValidationError) as exc:
+        block(ds, mode="fetch").full_clean()
+    assert "mode" in exc.value.error_dict
+
+
+def test_an_uninstalled_component_cannot_judge_the_mode(ds):
+    block(ds, component_type="heatmap", mode="fetch").full_clean()

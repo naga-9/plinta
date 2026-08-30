@@ -87,13 +87,17 @@ class Block(models.Model):
         ]
 
     def clean(self) -> None:
-        """Check ``config`` against the component's schema.
+        """Check ``config`` and ``mode`` against the component.
 
         Raises a `ValidationError` on a key the component does not declare,
         which is what makes ``extra='forbid'`` a save-time answer rather than a
-        render-time surprise. A component that is not installed cannot say, so
-        the config is left as written — the same reason an uninstalled
-        component renders an empty slot instead of failing.
+        render-time surprise. A mode the component cannot draw in is refused
+        too: asking a server-rendered component to be fetched has no adapter to
+        answer, so the block would render nothing and say nothing.
+
+        A component that is not installed cannot judge either, so both are left
+        as written — the same reason it renders an empty slot instead of
+        failing.
         """
         from django.core.exceptions import ValidationError
 
@@ -107,6 +111,11 @@ class Block(models.Model):
             component.validate(self.config)
         except ConfigError as exc:
             raise ValidationError({"config": str(exc)}) from exc
+
+        if self.mode and not component.supports(self.mode):
+            raise ValidationError(
+                {"mode": f"{self.component_type!r} cannot render in {self.mode!r} mode."}
+            )
 
     def __str__(self) -> str:
         return self.name

@@ -1398,7 +1398,11 @@ Every component implements `get_data()`. The mode decides *when* it is called:
 | `inline` | `get_data()` runs during page render; rows are embedded in the HTML |
 | `fetch` | the page returns a mount point; the client requests the data separately |
 
-**The component declares a default; a block may override it.** The default follows from the widget's interaction model and is right nearly always; the override covers genuine exceptions — a five-row related table on a detail page, or a chart with 50,000 points that should not bloat the page.
+**The component declares a default; a block may override it.** The default follows from the widget's interaction model and is right nearly always; the override covers genuine exceptions — a five-row related grid on a detail page, or a chart with 50,000 points that should not bloat the page.
+
+**Within what the component can draw.** A component also declares `supported_modes`, and a block asking for one outside it is refused when it is saved. Core's `table` supports `inline` only: it is server-rendered and has no client adapter, so a `fetch` block would render nothing and say nothing about why. `datagrid` supports both — `inline` is Tabulator's `paginationMode: 'local'`, which is what a five-row grid wants.
+
+**Changing how a table behaves is changing the component, not the mode.** Installing `contrib.components.datagrid` does not make `table` interactive; a block's `component_type` moves from `table` to `datagrid`, and the new component's default mode comes with it. Mode says *when the data arrives*, not *which widget draws it* — and since the two components declare different config schemas, the switch is validated at save like any other config change.
 
 | Component | Default | Why |
 |---|---|---|

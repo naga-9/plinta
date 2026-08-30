@@ -55,6 +55,10 @@ class TableComponent(Component):
     config_schema = TableConfig
     #: The rows are in the HTML, so there is nothing to fetch.
     mode = Mode.INLINE
+    #: And nothing to fetch it with: there is no client adapter for a table
+    #: the server already drew. A block asking for `fetch` is refused when it
+    #: is saved rather than rendering nothing.
+    supported_modes = frozenset({Mode.INLINE})
 
     def get_data(self, config: TableConfig, user, *, datasource, narrow=None):
         """The base rows and fields, ordered as the config asks."""

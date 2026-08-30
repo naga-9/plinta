@@ -3416,7 +3416,30 @@ The widest door, and the one most people use. A consumer is an ordinary Django p
 - **Register what should be visible** as DataSources, in a data migration or a seeder.
 - **Declare policies** for row and field access; core's rule vocabulary composes them (§5.4).
 - **Compose screens in the browser**, or seed Pages and Blocks so a fresh install arrives usable.
+- **Create the groups and grant the permissions.** Core mints; it never grants (§18.14a).
 - **Depend on anything.** Core, contrib, several packages at once — the sideways rule (§2.5) governs what plinta ships, not what is built on it.
+
+#### 18.14a Core mints permissions; it never grants them
+
+Three things mint, and all of them happen without being asked:
+
+| What | Minted by | When |
+|---|---|---|
+| `view_page`, `change_block` and the rest of plinta's own | Django | `migrate` |
+| `view_book_title` and the other column permissions | the `DataSourceField` signals (§6.9) | a column is configured |
+| `export_book` and other registered actions | `mint_for` (§5.5) | a DataSource is registered |
+
+**Nothing is assigned.** Plinta ships no groups, and a new user's menu is empty until someone grants. That is deliberate: which roles an organisation has is a policy, not a mechanism, and a `Plinta Viewer` group in core would be core deciding an organisation's shape — the same reason there is no currency symbol setting (§6.8) and no CSS framework (§10.8). A superuser bypasses both tiers (§5.9), so a fresh install is administrable from the first login.
+
+**A consumer creates the groups.** `example/catalog` ships a command that does, and is the worked example.
+
+**Five permissions gate a dashboard before any of the consumer's own matter:**
+
+```
+view_page  view_block  view_savedview  view_filterset  view_datasource
+```
+
+**Two of them fail silently.** Without `view_savedview` personalisation stops working with no error anywhere; without `view_filterset` saved filter sets vanish from the picker. A viewer granted only the obvious two gets a dashboard that mostly works with two features quietly dead. There is no boot check for this — a grant is a deployment decision, and a check that scolded an administrator for a role they meant to create would be noise — so it is written here instead.
 
 Nothing here is privileged. `example/catalog` is written against exactly this list, and a consumer that needs something not on it has found a gap in the public API, not a reason for a private path.
 

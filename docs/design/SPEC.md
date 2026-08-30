@@ -207,7 +207,9 @@ Eleven packages across nine layers: layer 1 carries three that import nothing of
 | `reports` | ReportDefinition, ScheduledReport |
 | `export` | Excel, PDF and email renderers; the export endpoint |
 | `api` | the public data API, API keys, the OpenAPI spec |
-| `components.*` | every component except `table` |
+
+Eleven packages, plus eleven component packages under `components.*`. None is required: an installation with none of them is a working plinta that shows tables.
+| `components.*` | eleven components — everything except `table` (§11) |
 
 ### 2.5 Dependency rules
 
@@ -2785,6 +2787,7 @@ No comment threads, and the `comments_section` component is unregistered — a b
 
 | Package | Renders | Vendor |
 |---|---|---|
+| `components.datagrid` | an interactive table — client sort, remote paging, inline cell editing | Tabulator |
 | `components.details_card` | one record as a field list | — |
 | `components.text` | markdown / rich text | — |
 | `components.alert` | a conditional banner | — |

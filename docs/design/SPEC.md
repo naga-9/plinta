@@ -779,6 +779,26 @@ Today a policy is a class attribute on the model (`permissions = SomePolicy()`),
 
 **No policy registered → the model permission decides, and all rows are visible.** Row-level control is opt-in; most models never need it. This fails open by design, so it is paired with a startup check (§5.13) listing every DataSource-backed model without a policy — a visible choice, not an oversight.
 
+#### Scoping a parent does not scope its children
+
+A policy governs **one model**. Registering one for `PurchaseOrder` says nothing about `PurchaseOrderLine`, so a line remains visible to anyone holding `view_purchaseorderline` — including the rows of orders the viewer may not see.
+
+This is easy to miss precisely because it looks handled: the parent is scoped, the screen showing parents is correct, and the leak appears only on whatever screen shows the children. In `example/catalog` it was two blocks on the same page — orders narrowed to a manager's own shops, lines from every shop in the chain.
+
+**A related model needs its own policy, usually the same rule through the relation:**
+
+```python
+class PurchaseOrderPolicy(PermissionPolicy):
+    view = FieldInUserSet("store", user_set=stores_of)
+
+class PurchaseOrderLinePolicy(PermissionPolicy):
+    view = FieldInUserSet("order__store", user_set=stores_of)   # through the parent
+```
+
+**Nothing infers it**, deliberately. A relation is not evidence of a scope: a `Sale` points at a `Book`, and scoping books by whoever sold one would be absurd. Only the person who wrote the parent's policy knows whether the child inherits it, so the design asks rather than guesses — and the check is what makes the question arrive.
+
+**W001 is what catches it.** It reports every DataSource-backed model without a policy, so a child left unscoped is named at boot rather than found by a viewer. A consumer with a legitimate unscoped model — a shared catalogue — should assert that it is the *only* one reported, which turns the warning into a test.
+
 ### 5.4 The rule vocabulary
 
 A `Rule` is a `(to_q, evaluate)` pair, composable with `|`, `&`, `~`.
@@ -3442,6 +3462,20 @@ Three things mint, and all of them happen without being asked:
 **Nothing is assigned.** Plinta ships no groups, and a new user's menu is empty until someone grants. That is deliberate: which roles an organisation has is a policy, not a mechanism, and a `Plinta Viewer` group in core would be core deciding an organisation's shape — the same reason there is no currency symbol setting (§6.8) and no CSS framework (§10.8). A superuser bypasses both tiers (§5.9), so a fresh install is administrable from the first login.
 
 **A consumer creates the groups.** `example/catalog` ships a command that does, and is the worked example.
+
+**Grant after configuring, not before.** Column permissions are minted when a `DataSourceField` is saved, so a role built before the screens exist grants `view_sale` and none of its columns — and every table renders with no columns at all, silently. The order is `migrate` → configure the DataSources → create the groups; `example/catalog`'s seeder calls its own `setup_groups` last for exactly this reason.
+
+**So a role should derive its column permissions rather than list them.** Thirty codenames written out by hand go stale the first time a screen changes:
+
+```python
+# every view_<model>_<column> minted for a model the role may view
+Permission.objects.filter(
+    content_type__app_label=app_label,
+    codename__startswith=f"view_{model}_",
+).exclude(codename__contains="_instance_")
+```
+
+The `_instance_` exclusion matters: a per-row grant (§5.10) shares the prefix, and sweeping one into a group would hand every member somebody's individual share.
 
 **Five permissions gate a dashboard before any of the consumer's own matter:**
 

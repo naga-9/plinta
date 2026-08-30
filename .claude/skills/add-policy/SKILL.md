@@ -33,6 +33,38 @@ personal dashboards. Row control is opt-in, and most models never need it.
 Be deliberate: a missing policy **fails open**, which is why a boot check lists
 every DataSource-backed model without one.
 
+## Scoping a parent does not scope its children
+
+A policy governs **one model**. Writing one for `PurchaseOrder` says nothing
+about `PurchaseOrderLine`, so the lines stay visible to anyone holding
+`view_purchaseorderline` — including lines of orders they may not see.
+
+This hides well, because the parent screen is correct and only the child screen
+leaks. Give the related model its own policy, usually the same rule through the
+relation:
+
+```python
+class PurchaseOrderPolicy(PermissionPolicy):
+    view = FieldInUserSet("store", user_set=stores_of)
+
+class PurchaseOrderLinePolicy(PermissionPolicy):
+    view = FieldInUserSet("order__store", user_set=stores_of)   # through the parent
+```
+
+Nothing infers this, deliberately: a relation is not evidence of a scope. A
+`Sale` points at a `Book`, and scoping books by whoever sold one would be
+absurd. Only you know whether the child inherits the parent's rule.
+
+**The boot check is what tells you.** `plinta.datasources.W001` names every
+DataSource-backed model without a policy. Turn it into a test, so the list can
+only ever contain the models you meant:
+
+```python
+def test_the_only_unscoped_model_is_the_one_we_meant():
+    reported = {w.obj.name for w in check_datasource_models_have_a_policy()}
+    assert reported == {"books"}          # the shared catalogue, deliberately
+```
+
 ## Two tiers, always both
 
 An action needs the Django model permission **and** the policy. The policy

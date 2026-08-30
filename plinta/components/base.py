@@ -8,6 +8,7 @@ view it is rendering. Resolving that happens one layer up, in `blocks`.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -96,7 +97,12 @@ class Component:
             raise ConfigError(type(self).__name__, exc.errors()) from exc
 
     def get_data(
-        self, config: ComponentConfig, user, *, datasource: DataSource
+        self,
+        config: ComponentConfig,
+        user,
+        *,
+        datasource: DataSource,
+        narrow: Callable[[Any], Any] | None = None,
     ) -> tuple[Any, list[DataSourceField]]:
         """The rows and columns this component may draw.
 
@@ -104,6 +110,10 @@ class Component:
         happened below and nothing here can widen it. The joins a field
         renderer declared are collected on the way (§7.8), so a component
         written tomorrow gets them without knowing they exist.
+
+        ``narrow`` narrows the rows further. It is opaque here: the caller
+        composes whatever it means, which is how a block applies its locked
+        filter without a component learning that blocks exist.
         """
         from plinta.datasources import services
         from plinta.renderers.fields import joins_for
@@ -117,7 +127,7 @@ class Component:
             extra_select=sorted(select),
             extra_prefetch=sorted(prefetch),
         )
-        return rows, fields
+        return (narrow(rows) if narrow else rows), fields
 
     def render(self, config: ComponentConfig, user, **context: Any) -> str:
         """Draw this component as HTML."""

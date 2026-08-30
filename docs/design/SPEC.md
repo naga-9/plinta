@@ -1752,6 +1752,14 @@ Two different narrowings, both on the Block:
 
 Both are **configuration**, chosen by whoever builds the screen, not by the viewer. That is what distinguishes them from page filters, which the viewer drives.
 
+**They reach a component as one opaque callable.** `blocks` composes them into a `narrow(queryset) -> queryset` and passes it to `get_data`, which applies it after `datasources` has filtered. So a component applies a block's narrowing without learning that blocks exist, and the ordering — policy first, then configuration — cannot be got wrong per component.
+
+**An unresolved placeholder is left as written**, so a `base_filter` naming a token nothing registered matches nothing. Dropping the clause would widen the filter it was written to narrow.
+
+**An unregistered modifier raises** rather than being skipped, for the same reason: a modifier exists to hide rows, and skipping a missing one shows every row it was meant to exclude.
+
+**"May narrow, must not widen" stays a rule its author keeps.** The callable is opaque, so a modifier that starts from `Model.objects.all()` defeats the row policy — which is why `add-queryset-modifier` states the rule and gives the one-line subset test that catches it.
+
 ### 8.5 Capabilities
 
 The registry lives here — `blocks/capabilities.py` — because a capability contributes to an **edit form**, which is a block concern.

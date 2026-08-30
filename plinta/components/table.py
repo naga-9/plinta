@@ -48,9 +48,11 @@ class TableComponent(Component):
     #: The client sorts, filters and pages, and a large table cannot be inlined.
     mode = Mode.FETCH
 
-    def get_data(self, config: TableConfig, user, *, datasource):
+    def get_data(self, config: TableConfig, user, *, datasource, narrow=None):
         """The base rows and fields, ordered as the config asks."""
-        rows, fields = super().get_data(config, user, datasource=datasource)
+        rows, fields = super().get_data(
+            config, user, datasource=datasource, narrow=narrow
+        )
         ordering = [
             f"-{s.field}" if s.direction == "desc" else s.field for s in config.sort
         ]
@@ -64,7 +66,11 @@ class TableComponent(Component):
         Defaults to HTML, and substitutes HTML for a format nothing registered
         (§7.1), so a caller never asks whether `contrib.export` is installed.
         """
-        datasource = context["datasource"]
-        rows, fields = self.get_data(config, user, datasource=datasource)
+        rows, fields = self.get_data(
+            config,
+            user,
+            datasource=context["datasource"],
+            narrow=context.get("narrow"),
+        )
         renderer = get_renderer(context.get("format", "html"))
         return renderer.render(rows, fields, config.model_dump(), user)

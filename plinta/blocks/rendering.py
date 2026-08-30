@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from plinta.blocks.models import Block, SavedView
+from plinta.blocks.narrowing import narrowing_for
 from plinta.components.base import ComponentConfig, Mode
 from plinta.components.registry import find
 
@@ -86,7 +87,7 @@ def render_block(block: Block, user, *, view: SavedView | None = None, **context
     1. Resolve the effective config — the block's, with the viewer's delta over it.
     2. Look up the component. Not registered is an empty slot, not an exception.
     3. Fetch rows and fields through `datasources`, passing the user.
-    4. Call the component with the resolved config.
+    4. Call the component with the resolved config and the block's narrowing.
 
     Step 3 is why a block cannot widen access: the narrowing happened below it.
     """
@@ -101,5 +102,10 @@ def render_block(block: Block, user, *, view: SavedView | None = None, **context
 
     config = component.validate(effective_config(block, user, view))
     return component.render(
-        config, user, datasource=block.data_source, block=block, **context
+        config,
+        user,
+        datasource=block.data_source,
+        narrow=narrowing_for(block, user),
+        block=block,
+        **context,
     )

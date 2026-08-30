@@ -33,8 +33,8 @@ def on_state_changed(sender, obj, from_state, to_state, actor=None, source="", *
 
 
 def on_comment_posted(sender, obj, body="", metadata=None, actor=None, source="", **kwargs):
-    """A comment on a row. `notifications` never imports `comments` either — in
-    v1 that import was one of the four sideways dependencies (§4.10)."""
+    """A comment on a row. `notifications` never imports `comments` for it:
+    the signal carries what a subscription needs."""
     notify(
         obj, "comment_posted",
         body=body, metadata=metadata or {}, actor=actor, source=source,

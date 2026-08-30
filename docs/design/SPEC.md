@@ -2962,7 +2962,17 @@ A consumer registers interest per model label and event, declaring who should be
 
 **The actor is not notified by default.** Telling somebody what they have just done is the commonest complaint about a notification system; `notify_actor=True` asks for it.
 
-**A registration carries its own defaults**, so a newly registered kind works before anybody has a preference row. In-app on, email off — a fresh install that mails everybody is a fresh install nobody keeps.
+##### A channel is registered too
+
+**Where a notification goes is a second registry.** Two ship — the in-app list and the email queue — and a third party adds Discord, Slack, SMS or a webhook by registering one, not by changing this app. Both built-ins go through `register_channel` themselves, so there is no private path for them to keep working on when the public one rots.
+
+A channel is a name, a `deliver` callable, and an optional `available` probe: somebody with no address is not offered email however enthusiastically they opted in.
+
+**Delivering must not block.** A channel runs inside the write that caused the notification, so one that talks to an HTTP API enqueues rather than posts — `email` is the worked example, and it queues.
+
+**A preference is per kind *and* per channel.** A column each would mean a package adding Discord adding a column here, and would stop a person taking a kind by one route and not another.
+
+**Three answers, most specific first:** what the person said, then what the subscription defaults to for that kind, then what the channel defaults to. So a newly registered kind works before anybody has a preference row, and a newly installed channel does not switch itself on for everyone. In-app is on by default and email is off — a fresh install that mails everybody is a fresh install nobody keeps.
 
 Email is queued, never sent inline. Delivery is a scheduled command, so a mail server outage cannot fail a save, and a message stops being retried after a bounded number of attempts: a queue that retries for ever is a queue that never drains.
 

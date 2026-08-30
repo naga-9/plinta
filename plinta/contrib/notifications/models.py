@@ -90,11 +90,15 @@ class QueuedEmail(models.Model):
 
 
 class NotificationPreference(models.Model):
-    """One person's answer for one kind.
+    """One person's answer, for one kind on one channel.
 
-    A row exists only where somebody has expressed a preference; the
-    registration's own defaults apply otherwise, so a new kind does not need a
-    row per user before it works.
+    Per channel rather than a column each, so a package adding Discord adds no
+    column here and a person can take a kind by one route and not another.
+
+    A row exists only where somebody has said something; the subscription's
+    default applies otherwise, and the channel's after that. So a new kind
+    works before anybody has a row, and a newly installed channel does not
+    switch itself on for everyone.
     """
 
     user = models.ForeignKey(
@@ -103,15 +107,16 @@ class NotificationPreference(models.Model):
         related_name="notification_preferences",
     )
     kind = models.CharField(max_length=60)
-    in_app = models.BooleanField(default=True)
-    email = models.BooleanField(default=False)
+    channel = models.CharField(max_length=40)
+    enabled = models.BooleanField(default=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["user", "kind"], name="unique_preference_per_kind"
+                fields=["user", "kind", "channel"],
+                name="unique_preference_per_kind_and_channel",
             )
         ]
 
     def __str__(self) -> str:
-        return f"{self.user}: {self.kind}"
+        return f"{self.user}: {self.kind} by {self.channel}"

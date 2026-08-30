@@ -283,34 +283,41 @@ def test_the_registrations_defaults_apply_without_a_row(people, subscriptions):
     assert not QueuedEmail.objects.exists()
 
 
-def test_a_preference_can_mute_a_kind(people, subscriptions):
+def test_a_preference_can_mute_one_channel(people, subscriptions):
     ada, bob = people
     watch(recipients=lambda obj, **kw: [bob])
-    NotificationPreference.objects.create(user=bob, kind="book_written", in_app=False)
+    NotificationPreference.objects.create(
+        user=bob, kind="book_written", channel="in_app", enabled=False
+    )
     write(Book(owner=ada), {"title": "Dune"}, ada)
     assert not Notification.objects.exists()
 
 
-def test_a_preference_can_ask_for_email(people, subscriptions):
+def test_a_preference_is_per_channel(people, subscriptions):
+    """So a person may take a kind by one route and not another."""
     ada, bob = people
     watch(recipients=lambda obj, **kw: [bob], title="A book arrived")
-    NotificationPreference.objects.create(user=bob, kind="book_written", email=True)
+    NotificationPreference.objects.create(
+        user=bob, kind="book_written", channel="email", enabled=True
+    )
     write(Book(owner=ada), {"title": "Dune"}, ada)
+    assert Notification.objects.count() == 1
     assert QueuedEmail.objects.get().to == "bob@example.com"
 
 
-def test_a_subscription_may_default_to_email(people, subscriptions):
+def test_a_subscription_may_default_a_channel_on(people, subscriptions):
     ada, bob = people
-    watch(recipients=lambda obj, **kw: [bob], email_by_default=True)
+    watch(recipients=lambda obj, **kw: [bob], channels={"email": True})
     write(Book(owner=ada), {"title": "Dune"}, ada)
     assert QueuedEmail.objects.count() == 1
 
 
-def test_somebody_without_an_address_gets_no_email(people, subscriptions):
+def test_somebody_who_cannot_be_reached_is_not(people, subscriptions):
+    """No address, no email — however enthusiastically they opted in."""
     ada, bob = people
     bob.email = ""
     bob.save()
-    watch(recipients=lambda obj, **kw: [bob], email_by_default=True)
+    watch(recipients=lambda obj, **kw: [bob], channels={"email": True})
     write(Book(owner=ada), {"title": "Dune"}, ada)
     assert not QueuedEmail.objects.exists()
 
@@ -321,7 +328,7 @@ def test_somebody_without_an_address_gets_no_email(people, subscriptions):
 def test_a_write_sends_no_mail(people, subscriptions):
     """A mail server that is down must not be able to fail somebody's save."""
     ada, bob = people
-    watch(recipients=lambda obj, **kw: [bob], email_by_default=True)
+    watch(recipients=lambda obj, **kw: [bob], channels={"email": True})
     write(Book(owner=ada), {"title": "Dune"}, ada)
     assert mail.outbox == []
     assert QueuedEmail.objects.get().status == EmailStatus.QUEUED
@@ -329,7 +336,7 @@ def test_a_write_sends_no_mail(people, subscriptions):
 
 def test_the_command_sends_it(people, subscriptions):
     ada, bob = people
-    watch(recipients=lambda obj, **kw: [bob], email_by_default=True, title="Hello")
+    watch(recipients=lambda obj, **kw: [bob], channels={"email": True}, title="Hello")
     write(Book(owner=ada), {"title": "Dune"}, ada)
     call_command("send_queued_email", verbosity=0)
     assert [m.subject for m in mail.outbox] == ["Hello"]
@@ -338,7 +345,7 @@ def test_the_command_sends_it(people, subscriptions):
 
 def test_a_sent_message_is_not_sent_twice(people, subscriptions):
     ada, bob = people
-    watch(recipients=lambda obj, **kw: [bob], email_by_default=True)
+    watch(recipients=lambda obj, **kw: [bob], channels={"email": True})
     write(Book(owner=ada), {"title": "Dune"}, ada)
     call_command("send_queued_email", verbosity=0)
     call_command("send_queued_email", verbosity=0)
@@ -352,7 +359,7 @@ def test_a_failure_is_recorded_and_retried_a_bounded_number_of_times(
     from plinta.contrib.notifications.management.commands import send_queued_email
 
     ada, bob = people
-    watch(recipients=lambda obj, **kw: [bob], email_by_default=True)
+    watch(recipients=lambda obj, **kw: [bob], channels={"email": True})
     write(Book(owner=ada), {"title": "Dune"}, ada)
 
     def explode(*args, **kwargs):
@@ -420,3 +427,111 @@ def test_marking_read_is_idempotent(people, subscriptions):
     note.mark_read()
     assert note.read_at == first
     assert note.is_read
+
+
+# --- a third channel, from outside -----------------------------------------
+
+
+@pytest.fixture
+def channel_registry():
+    """Channels as installed, restored afterwards."""
+    from plinta.contrib.notifications import channels
+
+    saved = dict(channels._registry)
+    yield channels
+    channels._registry.clear()
+    channels._registry.update(saved)
+
+
+def test_a_third_party_may_add_a_channel(people, subscriptions, channel_registry):
+    """Discord, Slack, SMS, a webhook — a package that registers one, not a
+    change to this app."""
+    sent = []
+    channel_registry.register_channel(
+        "discord",
+        "Discord",
+        deliver=lambda user, notification, **kw: sent.append(
+            (user.username, notification.title)
+        ),
+        on_by_default=True,
+    )
+    ada, bob = people
+    watch(recipients=lambda obj, **kw: [bob], title="A book arrived")
+    write(Book(owner=ada), {"title": "Dune"}, ada)
+    assert sent == [("bob", "A book arrived")]
+
+
+def test_a_new_channel_does_not_switch_itself_on(people, subscriptions, channel_registry):
+    """Installing a package must not start messaging everybody."""
+    sent = []
+    channel_registry.register_channel(
+        "discord", deliver=lambda user, notification, **kw: sent.append(1)
+    )
+    ada, bob = people
+    watch(recipients=lambda obj, **kw: [bob])
+    write(Book(owner=ada), {"title": "Dune"}, ada)
+    assert sent == []
+
+
+def test_a_channel_declares_who_it_can_reach(people, subscriptions, channel_registry):
+    sent = []
+    channel_registry.register_channel(
+        "discord",
+        deliver=lambda user, notification, **kw: sent.append(user.username),
+        available=lambda user, **kw: user.username == "bob",
+        on_by_default=True,
+    )
+    ada, bob = people
+    watch(recipients=lambda obj, **kw: User.objects.all(), notify_actor=True)
+    write(Book(owner=ada), {"title": "Dune"}, ada)
+    assert sent == ["bob"]
+
+
+def test_a_channel_appears_in_the_preferences(channel_registry):
+    """Which is what a preference screen lists — it asks the registry rather
+    than knowing the two that shipped."""
+    channel_registry.register_channel("discord", deliver=lambda **kw: None)
+    assert [c.name for c in channel_registry.registered()] == [
+        "discord", "email", "in_app",
+    ]
+
+
+def test_a_broken_channel_does_not_stop_the_others(
+    people, subscriptions, channel_registry, caplog
+):
+    channel_registry.register_channel(
+        "discord",
+        deliver=lambda user, notification, **kw: 1 / 0,
+        on_by_default=True,
+    )
+    ada, bob = people
+    watch(recipients=lambda obj, **kw: [bob])
+    saved, _ = write(Book(owner=ada), {"title": "Dune"}, ada)
+    assert saved.pk is not None
+    assert Notification.objects.count() == 1
+    assert "could not deliver" in caplog.text
+
+
+def test_a_duplicate_channel_is_refused(channel_registry):
+    from plinta.contrib.notifications.channels import ChannelError
+
+    with pytest.raises(ChannelError, match="already registered"):
+        channel_registry.register_channel("email", deliver=lambda **kw: None)
+
+
+def test_a_preference_overrides_a_channel_default(
+    people, subscriptions, channel_registry
+):
+    sent = []
+    channel_registry.register_channel(
+        "discord",
+        deliver=lambda user, notification, **kw: sent.append(1),
+        on_by_default=True,
+    )
+    ada, bob = people
+    watch(recipients=lambda obj, **kw: [bob])
+    NotificationPreference.objects.create(
+        user=bob, kind="book_written", channel="discord", enabled=False
+    )
+    write(Book(owner=ada), {"title": "Dune"}, ada)
+    assert sent == []

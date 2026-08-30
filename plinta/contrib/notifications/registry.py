@@ -38,9 +38,9 @@ class Subscription:
     title: str | Callable[..., str] = ""
     body: str | Callable[..., str] = ""
     url: str | Callable[..., str] = ""
-    #: What a person gets before they have expressed a preference.
-    in_app_by_default: bool = True
-    email_by_default: bool = False
+    #: Per-channel defaults for this kind, overriding the channel's own —
+    #: ``{"email": True}`` for something urgent enough to mail about.
+    channels: dict[str, bool] = field(default_factory=dict)
     #: Whether the person who caused it hears about it.
     notify_actor: bool = field(default=False)
 
@@ -63,8 +63,7 @@ def register_notification(
     title: str | Callable[..., str] = "",
     body: str | Callable[..., str] = "",
     url: str | Callable[..., str] = "",
-    in_app_by_default: bool = True,
-    email_by_default: bool = False,
+    channels: dict[str, bool] | None = None,
     notify_actor: bool = False,
 ) -> Subscription:
     """Say that something is worth telling somebody about.
@@ -101,8 +100,7 @@ def register_notification(
         title=title,
         body=body,
         url=url,
-        in_app_by_default=in_app_by_default,
-        email_by_default=email_by_default,
+        channels=dict(channels or {}),
         notify_actor=notify_actor,
     )
     _registry[name] = subscription

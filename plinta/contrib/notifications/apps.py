@@ -13,4 +13,10 @@ class NotificationsConfig(AppConfig):
     requires = ["plinta.events", "plinta.permissions"]
 
     def ready(self):
-        from plinta.contrib.notifications import listeners, policies  # noqa: F401
+        from plinta.contrib.notifications import (  # noqa: F401
+            builtin_channels,
+            listeners,
+            policies,
+        )
+
+        builtin_channels.register()

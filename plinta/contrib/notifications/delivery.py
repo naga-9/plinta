@@ -1,19 +1,39 @@
-"""Turning a subscription into rows: who hears, in app and by email.
+"""Turning a subscription into deliveries: who hears, and on what.
 
-Nothing here sends anything. A notification is a row and an email is a queued
-row, because a mail server that is unreachable must not be able to fail the
-write that caused the notification.
+Two questions, kept apart. A **subscription** decides who should be told; a
+**channel** decides how they are reached. Neither knows the other's answer,
+which is what lets one subscription reach one person by email and another in
+the app without either being written twice.
+
+Nothing here reaches a network. A channel that must is expected to enqueue,
+because all of this runs inside the write that caused it.
 """
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
-from django.contrib.contenttypes.models import ContentType
-
+from plinta.contrib.notifications import channels
 from plinta.contrib.notifications.registry import Subscription, for_event
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class Message:
+    """What a channel is asked to deliver.
+
+    Not a saved row: the in-app channel creates one of those, and a channel
+    that posts to Discord has no use for a database row somebody must then
+    mark read.
+    """
+
+    kind: str
+    title: str
+    body: str = ""
+    url: str = ""
+    target: Any = None
 
 
 def resolve(value: Any, obj: Any, payload: dict[str, Any]) -> str:
@@ -26,9 +46,8 @@ def resolve(value: Any, obj: Any, payload: dict[str, Any]) -> str:
 def recipients_of(subscription: Subscription, obj: Any, payload: dict[str, Any]) -> list:
     """Who should hear about this, with the actor removed unless asked for.
 
-    Telling somebody what they just did is noise, and it is the single most
-    common complaint about a notification system — so it is off unless a
-    subscription says otherwise.
+    Telling somebody what they just did is noise, and the single most common
+    complaint about a notification system — so it is off unless asked for.
     """
     try:
         people = list(subscription.recipients(obj, **payload) or [])
@@ -38,8 +57,9 @@ def recipients_of(subscription: Subscription, obj: Any, payload: dict[str, Any])
 
     actor = payload.get("actor")
     if not subscription.notify_actor and actor is not None:
-        people = [p for p in people if getattr(p, "pk", None) != getattr(actor, "pk", None)]
-    # A recipient listed twice is one notification, not two.
+        people = [
+            p for p in people if getattr(p, "pk", None) != getattr(actor, "pk", None)
+        ]
     seen, unique = set(), []
     for person in people:
         pk = getattr(person, "pk", None)
@@ -49,27 +69,41 @@ def recipients_of(subscription: Subscription, obj: Any, payload: dict[str, Any])
     return unique
 
 
-def wants(user, subscription: Subscription) -> tuple[bool, bool]:
-    """Whether this person wants it in app, and by email.
+def wants(user, subscription: Subscription, channel: channels.Channel) -> bool:
+    """Whether this person wants this kind on this channel.
 
-    A stored preference wins; otherwise the subscription's own defaults apply,
-    so a newly registered kind works without a row per user first.
+    Three answers, most specific first: what they said, what the subscription
+    defaults to for this kind, and what the channel defaults to. So a newly
+    registered kind works before anybody has a preference row, and a newly
+    registered channel does not switch itself on for everyone.
     """
     from plinta.contrib.notifications.models import NotificationPreference
 
-    preference = NotificationPreference.objects.filter(
-        user=user, kind=subscription.name
+    stored = NotificationPreference.objects.filter(
+        user=user, kind=subscription.name, channel=channel.name
     ).first()
-    if preference is None:
-        return subscription.in_app_by_default, subscription.email_by_default
-    return preference.in_app, preference.email
+    if stored is not None:
+        return stored.enabled
+    if channel.name in subscription.channels:
+        return bool(subscription.channels[channel.name])
+    return channel.on_by_default
+
+
+def channels_for(user, subscription: Subscription) -> list[channels.Channel]:
+    """The channels this person will actually be reached on.
+
+    Wanted, and possible: somebody with no email address is not offered email,
+    however enthusiastically they have opted into it.
+    """
+    return [
+        channel
+        for channel in channels.registered()
+        if wants(user, subscription, channel) and channels.reachable(user, channel)
+    ]
 
 
 def deliver(subscription: Subscription, obj: Any, payload: dict[str, Any]) -> int:
-    """Create the rows this subscription calls for. Returns how many people
-    were told, in any form."""
-    from plinta.contrib.notifications.models import Notification, QueuedEmail
-
+    """Send this subscription's message. Returns how many people were reached."""
     if subscription.when is not None:
         try:
             if not subscription.when(obj, **payload):
@@ -78,31 +112,24 @@ def deliver(subscription: Subscription, obj: Any, payload: dict[str, Any]) -> in
             logger.exception("condition for %r failed", subscription.name)
             return 0
 
-    title = resolve(subscription.title, obj, payload) or str(obj)
-    body = resolve(subscription.body, obj, payload)
-    url = resolve(subscription.url, obj, payload)
-    content_type = ContentType.objects.get_for_model(type(obj))
+    message = Message(
+        kind=subscription.name,
+        title=resolve(subscription.title, obj, payload) or str(obj),
+        body=resolve(subscription.body, obj, payload),
+        url=resolve(subscription.url, obj, payload),
+        target=obj,
+    )
 
-    told = 0
+    reached = 0
     for person in recipients_of(subscription, obj, payload):
-        in_app, by_email = wants(person, subscription)
-        if in_app:
-            Notification.objects.create(
-                recipient=person,
-                kind=subscription.name,
-                title=title,
-                body=body,
-                url=url,
-                content_type=content_type,
-                object_id=getattr(obj, "pk", None),
-            )
-        if by_email and getattr(person, "email", ""):
-            QueuedEmail.objects.create(
-                to=person.email, subject=title, body=body or title,
-                kind=subscription.name,
-            )
-        told += 1 if (in_app or by_email) else 0
-    return told
+        wanted = channels_for(person, subscription)
+        delivered = [
+            channel
+            for channel in wanted
+            if channels.send(channel, person, message, subscription)
+        ]
+        reached += 1 if delivered else 0
+    return reached
 
 
 def notify(obj: Any, event: str, **payload: Any) -> int:

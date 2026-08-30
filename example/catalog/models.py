@@ -141,8 +141,8 @@ class Promotion(models.Model):
 class StockMovement(models.Model):
     """Written by an event listener, never by hand.
 
-    Proves the point §4.10 makes: what was a pipeline stage in v1 becomes a
-    subscriber that the pipeline knows nothing about.
+    Nothing in the write path knows this model exists; a subscriber creates
+    the row after the sale is saved.
     """
 
     book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="movements")

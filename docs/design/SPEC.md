@@ -400,7 +400,7 @@ A pydantic schema in, a rendered form and a parsed dict out. Extracted from `com
 | `fields_for(schema)` | walks `model_fields`, yields a field descriptor per entry |
 | `widget_for(annotation)` | maps a python annotation to an input type |
 | `parse(schema, data)` | submitted values → dict, validated by the schema itself |
-| `register_widget(schema, field, template)` | the override registry — a bespoke editor for one field (§12.3) |
+| `register_widget(schema, field, template)` | the override registry — a bespoke editor for one field (§12.3). Keyed by the schema **class**, so a rename cannot orphan an override and a misspelled field raises at import |
 
 **Why it is layer 1.** It knows pydantic and HTML and nothing about plinta: no DataSource, no Block, no permission. It would make sense in a project that had never heard of plinta, which is §3.1's admission test.
 

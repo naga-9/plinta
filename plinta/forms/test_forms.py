@@ -164,18 +164,34 @@ def test_a_json_field_round_trips():
     assert errors is None and config["series"] == [{"field": "qty"}]
 
 
+class OtherConfig(BaseModel):
+    series: list[dict[str, Any]] = PydanticField(default_factory=list)
+
+
 def test_register_widget_is_per_schema_and_field(override_registry):
-    override_registry.register_widget("ChartConfig", "series", "chart/series.html")
-    override_registry.register_widget("GaugeConfig", "series", "gauge/series.html")
-    assert override_registry.overrides_for("ChartConfig") == {"series": "chart/series.html"}
-    assert override_registry.overrides_for("GaugeConfig") == {"series": "gauge/series.html"}
+    override_registry.register_widget(Config, "series", "chart/series.html")
+    override_registry.register_widget(OtherConfig, "series", "gauge/series.html")
+    assert override_registry.overrides_for(Config) == {"series": "chart/series.html"}
+    assert override_registry.overrides_for(OtherConfig) == {"series": "gauge/series.html"}
 
 
 def test_a_second_override_on_one_field_is_refused(override_registry):
-    override_registry.register_widget("ChartConfig", "series", "a.html")
+    override_registry.register_widget(Config, "series", "a.html")
     with pytest.raises(OverrideError, match="already has"):
-        override_registry.register_widget("ChartConfig", "series", "b.html")
+        override_registry.register_widget(Config, "series", "b.html")
+
+
+def test_a_field_that_does_not_exist_is_refused(override_registry):
+    """A typo would otherwise register an override that can never fire."""
+    with pytest.raises(OverrideError, match="no field 'sereis'"):
+        override_registry.register_widget(Config, "sereis", "chart/series.html")
 
 
 def test_a_schema_with_no_overrides_gets_an_empty_map(override_registry):
-    assert override_registry.overrides_for("Unknown") == {}
+    assert override_registry.overrides_for(OtherConfig) == {}
+
+
+def test_overrides_feed_straight_into_fields_for(override_registry):
+    override_registry.register_widget(Config, "series", "chart/series.html")
+    fields = {f.name: f for f in fields_for(Config, overrides=override_registry.overrides_for(Config))}
+    assert fields["series"].override_template == "chart/series.html"

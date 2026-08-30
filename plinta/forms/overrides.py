@@ -6,25 +6,39 @@ template for that one field.
 """
 from __future__ import annotations
 
-_registry: dict[tuple[str, str], str] = {}
+from pydantic import BaseModel
+
+_registry: dict[tuple[type[BaseModel], str], str] = {}
 
 
 class OverrideError(Exception):
-    """A field already has a registered override."""
+    """The field does not exist on the schema, or already has an override."""
 
 
-def register_widget(schema_name: str, field: str, template: str) -> None:
+def register_widget(schema: type[BaseModel], field: str, template: str) -> None:
     """Register ``template`` as the editor for one field of one schema.
 
+    Keyed by the schema class, not its name: a renamed class would otherwise
+    orphan its overrides silently, and only the class can say whether the field
+    exists.
+
     Raises:
-        OverrideError: that field already has one.
+        OverrideError: ``field`` is not on ``schema``, or already has an
+            override.
     """
-    key = (schema_name, field)
+    if field not in schema.model_fields:
+        known = ", ".join(schema.model_fields) or "none"
+        raise OverrideError(
+            f"{schema.__name__} has no field {field!r} (has: {known})"
+        )
+    key = (schema, field)
     if key in _registry:
-        raise OverrideError(f"{schema_name}.{field} already has {_registry[key]!r}")
+        raise OverrideError(
+            f"{schema.__name__}.{field} already has {_registry[key]!r}"
+        )
     _registry[key] = template
 
 
-def overrides_for(schema_name: str) -> dict[str, str]:
+def overrides_for(schema: type[BaseModel]) -> dict[str, str]:
     """Field name to template, for every override registered on this schema."""
-    return {field: tpl for (name, field), tpl in _registry.items() if name == schema_name}
+    return {field: tpl for (cls, field), tpl in _registry.items() if cls is schema}

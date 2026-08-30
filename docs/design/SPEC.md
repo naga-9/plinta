@@ -2954,7 +2954,17 @@ In-app notifications and queued email. A pure listener.
 
 A consumer registers interest per model label and event, declaring who should be notified and under what condition. Recipients are resolved from the object — owner, assignee, followers, mentioned users — and filtered by each recipient's preferences.
 
-Email is queued, never sent inline. Delivery is a scheduled command, so a mail server outage cannot fail a save.
+**A registration, not a table of rules.** Rules edited in a browser would make "who gets told" a validation surface, and a stored `{obj.owner.email}` a path from configuration into attribute traversal. `title`, `body` and `url` are a plain string or a **callable** for the same reason — never a format template.
+
+**An event outside the vocabulary is refused at registration.** One naming an event core does not emit would simply never fire, which reads as a bug in whatever it was watching rather than in the subscription.
+
+**`written` exists beside `created` and `updated`.** `object_written` carries `mode`, so one signal answers all three names and a subscription meaning "whenever this is touched" registers once.
+
+**The actor is not notified by default.** Telling somebody what they have just done is the commonest complaint about a notification system; `notify_actor=True` asks for it.
+
+**A registration carries its own defaults**, so a newly registered kind works before anybody has a preference row. In-app on, email off — a fresh install that mails everybody is a fresh install nobody keeps.
+
+Email is queued, never sent inline. Delivery is a scheduled command, so a mail server outage cannot fail a save, and a message stops being retried after a bounded number of attempts: a queue that retries for ever is a queue that never drains.
 
 ##### Why this is the app that proves the rule
 
@@ -2964,7 +2974,7 @@ All four are now emitters of core signals that this app subscribes to. Nothing i
 
 ##### Failure policy
 
-A failing handler is logged and swallowed. A notification is never worth failing a user's write for.
+A failing handler is logged and swallowed. A notification is never worth failing a user's write for — and that covers a consumer's own callables too: a `recipients` that raises tells nobody, a `when` that raises declines, and the write succeeds either way.
 
 ##### Degrades when absent
 
@@ -3590,6 +3600,7 @@ Every setting plinta reads. A consuming project sets none of them to get a worki
 | `ATTACHMENT_ALLOWED_EXTENSIONS` | `attachments` | allow-list; empty means all |
 | `ATTACHMENT_MAX_PER_INSTANCE` | `attachments` | default 50 |
 | `PLINTA_AUDIT_EXCLUDE_APPS` | `audit` | app labels not recorded; defaults to plinta's own configuration |
+| `EMAIL_BACKEND`, `DEFAULT_FROM_EMAIL` | `notifications` | Django's own, used by `send_queued_email` |
 | `FLEXMONSTER_LICENSE_KEY` | `components.pivot_flexmonster` | required by that package, which is not installed unless you want it |
 
 **A contrib setting is read only by its own package.** Core never reads `ATTACHMENT_MAX_SIZE_MB`, and the shell never reads a pivot vendor's — which is why that context processor moves (§10).

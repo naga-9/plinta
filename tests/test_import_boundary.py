@@ -132,11 +132,20 @@ def test_a_layer_imports_only_layers_below_it():
 
 
 def test_contrib_imports_contrib_only_where_declared():
-    """A sideways import requires ``enhances`` or ``composes`` on the AppConfig."""
+    """A sideways import requires ``enhances`` or ``composes`` on the AppConfig.
+
+    Tests are exempt. The rule governs what a package **ships**, and a test
+    showing that two packages coexist has to import both — that import is the
+    evidence, not the coupling. A shipped module reaching sideways is what
+    makes an app effectively mandatory; a test doing it makes nothing
+    mandatory at all.
+    """
     violations = []
     for package in _contrib_packages():
         declared = _declared_relationships(package)
         for path in _modules(CONTRIB / package):
+            if path.name.startswith("test_"):
+                continue
             for module in _imported_plinta_modules(path):
                 other = _contrib_package_of(module)
                 if other in (None, package) or other in declared:

@@ -10,4 +10,5 @@ from tests.settings import *  # noqa: F403
 INSTALLED_APPS = [  # noqa: F405
     *INSTALLED_APPS,  # noqa: F405
     "plinta.contrib.audit",
+    "plinta.contrib.notifications",
 ]

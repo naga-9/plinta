@@ -277,4 +277,110 @@ def test_an_uninstalled_format_falls_back_to_html(books):
     """A caller never asks whether contrib.export is installed."""
     ds, ada = books
     out = TableComponent().render(TableConfig(), ada, datasource=ds, format="xlsx")
-    assert "<table>" in out
+    assert "pl-table" in out
+
+
+# --- sorting and paging by link --------------------------------------------
+
+
+@pytest.mark.django_db
+def test_a_heading_becomes_a_sort_link(books):
+    ds, ada = books
+    out = TableComponent().render(TableConfig(), ada, datasource=ds, query={})
+    assert 'class="pl-table__sort"' in out
+    assert "?sort=title" in out
+
+
+@pytest.mark.django_db
+def test_without_a_query_there_are_no_links(books):
+    """An export has no URL to hang a sort link on."""
+    ds, ada = books
+    out = TableComponent().render(TableConfig(), ada, datasource=ds)
+    assert "pl-table__sort" not in out
+
+
+@pytest.mark.django_db
+def test_a_requested_sort_orders_the_rows(books):
+    ds, ada = books
+    out = TableComponent().render(
+        TableConfig(), ada, datasource=ds, query={}, sort="-title"
+    )
+    assert out.index("Emma") < out.index("Dune")
+
+
+@pytest.mark.django_db
+def test_the_sorted_column_is_marked(books):
+    ds, ada = books
+    out = TableComponent().render(
+        TableConfig(), ada, datasource=ds, query={}, sort="title"
+    )
+    assert "pl-table__sort is-active" in out
+
+
+@pytest.mark.django_db
+def test_clicking_a_sorted_column_reverses_it(books):
+    ds, ada = books
+    out = TableComponent().render(
+        TableConfig(), ada, datasource=ds, query={}, sort="title"
+    )
+    assert "sort=-title" in out
+
+
+@pytest.mark.django_db
+def test_sorting_keeps_the_rest_of_the_query(books):
+    """A link that dropped the filters would look like it worked and quietly
+    widen the result."""
+    ds, ada = books
+    out = TableComponent().render(
+        TableConfig(), ada, datasource=ds, query={"region": "North"}
+    )
+    assert "region=North" in out
+
+
+@pytest.mark.django_db
+def test_sorting_returns_to_the_first_page(books):
+    """Page four of a different order is a different four rows."""
+    ds, ada = books
+    out = TableComponent().render(
+        TableConfig(), ada, datasource=ds, query={"page": "4"}
+    )
+    assert "page=4" not in out
+
+
+@pytest.mark.django_db
+def test_a_column_the_viewer_may_not_see_cannot_be_sorted_on(books):
+    """Ordering by a hidden column would leak its values through the row order."""
+    ds, ada = books
+    out = TableComponent().render(
+        TableConfig(columns=["title"]), ada, datasource=ds, query={}, sort="in_print"
+    )
+    assert "is-active" not in out
+
+
+@pytest.mark.django_db
+def test_a_pager_appears_only_when_there_is_somewhere_to_go(books):
+    ds, ada = books
+    assert "pl-pager" not in TableComponent().render(
+        TableConfig(), ada, datasource=ds, query={}
+    )
+    assert "pl-pager" in TableComponent().render(
+        TableConfig(page_size=1), ada, datasource=ds, query={}
+    )
+
+
+@pytest.mark.django_db
+def test_the_pager_says_where_it_is(books):
+    ds, ada = books
+    out = TableComponent().render(TableConfig(page_size=1), ada, datasource=ds, query={})
+    assert "1 of 2" in out
+    assert "page=2" in out
+
+
+@pytest.mark.django_db
+def test_paging_keeps_the_sort(books):
+    """Or the second page would be the second page of a different query."""
+    ds, ada = books
+    out = TableComponent().render(
+        TableConfig(page_size=1), ada, datasource=ds, query={"sort": "-title"}, sort="-title"
+    )
+    assert "sort=-title" in out and "page=2" in out

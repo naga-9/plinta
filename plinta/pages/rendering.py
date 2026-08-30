@@ -128,12 +128,22 @@ def filter_kwargs(page: Page, values: dict[str, Any], user) -> dict[str, Any]:
 
 
 def render_page(
-    page: Page, user, *, tab: str = "", filters: dict[str, Any] | None = None
+    page: Page,
+    user,
+    *,
+    tab: str = "",
+    filters: dict[str, Any] | None = None,
+    query: Any = None,
 ) -> list[Placement]:
     """Draw every placement on ``page`` for ``user``.
 
     Returns one `Placement` per slot, including the empty ones, so the grid
     keeps its shape when a block is hidden or its component is uninstalled.
+
+    ``query`` is the request's query string, handed to each block so it can
+    build its own sort and page links. Each placement's parameters are
+    prefixed with its id, so two tables on one page sort independently rather
+    than moving together.
     """
     from plinta.blocks.rendering import BlockRenderError, render_block
 
@@ -151,6 +161,10 @@ def render_page(
                     **kwargs,
                     **resolve_filters(placement.context_filter, user),
                 },
+                query=query,
+                param_prefix=f"b{placement.pk}_",
+                page=_page_number(query, f"b{placement.pk}_"),
+                sort=_sort_param(query, f"b{placement.pk}_"),
             )
         except BlockRenderError as exc:
             # The block says so in its own slot; the other seven still draw.
@@ -167,6 +181,19 @@ def render_page(
             )
         )
     return drawn
+
+
+def _page_number(query: Any, prefix: str) -> int:
+    """Which page this placement is showing. Anything unusable is the first."""
+    try:
+        return max(1, int((query or {}).get(f"{prefix}page", 1)))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _sort_param(query: Any, prefix: str) -> str:
+    """The column this placement is sorted by, ``-`` for descending."""
+    return (query or {}).get(f"{prefix}sort", "") or ""
 
 
 def remember_filters(page: Page, user, values: dict[str, Any]) -> None:

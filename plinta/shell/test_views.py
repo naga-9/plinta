@@ -265,3 +265,72 @@ def test_a_fixed_link_is_hidden_from_everyone_else(screen, client, shell_link_re
     )
     _, _, ada = screen
     assert visible_links(ada) == []
+
+
+# --- sorting and paging, end to end ----------------------------------------
+
+
+def test_a_heading_is_a_sort_link(screen, client):
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "pl-table__sort" in body
+
+
+def test_clicking_it_reorders_the_rows(screen, client):
+    page, _, block_ = screen
+    placement = page.placements.get()
+    body = client.get(
+        page.get_absolute_url(), {f"b{placement.pk}_sort": "-title"}
+    ).content.decode()
+    assert body.index("Emma") < body.index("Dune")
+
+
+def test_two_tables_sort_independently(screen, client):
+    """Each placement's parameters are prefixed with its id, so one heading
+    does not move the other table."""
+    page, block, _ = screen
+    second = PageBlock.objects.create(page=page, block=block, order=1)
+    first = page.placements.order_by("order").first()
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert f"b{first.pk}_sort=title" in body
+    assert f"b{second.pk}_sort=title" in body
+
+
+def test_paging_is_a_link(screen, client):
+    page, block, _ = screen
+    Block.objects.filter(pk=block.pk).update(config={"page_size": 1})
+    placement = page.placements.get()
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "pl-pager" in body
+    assert f"b{placement.pk}_page=2" in body
+
+
+def test_the_second_page_shows_the_next_row(screen, client):
+    page, block, _ = screen
+    Block.objects.filter(pk=block.pk).update(
+        config={"page_size": 1, "sort": [{"field": "title"}]}
+    )
+    placement = page.placements.get()
+    body = client.get(
+        page.get_absolute_url(), {f"b{placement.pk}_page": "2"}
+    ).content.decode()
+    assert "Emma" in body and "<td>Dune</td>" not in body
+
+
+def test_a_filter_survives_a_sort(screen, client):
+    """A link that dropped it would look like it worked and quietly widen the
+    result."""
+    page, _, _ = screen
+    PageFilter.objects.create(page=page, field_name="in_print", label="In print")
+    placement = page.placements.get()
+    body = client.get(page.get_absolute_url(), {"in_print": "True"}).content.decode()
+    assert "in_print=True" in body
+    assert f"b{placement.pk}_sort=title" in body
+
+
+def test_no_javascript_draws_the_table(screen, client):
+    """The whole claim: a viewer's page loads no vendor script at all."""
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "tabulator" not in body.lower()
+    assert body.count("<script") == 1  # theme-toggle, and nothing else

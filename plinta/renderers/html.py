@@ -22,6 +22,9 @@ MARKUP_FORMATS = frozenset({"html"})
 #: What a table with no rows says, when the block does not word it itself.
 EMPTY_TEXT = "No records"
 
+#: Drawn beside a sorted column.
+ARROWS = {"asc": "↑", "desc": "↓"}
+
 
 def value_of(row: Any, path: str) -> Any:
     """Follow a column path across a row.
@@ -61,9 +64,13 @@ class HtmlRenderer(Renderer):
         fields: Iterable[Any],
         config: dict[str, Any] | None = None,
         user=None,
+        **context: Any,
     ) -> str:
         fields = list(fields)
-        header = format_html_join("", "<th>{}</th>", ((f.label,) for f in fields))
+        config = config or {}
+        header = format_html_join(
+            "", "<th>{}</th>", ((self.heading(f, context),) for f in fields)
+        )
         body = format_html_join(
             "",
             "<tr>{}</tr>",
@@ -77,12 +84,36 @@ class HtmlRenderer(Renderer):
             ),
         )
         if not body:
-            body = self.empty_row(fields, (config or {}).get("empty_text") or EMPTY_TEXT)
+            body = self.empty_row(fields, config.get("empty_text") or EMPTY_TEXT)
         return format_html(
-            "<table><thead><tr>{}</tr></thead><tbody>{}</tbody></table>", header, body
+            '<div class="pl-table-wrap"><table class="pl-table">'
+            "<thead><tr>{}</tr></thead><tbody>{}</tbody></table></div>{}",
+            header,
+            body,
+            self.pager(context.get("page"), context.get("page_urls") or {}),
         )
 
-    def empty_row(self, fields: list[Any], text: str) -> str:
+    def heading(self, field: Any, context: dict[str, Any]) -> SafeString:
+        """A column heading, as a sort link when the caller supplied one.
+
+        Sorting is a link because the server does it: a differently ordered
+        query is another request, and a link is what makes that work with no
+        JavaScript and stay a URL someone can share.
+        """
+        url = (context.get("sort_urls") or {}).get(field.field_name)
+        if not url:
+            return escape(field.label)
+        direction = (context.get("sorted_by") or {}).get(field.field_name)
+        arrow = ARROWS.get(direction, "")
+        return format_html(
+            '<a class="pl-table__sort{}" href="{}">{}{}</a>',
+            " is-active" if direction else "",
+            url,
+            field.label,
+            format_html('<span aria-hidden="true"> {}</span>', arrow) if arrow else "",
+        )
+
+    def empty_row(self, fields: list[Any], text: str) -> SafeString:
         """What a table with no rows says.
 
         A table drawn with an empty body reads as broken; one that says so
@@ -92,4 +123,27 @@ class HtmlRenderer(Renderer):
             '<tr class="pl-table__empty"><td colspan="{}">{}</td></tr>',
             max(len(fields), 1),
             text,
+        )
+
+    def pager(self, page: Any, urls: dict[str, str]) -> SafeString:
+        """Where in the rows this is, and how to reach the rest.
+
+        Absent when everything fits on one page: a pager offering nowhere to
+        go is furniture.
+        """
+        if page is None or page.paginator.num_pages <= 1:
+            return mark_safe("")
+        links = []
+        if page.has_previous() and urls.get("previous"):
+            links.append(("prev", urls["previous"], "Previous"))
+        if page.has_next() and urls.get("next"):
+            links.append(("next", urls["next"], "Next"))
+        return format_html(
+            '<nav class="pl-pager" aria-label="Pages"><span>{} of {}</span>'
+            '<span class="pl-pager__links">{}</span></nav>',
+            page.number,
+            page.paginator.num_pages,
+            format_html_join(
+                "", '<a class="pl-btn pl-btn--sm" rel="{}" href="{}">{}</a>', links
+            ),
         )

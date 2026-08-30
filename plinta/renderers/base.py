@@ -35,6 +35,7 @@ class Renderer:
         fields: Iterable[DataSourceField],
         config: dict[str, Any],
         user,
+        **context: Any,
     ) -> Any:
         """Draw ``rows`` as this format.
 
@@ -43,5 +44,9 @@ class Renderer:
             fields: the columns they may see, in display order.
             config: the component's resolved configuration.
             user: the viewer, for a field renderer that varies by them.
+            context: what the caller knows and the renderer may not — the
+                links a screen navigates by, say. A format with no use for a
+                key ignores it, which is why this is loose rather than typed:
+                a spreadsheet has no pager.
         """
         raise NotImplementedError

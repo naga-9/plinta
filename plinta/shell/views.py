@@ -73,7 +73,13 @@ def page_view(request: HttpRequest, pk: int, slug: str = "") -> HttpResponse:
         {
             "page": page,
             "tab": tab,
-            "placements": render_page(page, request.user, tab=tab, filters=values),
+            "placements": render_page(
+                page,
+                request.user,
+                tab=tab,
+                filters=values,
+                query=request.GET,
+            ),
             "filter_values": values,
             "filter_sets": saved_filter_sets(page, request.user),
         },

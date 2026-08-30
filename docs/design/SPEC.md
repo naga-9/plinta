@@ -2300,6 +2300,10 @@ These are passthrough, not plinta's contract, and flattening them into `Block.co
 
 Sorting, paging and filtering happen on the server, reached by ordinary links and the page's filter bar — `?sort=title&page=2`, the shape Django's own admin has always had. It works with JavaScript disabled and needs no client at all.
 
+**A heading is a link and so is the pager**, built from the current query string rather than from nothing — so sorting keeps the filters, paging keeps the sort, and sorting returns to page one, because page four of a different order is a different four rows. Each placement's parameters are prefixed with its id, so two tables on one page sort independently.
+
+**A column the viewer may not see cannot be sorted on.** Ordering by a hidden column leaks its values through the row order, so the permitted set decides what a heading may link on.
+
 **`inline` does not mean every row is embedded.** It means the server produces the finished HTML for *this page of rows*: fifty rows and a link to page two, one `COUNT` and one `LIMIT`/`OFFSET`, whatever the query matches. A fifty-thousand-row table is an ordinary table. What `fetch` changes is who asks for the next page and whether the document reloads — not whether one is sent.
 
 **Rendering is paged; `get_data` is not.** A screen draws a page; an export wants every row and calls `get_data` itself.

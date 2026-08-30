@@ -2135,7 +2135,9 @@ Every request requires an authenticated user unless its path matches `PLINTA_LOG
 
 This is plinta's own middleware and it is **required**, not optional: it is the outermost gate, and the layers below assume a request has reached them with a real user. The exempt list covers the login and password-reset paths and nothing else by default.
 
-A consuming project adds it to `MIDDLEWARE`. **The shell registers its own system check** and errors if it is absent, because every permission decision below assumes it ran. It is the shell's check rather than one of §5.13's, which are all about policy and codename registration — `permissions` does not know a middleware exists.
+A consuming project adds it to `MIDDLEWARE`. **The shell registers its own system check** and errors if it is absent, because every permission decision below assumes it ran.
+
+**And if it is installed too early.** Before `AuthenticationMiddleware` there is no `request.user` to inspect, so the gate lets every request through while appearing to be configured — the worse of the two failures, and the reason this is checked rather than documented. It is the shell's check rather than one of §5.13's, which are all about policy and codename registration — `permissions` does not know a middleware exists.
 
 ### 10.5 Context processors
 

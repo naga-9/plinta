@@ -25,6 +25,7 @@ PACKAGES = [
     "plinta.components",
     "plinta.blocks",
     "plinta.pages",
+    "plinta.shell",
 ]
 
 

@@ -20,6 +20,9 @@ class Article(models.Model):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
     )
     comments = GenericRelation("plinta_comments.Comment")
+    #: Opting into a workflow is a column the consumer declares and a
+    #: registration. No base class, and the state sorts like any other column.
+    state = models.CharField(max_length=40, blank=True, default="")
 
     class Meta:
         ordering = ["title"]

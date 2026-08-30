@@ -197,7 +197,7 @@ Eleven packages across nine layers: layer 1 carries three that import nothing of
 | Package | Ships |
 |---|---|
 | `organization` | Company, Site, BusinessUnit, user grants, fiscal calendar, scope-provider policies |
-| `workflow` | Workflow, State, Transition, `WorkflowMixin` |
+| `workflow` | Workflow, State, Transition, and the guard registry — no base class |
 | `audit` | AuditLog — a pure listener |
 | `notifications` | Notification, EmailQueue, preferences — a pure listener |
 | `comments` | Comment and its section component |
@@ -2668,7 +2668,7 @@ Decisions taken elsewhere that land on a package here. The per-app entries in §
 | `export` | the two export endpoints from `blocks` (§8.10); a `('table', 'json')` renderer for block-shaped output (§7.3); asset location as a provider property (§17) |
 | `organization` | the fiscal half of `organization/utils.py` (§3.4); the fiscal **placeholder** registrations (§3.6); the account-settings org cards from `pages` (§9.7); the three scope rules from core (§5.4) |
 | `audit` | create rows carry initial values in `metadata` (§21); `record_restore` deleted with the signal (§8.10) |
-| `workflow` | `WorkflowStateAllowed` and its `workflow_state` prefetch from core `permissions` (§5.4); the `isinstance(WorkflowMixin)` validation stage from core's write pipeline, as an `object_writing` subscriber (§23) |
+| `workflow` | `WorkflowStateAllowed` and its state prefetch from core `permissions` (§5.4); the validation stage from core's write pipeline, as an `object_writing` subscriber that asks whether a workflow governs the model rather than testing a base class (§23) |
 | `components.*` | the whole catalogue — see **§11**, which supersedes the summary here |
 | every app | registers its own matrix capability rather than `pages` doing it (§8.5) |
 
@@ -3150,16 +3150,61 @@ No report definitions, no scheduled delivery. Ad-hoc block export is unaffected 
 
 A database-backed state machine for a consumer's models.
 
-**Requires:** `permissions`, `events`, `datasources`, `blocks`, `pages`.
+**Requires:** `permissions`, `events`. An admin screen adds more and arrives as a seeder, the way audit's page does — the state machine itself needs neither `blocks` nor `pages`.
 **Enhances:** `contrib.audit` — an empty history is the substitute; see below.
 **Emits:** `state_changed`.
 **Listens to:** nothing.
 
 ##### Ships
 
-`Workflow`, `WorkflowState`, `WorkflowTransition`, and `WorkflowMixin` — the one base class a consumer's model opts into.
+`Workflow`, `WorkflowState`, `WorkflowTransition` — and **no base class**.
 
-States and transitions are data, not code: a transition carries a from-state, a to-state, a colour, an order, an optional confirmation requirement and a permission codename that guards it.
+States and transitions are data, not code: a transition carries a from-state, a to-state, an order, an optional confirmation requirement and an optional guard.
+
+##### Registration, not inheritance
+
+**A consumer declares its own field and says so.**
+
+```python
+class Order(models.Model):
+    state = models.CharField(max_length=40, blank=True)   # their column
+
+Workflow.objects.create(content_type=..., state_field="state")
+```
+
+A mixin would put two foreign keys to this app's tables on the consumer's model, which makes the app **required** for whoever opted in — the same trap a `GenericRelation` sets for `comments` — and contradicts the promise that models stay plain Django.
+
+**And the state stays an ordinary column**, so it sorts, filters and groups like any other. A foreign key to a state table sorts by row id unless every screen remembers to traverse to an order field, which is the kind of thing screens forget.
+
+**The price is one call.** Nothing here can hook a save on a model it does not own, so a consumer creating a row calls `set_initial(obj)` to put it in its starting state. That is the honest cost of not owning the model, and it is a line rather than a base class.
+
+##### The three gates
+
+Every move passes all three, and they answer different questions.
+
+| Gate | About | Refuses when |
+|---|---|---|
+| the transition's **permission** | the person | they do not hold `transition_order_open_to_closed` |
+| the **row policy**, via `can(user, "change", obj)` | their reach | the row is not theirs to change |
+| the **guard**, when the transition names one | the row | "this order still has open lines" |
+
+They are separate because no grant can express a condition about a row, and no condition should decide who is allowed.
+
+**A guard is registered by name**, never a stored dotted path, so a transition row cannot name arbitrary importable code. It returns `True`, `False`, or a **string** — the reason, which is what a screen shows instead of a button that silently does nothing.
+
+**A guard that raises refuses.** Permitting on error would wave through the move the condition was written to stop.
+
+##### One permission per transition, renamed in place
+
+`transition_order_open_to_closed` is grantable on its own, so "may move an order to closed" is separable from "may edit an order" — which is the whole reason a transition carries a permission rather than reusing `change_*`.
+
+Minted when the transition is saved, removed when it is deleted, and **renamed in place when a state's code changes** — including every other transition that mentions that state. A grant points at a permission's primary key, so recreating one drops every grant on it silently; this is the same treatment a column's permission gets, for the same reason.
+
+`rebuild` is the idempotent backstop, for an import that used `bulk_create` and fired no `post_save` at all.
+
+##### What a screen is offered
+
+`available(obj, user)` returns every move out of the current state, **including the refused ones and why**. A move that vanishes reads as a missing feature; one greyed out with "you do not have permission to make this move" reads as a permission to ask for.
 
 ##### Guards
 
@@ -3169,21 +3214,23 @@ Execution is atomic: the state change and its emitted event either both happen o
 
 ##### Emits, rather than notifies
 
-On a completed transition the app emits `state_changed` with string state codes and a `metadata` dict carrying workflow specifics.
+On a completed transition the app emits `state_changed` with **string state codes** and a `metadata` dict carrying workflow specifics. Schema-pure, so a listener never imports this app to read one.
 
-It does not call audit and does not call notifications. Both subscribe. Today it calls both — `transitions.py:158` imports `audit.services.record_transition` — and that write coupling is what the signal removes.
+It calls neither audit nor notifications. Both subscribe.
+
+**The move is atomic and the event follows the save**, so a listener reading the object sees where it now is rather than where it was.
 
 ##### Reading the transition history
 
-The other half does not dissolve. `get_transition_history()` reads `audit.models.AuditLog` directly (`transitions.py:205`), filtered to transition rows, to render a record's past transitions. That is a **functional read**, not a behavioural one — no event delivers history to the caller who asks for it.
+The other half does not dissolve: rendering where a row has been is a **functional read**, and no event delivers history to whoever asks for it.
 
-So `workflow` declares **`enhances: audit`**, and names its substitute: with audit absent, `get_transition_history()` returns an empty sequence and the history panel renders as "no recorded transitions". The state machine is unaffected; only the record of where a row has been is missing, which is exactly what audit is.
+So `workflow` declares **`enhances: audit`** and names its substitute. `history(obj)` reads the audit trail — which records `state_changed` like any other write, so this app needs no history table of its own — behind a check that the app is installed. With it absent the call returns nothing and a panel says so. The state machine is unaffected; only the record of where a row has been is missing, which is exactly what audit is.
 
-Registered in §2.5 with the others.
+The import is inside the function rather than at module scope, and a test asserts that: an `enhances` reached at import time is a dependency wearing a different word.
 
 ##### Degrades when absent
 
-Models lose `WorkflowMixin` and their state field. Nothing in core references a workflow state; components that colour rows by state simply have no such field to bind.
+A consumer keeps their state column — it was always theirs — and it stops moving. Nothing in core references a workflow state, and a component colouring rows by one binds to a column that is simply no longer changed by anything.
 
 A consumer with its own state machine can emit `state_changed` directly and get audit and notification coverage without installing this app.
 
@@ -3610,7 +3657,7 @@ Register from `AppConfig.ready()`, declare `requires` / `enhances` / `composes`,
 
 The widest door, and the one most people use. A consumer is an ordinary Django project that installs plinta:
 
-- **Models stay plain Django.** No base class is required. `WorkflowMixin`, `Owned` and the rest are opt-in.
+- **Models stay plain Django.** No base class is required by anything plinta ships, including `contrib.workflow`: a model in a workflow declares its own state column and is registered, the same way a policy is.
 - **Register what should be visible** as DataSources, in a data migration or a seeder.
 - **Declare policies** for row and field access; core's rule vocabulary composes them (§5.4).
 - **Compose screens in the browser**, or seed Pages and Blocks so a fresh install arrives usable.
@@ -3979,9 +4026,9 @@ Plinta silently requires methods on a consumer's model. §1 promises it requires
 
 **Redesign** means replacing `hasattr` duck-typing with a declared, registered extension point: the table cases become one **field renderer** registration, the notification case an explicit subscription.
 
-**`status_changed_at` / `status_changed_by` are not a model protocol and were listed here in error.** They are declared by `WorkflowMixin` (`workflow/mixins.py:53`), on workflow's own abstract base, and stamped by `workflow/transitions.py`. Core never reads or writes them. **They stay, in `contrib.workflow`, which owns both the fields and the stamping.**
+**`status_changed_at` / `status_changed_by` are not a model protocol and were listed here in error.** Core never reads or writes them.
 
-The one thing to fix is the `hasattr` guard around the stamping. `execute_transition` assigns `obj.workflow_state` unconditionally two lines earlier, so the object is already assumed to be a `WorkflowMixin` — and a `WorkflowMixin` always has both fields. The guard defends an impossible case and reads as if the fields were optional.
+**And with no base class to declare them, they do not survive as fields at all.** Who moved a row and when is what `state_changed` carries and what the audit trail records, so a second copy on the consumer's model could only disagree with it. A consumer wanting the columns anyway declares them and stamps them in an `object_written` subscriber, like any other derived value.
 
 ---
 

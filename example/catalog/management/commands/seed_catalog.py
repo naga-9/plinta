@@ -234,12 +234,12 @@ class Command(BaseCommand):
                       "description": "Every title the chain carries."},
         )
         place(pages["catalogue"],
-              block("titles-in-print", "stat", sources["books"],
+              block("titles-in-print", "stat_catalog", sources["books"],
                     config={"label": "Titles in print"},
                     queryset_modifier="in_print_only"),
               col=0, row=0, w=3, h=2, order=0)
         place(pages["catalogue"],
-              block("books-table", "table", sources["books"],
+              block("books-table", "table_plinta", sources["books"],
                     config={"title": "Catalogue", "page_size": 25,
                             "sort": [{"field": "title"}]}),
               col=3, row=0, w=9, h=6, order=1)
@@ -259,12 +259,12 @@ class Command(BaseCommand):
                       "description": "What sold, and where."},
         )
         place(pages["sales"],
-              block("revenue", "stat", sources["sales"],
+              block("revenue", "stat_catalog", sources["sales"],
                     config={"label": "Revenue", "total_field": "sale_total",
                             "prefix": "£"}),
               col=0, row=0, w=3, h=2, order=0)
         place(pages["sales"],
-              block("recent-sales", "table", sources["sales"],
+              block("recent-sales", "table_plinta", sources["sales"],
                     config={"title": "Recent sales", "page_size": 20}),
               col=3, row=0, w=9, h=6, order=1)
         PageFilter.objects.update_or_create(
@@ -279,11 +279,11 @@ class Command(BaseCommand):
                       "description": "Orders still outstanding."},
         )
         place(pages["purchasing"],
-              block("open-orders", "table", sources["orders"],
+              block("open-orders", "table_plinta", sources["orders"],
                     config={"title": "Open orders"}, queryset_modifier="open_orders"),
               col=0, row=0, w=12, h=4, order=0)
         place(pages["purchasing"],
-              block("order-lines", "table", sources["order_lines"],
+              block("order-lines", "table_plinta", sources["order_lines"],
                     config={"title": "Lines", "page_size": 15}),
               col=0, row=4, w=12, h=4, order=1)
 
@@ -294,7 +294,7 @@ class Command(BaseCommand):
                       "description": "Campaigns you own, and the public ones."},
         )
         place(pages["promotions"],
-              block("my-promotions", "table", sources["promotions"],
+              block("my-promotions", "table_plinta", sources["promotions"],
                     config={"title": "Campaigns"}),
               col=0, row=0, w=12, h=5, order=0)
 

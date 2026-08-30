@@ -19,7 +19,7 @@ def ds(db):
     )
 
 
-def block(ds, component_type="table", **kwargs):
+def block(ds, component_type="table_plinta", **kwargs):
     return Block(
         name="books-table", component_type=component_type, data_source=ds, **kwargs
     )

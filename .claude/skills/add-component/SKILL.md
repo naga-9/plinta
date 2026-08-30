@@ -17,7 +17,7 @@ class HeatmapConfig(ComponentConfig):
     buckets: int = 5
     palette: str = "viridis"
 
-@register_component("heatmap", label="Heat map")
+@register_component("heatmap_d3", label="Heat map (D3)")
 class HeatmapComponent(Component):
     config_schema = HeatmapConfig
     mode = Mode.INLINE
@@ -110,9 +110,21 @@ return format_html("<div>{}</div>", config.title)
 
 ## Rules
 
+**Name it `capability_implementation`.** `heatmap_d3`, not `heatmap` — the
+capability says what it draws, the implementation says what draws it. That
+leaves the obvious name free for somebody else's, and lets both be installed
+while an installation migrates between them. Use your own name where there is
+no vendor: `heatmap_acme`.
+
+The label is where the friendliness lives, so a picker still reads well:
+
+```python
+@register_component("heatmap_d3", label="Heat map (D3)")
+```
+
 **One registry key, one component.** A second registration under the same name
 raises rather than replacing, so two packages cannot silently fight over
-`heatmap`.
+`heatmap_d3`.
 
 **Ship everything with the package** — the template, the assets, the front-end
 adapter and its vendor library. A component whose JavaScript lives in core is

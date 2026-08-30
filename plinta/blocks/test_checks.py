@@ -22,7 +22,7 @@ def ds(db):
 def block(ds, base_filter):
     return Block.objects.create(
         name="books-table",
-        component_type="table",
+        component_type="table_plinta",
         data_source=ds,
         base_filter=base_filter,
     )

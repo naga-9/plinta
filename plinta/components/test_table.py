@@ -80,7 +80,7 @@ def test_no_column_choice_means_every_permitted_one():
 
 
 def test_table_is_registered():
-    assert isinstance(get("table"), TableComponent)
+    assert isinstance(get("table_plinta"), TableComponent)
 
 
 def test_it_renders_inline():

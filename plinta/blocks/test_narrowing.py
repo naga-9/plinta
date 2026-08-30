@@ -51,7 +51,7 @@ def block(db):
     ada = User.objects.get(pk=ada.pk)
 
     return Block.objects.create(
-        name="books-table", component_type="table", data_source=ds, owner=ada
+        name="books-table", component_type="table_plinta", data_source=ds, owner=ada
     ), ada
 
 

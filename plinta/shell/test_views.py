@@ -60,7 +60,7 @@ def screen(db, client):
         name="Catalog", slug="catalog", owner=ada, menu_group=group
     )
     block = Block.objects.create(
-        name="books-table", component_type="table", data_source=ds, owner=ada
+        name="books-table", component_type="table_plinta", data_source=ds, owner=ada
     )
     PageBlock.objects.create(page=page, block=block, column=0, row=0, width=6, height=4)
 

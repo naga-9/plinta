@@ -197,7 +197,7 @@ class StatConfig(ComponentConfig):
     suffix: str = ""
 
 
-@register_component("stat", label="Statistic")
+@register_component("stat_catalog", label="Statistic")
 class StatComponent(Component):
     """A single figure. The smallest thing that proves the door is real.
 

@@ -186,7 +186,7 @@ Eleven packages across nine layers: layer 1 carries three that import nothing of
 | `events` | the signal bus and the core event vocabulary |
 | `permissions` | rule engine, `Owner` / `Public` / `InstancePerm`, field-level gating, the permission console |
 | `datasources` | the model registry — DataSource, DataSourceField, queryset services |
-| `components` | the rendering contract and registry, plus `table` |
+| `components` | the rendering contract and registry, plus `table_plinta` |
 | `renderers` | the output contract, plus HTML |
 | `blocks` | saved component configs, `SavedView`, and the write pipeline |
 | `pages` | composition, grid, menu, `PageFilter` (the filter bar), `FilterSet`, `PageFilterPreference` |
@@ -208,8 +208,8 @@ Eleven packages across nine layers: layer 1 carries three that import nothing of
 | `export` | Excel, PDF and email renderers; the export endpoint |
 | `api` | the public data API, API keys, the OpenAPI spec |
 
-Eleven packages, plus eleven component packages under `components.*`. None is required: an installation with none of them is a working plinta that shows tables.
-| `components.*` | eleven components — everything except `table` (§11) |
+Eleven packages, plus twelve component packages under `components.*`. None is required: an installation with none of them is a working plinta that shows tables.
+| `components.*` | twelve components, named `capability_implementation` (§11) |
 
 ### 2.5 Dependency rules
 
@@ -1422,16 +1422,16 @@ Every component implements `get_data()`. The mode decides *when* it is called:
 
 **The component declares a default; a block may override it.** The default follows from the widget's interaction model and is right nearly always; the override covers genuine exceptions — a five-row related grid on a detail page, or a chart with 50,000 points that should not bloat the page.
 
-**Within what the component can draw.** A component also declares `supported_modes`, and a block asking for one outside it is refused when it is saved. Core's `table` supports `inline` only: it is server-rendered and has no client adapter, so a `fetch` block would render nothing and say nothing about why. `datagrid` supports both — `inline` is Tabulator's `paginationMode: 'local'`, which is what a five-row grid wants.
+**Within what the component can draw.** A component also declares `supported_modes`, and a block asking for one outside it is refused when it is saved. Core's `table_plinta` supports `inline` only: it is server-rendered and has no client adapter, so a `fetch` block would render nothing and say nothing about why. `table_tabulator` supports both — `inline` is Tabulator's `paginationMode: 'local'`, which is what a five-row grid wants.
 
-**Changing how a table behaves is changing the component, not the mode.** Installing `contrib.components.datagrid` does not make `table` interactive; a block's `component_type` moves from `table` to `datagrid`, and the new component's default mode comes with it. Mode says *when the data arrives*, not *which widget draws it* — and since the two components declare different config schemas, the switch is validated at save like any other config change.
+**Changing how a table behaves is changing the component, not the mode.** Installing `contrib.components.table_tabulator` does not make `table_plinta` interactive; a block's `component_type` moves from one to the other, and the new component's default mode comes with it. Mode says *when the data arrives*, not *which widget draws it* — and since the two components declare different config schemas, the switch is validated at save like any other config change.
 
 | Component | Default | Why |
 |---|---|---|
-| `datagrid`, `kanban`, `gantt`, `pivot` | **fetch** | the client sorts, filters and pages; a 10,000-row grid cannot be inlined |
-| `chart`, `kpi`, `gauge` | **inline** | a finished data blob, or a single number; no client-side manipulation |
-| `table` | **inline** | server-rendered; sorting and paging are links, not a client (§11.2) |
-| `details-card`, `text`, `alert`, `repeater`, capability sections | **inline** | display only |
+| `table_tabulator`, `kanban_plinta`, `gantt_jsgantt`, the pivots | **fetch** | the client sorts, filters and pages; a 10,000-row grid cannot be inlined |
+| `chart_plotly`, `kpi_plinta`, `gauge_plotly` | **inline** | a finished data blob, or a single number; no client-side manipulation |
+| `table_plinta` | **inline** | server-rendered; sorting and paging are links, not a client (§11.2) |
+| `details_card_plinta`, `text_plinta`, `alert_plinta`, `repeater_plinta`, capability sections | **inline** | display only |
 
 **Three defaults change.** `chart`, `kpi` and `gauge` are `AJAX = True` today, so a dashboard with eight KPIs makes eight extra round trips to deliver eight numbers. The recorded reason was not payload size — `kpis/component.py:59` says *"gating runs in the AJAX endpoint, not here"* — so the mode was chosen to put the permission check in one place. Under §5 that reason is gone: `can()` and `allowed()` are called by the data path wherever it runs.
 
@@ -1547,7 +1547,7 @@ adapter.mount(el, { config, columns, data, load });
 
 This is what makes remote pagination work without the client owning timing: Tabulator's `ajaxRequestFunc` delegates to `load()`, so Tabulator decides *when* page 3 is needed while the client still decides *how* it is requested. Plotly's adapter calls `load()` once and never again. Both get identical parameter building and error handling.
 
-**An adapter is per component type, not per vendor.** `chart` and `gauge` both drive Plotly and still need different glue — a gauge is an indicator trace, a chart is line/bar/scatter. Where two adapters genuinely share vendor logic, a shared helper serves them: `plotly-theme.js` is already exactly this and survives unchanged.
+**An adapter is per component type, not per vendor.** `chart_plotly` and `gauge_plotly` share a vendor and still need different glue — a gauge is an indicator trace, a chart is line/bar/scatter. Where two adapters genuinely share vendor logic, a shared helper serves them: `plotly-theme.js` is already exactly this and survives unchanged.
 
 **Adapters ship with their components.** Core carries the client and `table`'s adapter; `contrib.components.chart` carries `chart.js` and Plotly. Same rule as vendor assets (§17) and ADR 0005 (§24).
 
@@ -1648,7 +1648,7 @@ def label_chips(value, *, obj, field, user) -> str: ...
 | Component contract: config in, HTML out | keep, with the merge moved up |
 | Per-component view CRUD and `_XViewSaveIn` parsers | **deleted** — a symptom of the misplaced layer, not duplication to factor |
 | `AJAX` class constant | **→ mode: component default, block override** |
-| `chart`, `kpi`, `gauge` mode | **inline** — changed |
+| `chart_plotly`, `kpi_plinta`, `gauge_plotly` mode | **inline** — changed |
 | Inline data location | a defined JSON script tag beside the mount |
 | The widget data endpoint | **private transport** — a Django view returning JSON, not ninja |
 | Widget feed vs public API | **kept separate**; they share `datasources` underneath, not a URL |
@@ -2174,7 +2174,7 @@ Three today; two after the move below. They are the shell's data:
 | `branding` | `site_name` and `topbar_color` |
 | `pivot_provider_settings` | which pivot vendor is active |
 
-`pivot_provider_settings` is a contrib concern in a core processor. It moves: `contrib.components.pivot` contributes its own template context rather than the shell knowing a vendor exists.
+`pivot_provider_settings` is a contrib concern in a core processor. It moves: a pivot package contributes its own template context rather than the shell knowing a vendor exists — and with a package per vendor (§11) there is no provider left to settle.
 
 `deployment_env` is renamed **`branding`**. Once the environment badge is deleted (§19.4) it returns a site name and a topbar colour, and a processor whose name no longer describes what it returns is the drift this document exists to stop.
 
@@ -2270,7 +2270,7 @@ A consumer wanting Bootstrap specifically loads it there and writes a bridge sty
 | Class names, template context, block names | **public API** (§18.16) |
 | `LoginRequiredMiddleware` | **required**, with a system check |
 | Fixed sidebar links | shell-rendered, shell-gated |
-| `pivot_provider_settings` context processor | **→ `contrib.components.pivot`** |
+| `pivot_provider_settings` context processor | **→ the pivot package that needs it** |
 | `plinta_tags` | keep — all five are generic |
 | Design tokens | keep — generated from `tokens.json`, enforced by `lint_hex_colors` |
 | Dark mode | keep — `data-theme`, token-driven |
@@ -2289,18 +2289,49 @@ Eleven components ship. **Core ships `table`; every other one is a contrib packa
 
 | Component | Lives | Vendor | Mode | LOC |
 |---|---|---|---|---|
-| `table` | **core** | **none** | **inline** | 976 |
-| `datagrid` | contrib | Tabulator | fetch | — |
-| `kanban` | contrib | — | fetch | 1,106 |
-| `pivot` | contrib | WebDataRocks / Flexmonster | fetch | 799 |
-| `gantt` | contrib | jsGantt | fetch | 735 |
-| `chart` | contrib | Plotly | **inline** | 694 |
-| `gauge` | contrib | Plotly | **inline** | 403 |
-| `kpi` | contrib | — | **inline** | 365 |
-| `details-card` | contrib | — | inline | 278 |
-| `repeater` | contrib | — | inline | 269 |
-| `text` | contrib | — | inline | 115 |
-| `alert` | contrib | — | inline | 114 |
+| `table_plinta` | **core** | **none** | **inline** | 976 |
+| `table_tabulator` | contrib | Tabulator | fetch | — |
+| `kanban_plinta` | contrib | — | fetch | 1,106 |
+| `pivot_webdatarocks` | contrib | WebDataRocks | fetch | 799 |
+| `pivot_flexmonster` | contrib | Flexmonster | fetch | — |
+| `gantt_jsgantt` | contrib | jsGantt | fetch | 735 |
+| `chart_plotly` | contrib | Plotly | **inline** | 694 |
+| `gauge_plotly` | contrib | Plotly | **inline** | 403 |
+| `kpi_plinta` | contrib | — | **inline** | 365 |
+| `details_card_plinta` | contrib | — | inline | 278 |
+| `repeater_plinta` | contrib | — | inline | 269 |
+| `text_plinta` | contrib | — | inline | 115 |
+| `alert_plinta` | contrib | — | inline | 114 |
+
+#### A component is named `capability_implementation`
+
+**Decided.** `chart_plotly`, not `chart`. The capability says what it draws; the
+implementation says what draws it.
+
+**So two vendors are two packages, not one package with a setting.** v1 has a
+`pivot` component holding both WebDataRocks and Flexmonster behind a
+`providers.py` abstraction and a `PLINTA_PIVOT_PROVIDER` setting — an
+indirection that exists only because one package was trying to be two things.
+Splitting the name splits the package, and the abstraction, the setting and its
+licence-key branch all go with it (§19.2).
+
+**Each registers its own key**, so both may be installed while an installation
+migrates from one to the other, and the registry's refusal of a duplicate
+(§7.2) needs no exception. A block records which one draws it: reading
+`component_type` tells you, where `chart` would not.
+
+**`plinta` is the implementation name when we are the vendor** — `kpi_plinta`,
+`alert_plinta`. Not decoration: it leaves the obvious name free for whoever
+ships `kpi_acme`, and means a reader never has to know which components happen
+to have an alternative today.
+
+**Core's own follows the rule.** `table_plinta` sits beside `table_tabulator`
+with no privilege in the registry, which is ADR 0005 (§24) made visible in the
+name rather than only asserted in prose.
+
+**The label is where the friendliness lives**: `register_component(
+"chart_plotly", label="Chart (Plotly)")`, so a picker reads well while the
+stored key stays exact.
 
 Three modes change from today's `AJAX = True` — see §7.3.
 
@@ -2318,7 +2349,7 @@ These are passthrough, not plinta's contract, and flattening them into `Block.co
 
 ### 11.2 Per-component decisions
 
-**`table`** — core, the reference implementation, and **server-rendered with no vendor at all**. `inline` mode: the rows are in the HTML.
+**`table_plinta`** — core, the reference implementation, and **server-rendered with no vendor at all**. `inline` mode: the rows are in the HTML.
 
 Sorting, paging and filtering happen on the server, reached by ordinary links and the page's filter bar — `?sort=title&page=2`, the shape Django's own admin has always had. It works with JavaScript disabled and needs no client at all.
 
@@ -2332,23 +2363,23 @@ Sorting, paging and filtering happen on the server, reached by ordinary links an
 
 **A paged queryset must be ordered.** Without one the database may return rows in a different order per `LIMIT`/`OFFSET`, so a row appears on two pages and another on none. The component's `sort` decides, then the model's own `Meta.ordering`, then the primary key — never nothing.
 
-What it does not do is what a grid library is for: dragging a column wider, re-sorting without a round trip, and editing a cell in place. Core ships the write endpoint and a server-rendered row-edit form; **inline cell editing is `datagrid`'s**.
+What it does not do is what a grid library is for: dragging a column wider, re-sorting without a round trip, and editing a cell in place. Core ships the write endpoint and a server-rendered row-edit form; **inline cell editing is `table_tabulator`'s**.
 
-**`datagrid`** — contrib, Tabulator, `fetch` mode. The interactive table: client-side sort and filter, remote pagination, column resize and reorder, inline cell editing.
+**`table_tabulator`** — contrib, Tabulator, `fetch` mode. The interactive table: client-side sort and filter, remote pagination, column resize and reorder, inline cell editing.
 
-It registers under its own key rather than replacing `table`, because the component registry refuses a duplicate by design (§7.2). A block chooses one, and a page may hold both.
+It registers under its own key rather than replacing `table_plinta`, because the component registry refuses a duplicate by design (§7.2). A block chooses one, and a page may hold both.
 
 **Why the split.** A grid library is an opinion about how a table behaves, and putting one in core makes every consumer either accept that opinion or fight it. The same argument that keeps a CSS framework out of core (§10.8) applies with more force here, because a table is the component most likely to be replaced: a consumer who prefers AG Grid, DataTables or their own writes a component and registers it, rather than working around Tabulator.
 
 **The payoff is that a viewer's page loads no vendor JavaScript at all.** Layout is CSS grid from the stored position, styling is plinta's own, and the table is HTML. Core carries no front-end major-version upgrade — not one.
 
-**`kanban`** — the largest at 1,106 LOC and 18 config keys. Shows label chips when `contrib.labels` is installed and colours columns by workflow state when `contrib.workflow` is — both declared `enhances`, each naming its substitute (§2.5).
+**`kanban_plinta`** — the largest at 1,106 LOC and 18 config keys. Shows label chips when `contrib.labels` is installed and colours columns by workflow state when `contrib.workflow` is — both declared `enhances`, each naming its substitute (§2.5).
 
-**`pivot`** — two providers, WebDataRocks free by default and Flexmonster when licensed, already abstracted behind `providers.py`. That abstraction now also carries **asset location**, since Flexmonster cannot be vendored (§17).
+**`pivot_webdatarocks` and `pivot_flexmonster`** — two packages, where v1 had one holding both behind `providers.py` and a setting. Flexmonster is commercial and cannot be vendored (§17), so it fetches its own assets and asks for its own licence key; WebDataRocks is free and vendors normally. Neither knows the other exists, and an installation picks by which it adds to `INSTALLED_APPS`.
 
-**`gantt`** — **`critical_path` is declared and never implemented.** It appears in the config schema and a docstring listing options, and nowhere else: the key is accepted, validated and ignored. Dropped. It is one of the four findings in §21.11, and the only one where the **key itself** is the fiction — the other three document a real key wrongly.
+**`gantt_jsgantt`** — **`critical_path` is declared and never implemented.** It appears in the config schema and a docstring listing options, and nowhere else: the key is accepted, validated and ignored. Dropped. It is one of the four findings in §21.11, and the only one where the **key itself** is the fiction — the other three document a real key wrongly.
 
-**`chart`, `gauge`, `kpi`** — move to `inline`. A KPI is one number and currently costs a round trip to deliver it.
+**`chart_plotly`, `gauge_plotly`, `kpi_plinta`** — move to `inline`. A KPI is one number and currently costs a round trip to deliver it.
 
 **`details-card`** — the strongest candidate to have stayed in core, excluded to keep ADR 0005 absolute. Core composes a detail page but renders a record as a single-row table until this is installed.
 
@@ -2368,7 +2399,7 @@ The core/contrib split resolves it rather than requiring a redesign. Core compon
 | Vendor layout keys (chart, pivot) | **namespaced** under `vendor` |
 | `kpi.decimal_places` | **dropped** — `DataSourceField.decimals` wins |
 | `gantt.critical_path` | **dropped** — declared, never implemented |
-| `chart`, `gauge`, `kpi` mode | **inline** |
+| `chart_plotly`, `gauge_plotly`, `kpi_plinta` mode | **inline** |
 | `repeater` importing `blocks` | legal once contrib; forbidden in core |
 | kanban's label chips / state colours | `enhances`, each naming its substitute (§2.5) |
 
@@ -2778,7 +2809,7 @@ No comment threads, and the `comments_section` component is unregistered — a b
 **See §11 — the component catalogue supersedes this summary.** Retained here only for the dependency declaration.
 
 **Requires:** `components`, `datasources`, `renderers`, `permissions`.
-**Enhances:** `kanban` on `contrib.labels` and `contrib.workflow` (§2.5). No other component declares one.
+**Enhances:** `kanban_plinta` on `contrib.labels` and `contrib.workflow` (§2.5). No other component declares one.
 **Emits:** nothing.
 **Listens to:** nothing.
 **Registers:** itself, via `register_component`, from its own `AppConfig.ready()`.
@@ -2787,17 +2818,21 @@ No comment threads, and the `comments_section` component is unregistered — a b
 
 | Package | Renders | Vendor |
 |---|---|---|
-| `components.datagrid` | an interactive table — client sort, remote paging, inline cell editing | Tabulator |
-| `components.details_card` | one record as a field list | — |
-| `components.text` | markdown / rich text | — |
-| `components.alert` | a conditional banner | — |
-| `components.kpi` | a single aggregate figure | — |
-| `components.gauge` | a bounded measure | — |
-| `components.chart` | line, bar, area, scatter | Plotly |
-| `components.pivot` | cross-tabulation | Flexmonster |
-| `components.kanban` | cards in state columns | — |
-| `components.gantt` | a schedule | jsGantt |
-| `components.repeater` | a repeated sub-template | — |
+| `components.table_tabulator` | an interactive table — client sort, remote paging, inline cell editing | Tabulator |
+| `components.details_card_plinta` | one record as a field list | — |
+| `components.text_plinta` | markdown / rich text | — |
+| `components.alert_plinta` | a conditional banner | — |
+| `components.kpi_plinta` | a single aggregate figure | — |
+| `components.gauge_plotly` | a bounded measure | Plotly |
+| `components.chart_plotly` | line, bar, area, scatter | Plotly |
+| `components.pivot_webdatarocks` | cross-tabulation | WebDataRocks |
+| `components.pivot_flexmonster` | cross-tabulation, licensed | Flexmonster |
+| `components.kanban_plinta` | cards in state columns | — |
+| `components.gantt_jsgantt` | a schedule | jsGantt |
+| `components.repeater_plinta` | a repeated sub-template | — |
+
+Named `capability_implementation` throughout (§11), so a second vendor for any
+of them is a new package rather than a setting inside an existing one.
 
 Each ships its own config schema, template, static assets and API router.
 
@@ -2809,11 +2844,11 @@ So every component here registers exactly the way an external package would. The
 
 ##### Vendor isolation
 
-A component's front-end dependency ships with it. Plotly arrives with `chart`, Flexmonster with `pivot`, jsGantt with `gantt`, Tabulator with `datagrid`. Core carries no CSS framework (§10.8) and no grid library (§11.2), so it absorbs no front-end major-version upgrade at all.
+A component's front-end dependency ships with it, and the package name says which — Plotly with `chart_plotly`, jsGantt with `gantt_jsgantt`, Tabulator with `table_tabulator`. Core carries no CSS framework (§10.8) and no grid library (§11.2), so it absorbs no front-end major-version upgrade at all.
 
 ##### Enhancement
 
-`kanban` shows label chips when `contrib.labels` is installed, and builds its columns from workflow states — with drag-to-transition — when `contrib.workflow` is. Both are declared `enhances`, each naming its substitute (§2.5): a card without chips, and columns grouped by an ordinary field with no transitions. The board renders either way.
+`kanban_plinta` shows label chips when `contrib.labels` is installed, and builds its columns from workflow states — with drag-to-transition — when `contrib.workflow` is. Both are declared `enhances`, each naming its substitute (§2.5): a card without chips, and columns grouped by an ordinary field with no transitions. The board renders either way.
 
 ##### Degrades when absent
 
@@ -3269,7 +3304,7 @@ Since plinta is pip-installed, a build could only ever run at **release time in 
 |---|---|---|
 | Bootstrap Icons | core chrome | vendor — the icon set alone; core ships no CSS framework (§10.8) |
 | htmx + `json-enc` | core transport | vendor |
-| Tabulator | `datagrid` (contrib) | vendor, with the component |
+| Tabulator | `table_tabulator` (contrib) | vendor, with the component |
 | Tom Select | pickers (core) | vendor |
 | Luxon | date handling (core) | vendor |
 | GridStack | the page composer (core) | vendor — loaded in edit mode only |
@@ -3536,10 +3571,11 @@ Every setting plinta reads. A consuming project sets none of them to get a worki
 | `ATTACHMENT_MAX_SIZE_MB` | `attachments` | per-file limit |
 | `ATTACHMENT_ALLOWED_EXTENSIONS` | `attachments` | allow-list; empty means all |
 | `ATTACHMENT_MAX_PER_INSTANCE` | `attachments` | default 50 |
-| `PLINTA_PIVOT_PROVIDER` | `components.pivot` | `webdatarocks` or `flexmonster` |
-| `FLEXMONSTER_LICENSE_KEY` | `components.pivot` | required only for that provider |
+| `FLEXMONSTER_LICENSE_KEY` | `components.pivot_flexmonster` | required by that package, which is not installed unless you want it |
 
-**A contrib setting is read only by its own package.** Core never reads `ATTACHMENT_MAX_SIZE_MB`, and the shell never reads `PLINTA_PIVOT_PROVIDER` — which is why that context processor moves (§10).
+**A contrib setting is read only by its own package.** Core never reads `ATTACHMENT_MAX_SIZE_MB`, and the shell never reads a pivot vendor's — which is why that context processor moves (§10).
+
+**`PLINTA_PIVOT_PROVIDER` is deleted rather than moved.** It chose between two vendors inside one package; with a package per vendor (§11) the choice is which one is in `INSTALLED_APPS`, and a setting that duplicates that can only disagree with it.
 
 ### 19.3 `PLINTA_API_PREFIX` does not mount anything
 

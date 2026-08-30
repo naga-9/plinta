@@ -65,7 +65,7 @@ def screen(db):
     ada = User.objects.get(pk=ada.pk)
 
     block = Block.objects.create(
-        name="books-table", component_type="table", data_source=ds, owner=ada
+        name="books-table", component_type="table_plinta", data_source=ds, owner=ada
     )
     page = Page.objects.create(name="Catalog", slug="catalog", owner=ada)
     PageBlock.objects.create(page=page, block=block, width=6)
@@ -130,7 +130,7 @@ def test_a_block_that_fails_says_so_in_its_slot(screen, settings):
     page, block, ada = screen
     broken = Block.objects.create(
         name="broken",
-        component_type="table",
+        component_type="table_plinta",
         data_source=block.data_source,
         owner=ada,
         config={"page_sise": 10},

@@ -46,14 +46,18 @@ class TableConfig(ComponentConfig):
     empty_text: str = ""
 
 
-@register_component("table", label="Table")
+@register_component("table_plinta", label="Table")
 class TableComponent(Component):
     """Rows and columns, rendered on the server.
 
     No grid library. Sorting, paging and filtering are the server's, reached by
     ordinary links and the page's filter bar, so a viewer needs no JavaScript.
     A consumer wanting client-side sorting, column resizing or inline cell
-    editing installs `datagrid`, or registers their own component.
+    editing installs `table_tabulator`, or registers their own.
+
+    The key names its implementation like every other — `table_plinta` beside
+    `table_tabulator` — so core's component is no more privileged in the
+    registry than it is in the code.
     """
 
     config_schema = TableConfig

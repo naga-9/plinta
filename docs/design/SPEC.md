@@ -281,7 +281,7 @@ The register. Nowhere else in this document counts them; a count in two places i
 
 **Core's dependencies are Django, django-ninja and pydantic.** `openpyxl` and `pandas` leave with `export`, `Pillow` with `attachments`, `django-ckeditor-5` with `comments`, `weasyprint` with PDF. Nothing native, nothing heavy.
 
-**Core's front end is the shared client plus the shell's `theme-toggle.js` and generated `tokens.js`.** It ships **no CSS framework** (§10.8) and **no grid library** (§11.2): the styling is plinta's own, built from `tokens.json`, and core's `table` is server-rendered HTML. Its vendored libraries are Bootstrap Icons — the icon set alone, which needs none of Bootstrap's CSS — Tom Select, Luxon and GridStack, served from `static/`, never a CDN (§17). Tabulator ships with `contrib.components.datagrid`; Plotly, WebDataRocks, Flexmonster and jsGantt with theirs.
+**Core's front end is the shared client plus the shell's `theme-toggle.js` and generated `tokens.js`.** It ships **no CSS framework** (§10.8) and **no grid library** (§11.2): the styling is plinta's own, built from `tokens.json`, and core's `table_plinta` is server-rendered HTML. Its vendored libraries are Bootstrap Icons — the icon set alone, which needs none of Bootstrap's CSS — Tom Select, Luxon and GridStack, served from `static/`, never a CDN (§17). Tabulator ships with `contrib.components.table_tabulator`; Plotly, WebDataRocks, Flexmonster and jsGantt with theirs.
 
 **What a viewer loads is close to nothing.** Layout is CSS grid driven by the stored position, so viewing a page needs no layout JavaScript; GridStack loads only in edit mode. **Core carries no front-end major-version upgrade at all** — every vendor that could impose one travels with a component someone chose to install.
 
@@ -1401,7 +1401,7 @@ The merge happens one layer up, in `blocks`, which holds `SavedView` (§8.1). Th
 
 Each component declares a pydantic config schema with `extra='forbid'`, so a typo is rejected at save time rather than ignored at render time. Strict validation is only possible because exactly one shape arrives — not "the block config, unless a view overrode it".
 
-**Core ships `table` and nothing else** (ADR 0005 (§24)). Every other component registers through the same door a third party would use, so the contract is dogfooded rather than asserted.
+**Core ships `table_plinta` and nothing else** (ADR 0005 (§24)). Every other component registers through the same door a third party would use, so the contract is dogfooded rather than asserted.
 
 A block referencing an unregistered component type renders as an **empty slot** — a normal state, not an error, mirroring how a page already degrades a block the viewer may not see. The registry offers both lookups: `find` returns None, which is that path, and `get` raises for a caller that already knows the type is installed.
 
@@ -1409,7 +1409,7 @@ A block referencing an unregistered component type renders as an **empty slot** 
 
 Three sources, three jobs: `DataSourceField.visible` is the DataSource's default order, field permission is the **ceiling**, and the merged config is what this viewer chose out of what they may see. So the config narrows and reorders and can never widen: a name the viewer has no permission for is dropped rather than honoured, the same fail-closed rule an undeclared column already follows (§5.7). Otherwise personalisation would be a permission bypass — save a view naming a revoked column and get it back.
 
-**`get_data` is on the base class**, so it calls `get_available_fields`, collects the joins the columns' field renderers declared (§7.8), and passes both to `get_queryset`. A component written tomorrow gets prefetch derivation and computed columns without knowing either exists; one that needs to narrow further overrides it and calls `super()` first — which is how `table` applies its `sort`.
+**`get_data` is on the base class**, so it calls `get_available_fields`, collects the joins the columns' field renderers declared (§7.8), and passes both to `get_queryset`. A component written tomorrow gets prefetch derivation and computed columns without knowing either exists; one that needs to narrow further overrides it and calls `super()` first — which is how `table_plinta` applies its `sort`.
 
 ### 7.3 Two rendering modes
 
@@ -1533,7 +1533,7 @@ Two kinds of work are mixed together in each:
 | re-fetch when a page filter changes | wire cell editors |
 | preserve scroll across refresh | |
 
-**The client is the left column, written once. An adapter is the right column, one per component type.** Core's own `table` needs neither, being server-rendered (§11.2); the client exists for the components that fetch, and ships in core so contrib does not each write one.
+**The client is the left column, written once. An adapter is the right column, one per component type.** Core's own `table_plinta` needs neither, being server-rendered (§11.2); the client exists for the components that fetch, and ships in core so contrib does not each write one.
 
 ```js
 registerAdapter('table', TableAdapter);
@@ -1549,7 +1549,7 @@ This is what makes remote pagination work without the client owning timing: Tabu
 
 **An adapter is per component type, not per vendor.** `chart_plotly` and `gauge_plotly` share a vendor and still need different glue — a gauge is an indicator trace, a chart is line/bar/scatter. Where two adapters genuinely share vendor logic, a shared helper serves them: `plotly-theme.js` is already exactly this and survives unchanged.
 
-**Adapters ship with their components.** Core carries the client and `table`'s adapter; `contrib.components.chart` carries `chart.js` and Plotly. Same rule as vendor assets (§17) and ADR 0005 (§24).
+**Adapters ship with their components.** Core carries the client and nothing else — `table_plinta` is server-rendered and needs no adapter; `contrib.components.chart_plotly` carries its adapter and Plotly. Same rule as vendor assets (§17) and ADR 0005 (§24).
 
 ### 7.5 Module format: ES modules
 
@@ -2285,7 +2285,7 @@ A consumer wanting Bootstrap specifically loads it there and writes a bridge sty
 
 
 
-Eleven components ship. **Core ships `table`; every other one is a contrib package** (ADR 0005), each carrying its own config schema, template, adapter and vendor.
+Thirteen components ship. **Core ships `table_plinta`; every other one is a contrib package** (ADR 0005), each carrying its own config schema, template, adapter and vendor.
 
 | Component | Lives | Vendor | Mode | LOC |
 |---|---|---|---|---|
@@ -2393,7 +2393,7 @@ The core/contrib split resolves it rather than requiring a redesign. Core compon
 
 | Item | Decision |
 |---|---|
-| Components in core | `table` only |
+| Components in core | `table_plinta` only |
 | Alias `view_config.py` files | **deleted** — one schema unless overridden |
 | `_XViewSaveIn` × 5 | **deleted** — `config_key` on `ViewRouterSpec` |
 | Vendor layout keys (chart, pivot) | **namespaced** under `vendor` |
@@ -4014,7 +4014,7 @@ Layer 1 is §3, layer 2 is §4, and so on — §1 is scope and architecture.
 | 3 | `permissions` | Imports only 1–2. `FieldInUserSet` exists; no organisation reference remains. Field-permission minting takes a model and field names, never a `DataSourceField` — the trigger arrives at layer 4. |
 | 4 | `datasources` | Imports only 1–3. Every viewer-facing service takes a user. Owns the `DataSourceField` signals that drive field-permission minting, including the `pre_save` that makes a rename preserve grants. |
 | 5 | `renderers` | Contract plus HTML. No Excel, PDF or email. |
-| 6 | `components` | Contract, registry, `table`. No saved-view merge anywhere. |
+| 6 | `components` | Contract, registry, `table_plinta`. No saved-view merge anywhere. |
 | 7 | `blocks` | Write pipeline emits its three signals — `object_writing`, `object_written`, `object_deleted` — and computes `changes`. `SavedView` merges directly; there is no hook, which went with the optionality (ADR 0004 (§24), revised). |
 | 8 | `pages` | Composition, `PageFilter`, menu. Blocks resolve by FK. Missing component and unviewable block both degrade to an empty slot. |
 | 9 | `shell` | One base template and its regions. `LoginRequiredMiddleware` with its system check. Tokens generated from `tokens.json`; `lint_hex_colors` green. A logged-in user can reach a page, sort it and page it, with no vendor script loaded. |
@@ -4236,7 +4236,7 @@ The component contract is unaffected either way, which is what made the two deci
 
 Deltas remain deltas, never copies. A saved view stores only what differs, so a change to the underlying block reaches every view except where one deliberately overrides. Storing full copies would fork configuration silently.
 
-### ADR 0005 — Core ships `table` and no other component
+### ADR 0005 — Core ships `table_plinta` and no other component
 
 **Status:** accepted, 2026-08-28
 
@@ -4248,7 +4248,7 @@ Bundled components registered through `AppConfig.ready()` — nominally the same
 
 #### Decision
 
-Core ships the component contract, the registry, and **`table`** as the reference implementation. Everything else — `details-card`, `text`, `alert`, `kpi`, `gauge`, `chart`, `pivot`, `kanban`, `gantt`, `repeater` — becomes an independently installable contrib package.
+Core ships the component contract, the registry, and **`table_plinta`** as the reference implementation. Everything else — every other entry in §11's catalogue, including the interactive `table_tabulator` — becomes an independently installable contrib package.
 
 A Block referencing an unregistered component type renders as an **empty slot**. This is a normal state, not an error.
 
@@ -4357,7 +4357,7 @@ Three supporting facts:
 - `Urgency` sits in `plinta/core/models.py`. It is `Action`'s lookup and a domain noun in core, which the noun test forbids.
 - `blocks/api.py` imports `Action` at module scope for one endpoint, making a task tracker mandatory for anyone rendering a table.
 
-**Why a consumer app is the right home.** `example/catalog` already is one: plain Django models that import `WorkflowMixin` from outside plinta and drive datasources, filters, pivots, capabilities, reports and org-scoped permissions. This is ADR 0005 applied above the component layer — core ships `table` and no other component so the plugin door is real; plinta ships no domain app so the **consumer** door is real. If a task tracker cannot be built on the published API from outside, the API is fiction.
+**Why a consumer app is the right home.** `example/catalog` already is one: plain Django models that import `WorkflowMixin` from outside plinta and drive datasources, filters, pivots, capabilities, reports and org-scoped permissions. This is ADR 0005 applied above the component layer — core ships one component and no other so the plugin door is real; plinta ships no domain app so the **consumer** door is real. If a task tracker cannot be built on the published API from outside, the API is fiction.
 
 **Consequences.**
 

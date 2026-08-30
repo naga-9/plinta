@@ -2264,6 +2264,12 @@ These are passthrough, not plinta's contract, and flattening them into `Block.co
 
 Sorting, paging and filtering happen on the server, reached by ordinary links and the page's filter bar — `?sort=title&page=2`, the shape Django's own admin has always had. It works with JavaScript disabled and needs no client at all.
 
+**`inline` does not mean every row is embedded.** It means the server produces the finished HTML for *this page of rows*: fifty rows and a link to page two, one `COUNT` and one `LIMIT`/`OFFSET`, whatever the query matches. A fifty-thousand-row table is an ordinary table. What `fetch` changes is who asks for the next page and whether the document reloads — not whether one is sent.
+
+**Rendering is paged; `get_data` is not.** A screen draws a page; an export wants every row and calls `get_data` itself.
+
+**A paged queryset must be ordered.** Without one the database may return rows in a different order per `LIMIT`/`OFFSET`, so a row appears on two pages and another on none. The component's `sort` decides, then the model's own `Meta.ordering`, then the primary key — never nothing.
+
 What it does not do is what a grid library is for: dragging a column wider, re-sorting without a round trip, and editing a cell in place. Core ships the write endpoint and a server-rendered row-edit form; **inline cell editing is `datagrid`'s**.
 
 **`datagrid`** — contrib, Tabulator, `fetch` mode. The interactive table: client-side sort and filter, remote pagination, column resize and reorder, inline cell editing.

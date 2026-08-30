@@ -190,10 +190,66 @@ def test_sort_orders_the_rows(books):
 
 
 @pytest.mark.django_db
-def test_no_sort_leaves_the_models_ordering(books):
+def test_an_unordered_model_is_ordered_by_pk(books):
+    """Paging needs a deterministic order, or a row appears on two pages."""
     ds, ada = books
     rows, _ = TableComponent().get_data(TableConfig(), ada, datasource=ds)
-    assert rows.query.order_by == ()
+    assert rows.ordered
+
+
+@pytest.mark.django_db
+def test_a_models_own_ordering_is_left_alone(books):
+    """Region declares Meta.ordering, so nothing is imposed over it."""
+    ds, ada = books
+    ds.content_type = ContentType.objects.get_for_model(Region)
+    rows, _ = TableComponent().get_data(TableConfig(), ada, datasource=ds)
+    assert list(rows.query.order_by) == []
+
+
+# --- paging ----------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_only_one_page_of_rows_is_drawn(books):
+    """Which is what lets a server-rendered table hold fifty thousand rows."""
+    ds, ada = books
+    for title in ("Ulysses", "Ariel", "Beloved"):
+        Book.objects.create(title=title, owner=ada)
+    out = TableComponent().render(TableConfig(page_size=2), ada, datasource=ds)
+    assert out.count("<tr>") == 3  # one header, two body
+
+
+@pytest.mark.django_db
+def test_a_later_page_draws_the_next_rows(books):
+    ds, ada = books
+    config = TableConfig(page_size=1, sort=[{"field": "title"}])
+    first = TableComponent().render(config, ada, datasource=ds, page=1)
+    second = TableComponent().render(config, ada, datasource=ds, page=2)
+    assert "Dune" in first and "Emma" not in first
+    assert "Emma" in second and "Dune" not in second
+
+
+@pytest.mark.django_db
+def test_an_out_of_range_page_lands_on_the_last(books):
+    """A page number is something a person can type into a URL."""
+    ds, ada = books
+    out = TableComponent().render(TableConfig(page_size=1), ada, datasource=ds, page=99)
+    assert out.count("<tr>") == 2
+
+
+@pytest.mark.django_db
+def test_an_unparseable_page_is_not_a_crash(books):
+    ds, ada = books
+    out = TableComponent().render(TableConfig(), ada, datasource=ds, page="nonesuch")
+    assert "Dune" in out
+
+
+@pytest.mark.django_db
+def test_get_data_is_not_paged(books):
+    """An export wants every row, so the slice happens when rendering."""
+    ds, ada = books
+    rows, _ = TableComponent().get_data(TableConfig(page_size=1), ada, datasource=ds)
+    assert rows.count() == 2
 
 
 @pytest.mark.django_db

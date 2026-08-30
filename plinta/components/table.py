@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from django.core.paginator import Page, Paginator
 from pydantic import Field
 
 from plinta.components.base import Component, ComponentConfig, Mode
@@ -69,14 +70,33 @@ class TableComponent(Component):
             f"-{s.field}" if s.direction == "desc" else s.field for s in config.sort
         ]
         if ordering:
-            rows = rows.order_by(*ordering)
+            return rows.order_by(*ordering), fields
+        if not rows.ordered:
+            # Paging an unordered queryset is not merely untidy: the database
+            # may return rows in a different order for each LIMIT/OFFSET, so a
+            # row can appear on two pages and another on none.
+            return rows.order_by("pk"), fields
         return rows, fields
 
-    def render(self, config: TableConfig, user, **context: Any) -> str:
-        """Draw the table through the renderer for the asked-for format.
+    def page(self, rows, config: TableConfig, number: int = 1) -> Page:
+        """One page of ``rows``, and what a pager needs to draw itself.
 
-        Defaults to HTML, and substitutes HTML for a format nothing registered
-        (§7.1), so a caller never asks whether `contrib.export` is installed.
+        Django's `Paginator`, so an out-of-range or unparseable page number
+        lands on the last page rather than raising on a link someone typed.
+        """
+        paginator = Paginator(rows, config.page_size)
+        return paginator.get_page(number)
+
+    def render(self, config: TableConfig, user, **context: Any) -> str:
+        """Draw one page of the table, in the asked-for format.
+
+        Substitutes HTML for a format nothing registered (§7.1), so a caller
+        never asks whether `contrib.export` is installed.
+
+        **Rendering is paged; `get_data` is not.** A screen draws `page_size`
+        rows however many the query matches, which is what lets a
+        server-rendered table hold fifty thousand. An export wants every row
+        and calls `get_data` itself.
         """
         rows, fields = self.get_data(
             config,
@@ -84,5 +104,6 @@ class TableComponent(Component):
             datasource=context["datasource"],
             narrow=context.get("narrow"),
         )
+        page = self.page(rows, config, context.get("page", 1))
         renderer = get_renderer(context.get("format", "html"))
-        return renderer.render(rows, fields, config.model_dump(), user)
+        return renderer.render(page.object_list, fields, config.model_dump(), user)

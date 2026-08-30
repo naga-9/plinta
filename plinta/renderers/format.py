@@ -47,18 +47,18 @@ def format_value(value: Any, field: DataSourceField | None = None) -> str:
     fmt = (getattr(field, "format", "") or "") if field is not None else ""
 
     if isinstance(value, bool):
-        return affix(format_boolean(value), field, fmt)
+        return affix(format_boolean(value), field)
     if isinstance(value, datetime.datetime):
-        return affix(format_datetime(value), field, fmt)
+        return affix(format_datetime(value), field)
     if isinstance(value, datetime.date):
-        return affix(format_date(value), field, fmt)
+        return affix(format_date(value), field)
     if isinstance(value, datetime.time):
-        return affix(formats.time_format(value), field, fmt)
+        return affix(formats.time_format(value), field)
     if fmt in NUMERIC_FORMATS or isinstance(value, (int, float, Decimal)):
         text = format_number(value, field)
     else:
         text = str(value)
-    return affix(text, field, fmt) if text else EMPTY
+    return affix(text, field) if text else EMPTY
 
 
 def format_boolean(value: bool) -> str:
@@ -121,20 +121,15 @@ def format_number(value: Any, field: DataSourceField | None = None) -> str:
     return text
 
 
-def affix(text: str, field: DataSourceField | None, fmt: str) -> str:
-    """Put the column's prefix and suffix around a formatted number.
+def affix(text: str, field: DataSourceField | None) -> str:
+    """Put the column's prefix and suffix around a formatted value.
 
-    A declared affix **replaces** what the format would have drawn, so a
-    ``percent`` column with ``suffix='%'`` shows one sign rather than two.
-    ``percent`` is the only format that draws anything of its own: a sign is
-    what the format *means*, where a currency symbol is a fact about the data
-    that core has no way to know.
+    Exactly what the column declared, in the order it declared it. No format
+    contributes a sign of its own and nothing is rearranged around a minus:
+    accounting writes (5.00), some styles -$5.00 and others $-5.00, so any
+    convention core picked would be wrong for someone. A column wanting one
+    registers a field renderer (§7.8).
     """
     prefix = (getattr(field, "prefix", "") or "") if field is not None else ""
     suffix = (getattr(field, "suffix", "") or "") if field is not None else ""
-    if not prefix and not suffix and fmt == "percent":
-        suffix = "%"
-    if prefix and text.startswith("-"):
-        # -$5.00, which is what every spreadsheet writes, not $-5.00.
-        return f"-{prefix}{text[1:]}{suffix}"
     return f"{prefix}{text}{suffix}"

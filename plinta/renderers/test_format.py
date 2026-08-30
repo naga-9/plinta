@@ -130,7 +130,7 @@ def test_it_rounds_rather_than_truncates():
 
 
 def test_a_half_rounds_up():
-    assert format_value(Decimal("15.25"), Field(format="percent", decimals=1)) == "15.3%"
+    assert format_value(Decimal("15.25"), Field(format="percent", decimals=1)) == "15.3"
 
 
 def test_a_number_too_large_to_round_is_still_shown():
@@ -176,10 +176,12 @@ def test_a_currency_column_with_nothing_declared_is_just_a_number():
     assert format_value(Decimal("5"), Field(format="currency")) == "5"
 
 
-def test_a_negative_amount_puts_its_sign_outside_the_prefix():
-    """-$5.00, which is what every spreadsheet writes, not $-5.00."""
+def test_nothing_is_rearranged_around_a_minus():
+    """Accounting writes (5.00), some styles -$5.00, others $-5.00. Any
+    convention core picked would be wrong for someone; a column wanting one
+    registers a field renderer (§7.8)."""
     field = Field(format="currency", prefix="$", decimals=2)
-    assert format_value(Decimal("-5"), field) == "-$5.00"
+    assert format_value(Decimal("-5"), field) == "$-5.00"
 
 
 def test_a_negative_with_only_a_suffix_is_untouched():
@@ -208,8 +210,9 @@ def test_an_affix_needs_no_format():
     assert format_value(5, Field(suffix="°C")) == "5°C"
 
 
-def test_an_affix_replaces_what_the_format_would_draw():
-    """percent with suffix='%' shows one sign, not two."""
+def test_a_format_contributes_no_sign_of_its_own():
+    """Only what the column declared is drawn, so nothing doubles up."""
+    assert format_value(15, Field(format="percent")) == "15"
     assert format_value(15, Field(format="percent", suffix="%")) == "15%"
 
 
@@ -242,8 +245,9 @@ def test_an_empty_cell_gets_no_affix():
 
 
 def test_the_stored_value_is_the_percentage():
-    """15 renders as 15%. Multiplying here would change the data's meaning."""
-    assert format_value(15, Field(format="percent")) == "15%"
+    """15 renders as 15, not 1500. Multiplying here would change the meaning
+    of the data — a fraction declares an annotation, where it is visible."""
+    assert format_value(15, Field(format="percent", suffix="%")) == "15%"
 
 
 # --- everything else -------------------------------------------------------

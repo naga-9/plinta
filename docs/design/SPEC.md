@@ -1342,11 +1342,13 @@ Three decisions the helpers settle once:
 
 **A column draws its own affixes, and core does not convert.** `prefix` and `suffix` (§6.8) go around the formatted value, whatever its type. One rule governs them:
 
-> A declared affix **replaces** what the format would have drawn. `percent` is the only format that draws anything of its own — a sign is what the format *means*, where a currency symbol is a fact about the data that core has no way to know.
+> Exactly what the column declared, in the order it declared it. No format contributes a sign of its own, and nothing is rearranged around a minus.
 
-So `percent` with `suffix='%'` shows one sign rather than two. An empty cell takes no affix, or a blank currency column would render as a lone symbol. A negative amount puts its sign outside the prefix — `-$5.00`, which is what every spreadsheet writes.
+So a `percent` column draws `%` because it declared `suffix='%'`, not because the format did. The only rule left is that an **empty cell takes no affix**, or a blank currency column renders as a lone symbol.
 
-A setting could not express a screen showing dollars and euros side by side, which is the ordinary case for the consumer this exists for. Rates and symbol tables stay in `contrib.organization`, reached through a field renderer (§7.8).
+**Negative numbers are not core's convention to pick.** Accounting writes `(5.00)`, some styles `-$5.00`, others `$-5.00`. Any choice made here is wrong for someone, so none is made: a column wanting one registers a field renderer (§7.8), which is also where symbols and conversion live.
+
+A setting could not express a screen showing dollars and euros side by side, which is the ordinary case for the consumer this exists for.
 
 `components` imports this layer for those helpers. That is the only direction allowed.
 

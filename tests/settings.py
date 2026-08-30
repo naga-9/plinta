@@ -1,5 +1,13 @@
-"""Minimal settings so plinta's own suite can run without a consuming project."""
+"""Settings for plinta's own suite. A consuming project supplies its own."""
 SECRET_KEY = "test-only-not-a-secret"  # noqa: S105
 USE_TZ = True
-DATABASES = {}
-INSTALLED_APPS = []
+
+DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
+
+INSTALLED_APPS = [
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "tests.testapp",
+]
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

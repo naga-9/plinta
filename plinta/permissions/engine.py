@@ -15,6 +15,7 @@ from dataclasses import dataclass, field as dc_field
 
 from django.db.models import Model, QuerySet
 
+from plinta.permissions.fields import minted_fields
 from plinta.permissions.policies import policy_for
 from plinta.permissions.rules import Rule
 
@@ -95,24 +96,6 @@ def fields(user, action: str, model: type[Model]) -> set[str]:
 
     prefix = field_codename(action, model, "")
     return {p[len(prefix):] for p in user.get_all_permissions() if p.startswith(prefix)}
-
-
-def minted_fields(action: str, model: type[Model]) -> set[str]:
-    """Every field of ``model`` that has a permission for ``action``.
-
-    Read from Django's own permission table, so this layer learns which columns
-    are declared without importing the layer that declares them.
-    """
-    from django.contrib.auth.models import Permission
-
-    prefix = f"{action}_{model._meta.model_name}_"
-    return {
-        perm.codename[len(prefix):]
-        for perm in Permission.objects.filter(
-            content_type__app_label=model._meta.app_label,
-            codename__startswith=prefix,
-        )
-    }
 
 
 # --------------------------------------------------------------------------

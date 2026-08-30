@@ -3,6 +3,14 @@
 Everything in plinta calls ``can``, ``allowed`` and ``fields``.
 """
 from plinta.permissions.engine import allowed, can, explain, fields
+from plinta.permissions.fields import (
+    FieldPermissionError,
+    minted_fields,
+    remove_field,
+    rename_field,
+    sync_field,
+    sync_model,
+)
 from plinta.permissions.policies import (
     PermissionPolicy,
     PolicyError,
@@ -27,14 +35,20 @@ from plinta.permissions.rules import (
 
 __all__ = [
     "DENY",
+    "FieldPermissionError",
     "PermissionPolicy",
     "PolicyError",
     "allowed",
     "can",
     "explain",
     "fields",
+    "minted_fields",
     "policy_for",
     "register_policy",
+    "remove_field",
+    "rename_field",
+    "sync_field",
+    "sync_model",
     "AllowAll",
     "Callable",
     "FieldEq",

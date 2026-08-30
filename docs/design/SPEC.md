@@ -868,6 +868,13 @@ permissions/fields.py   mint / rename / remove, taking (model, field_names, edit
 datasources             signals on DataSourceField, registered in AppConfig.ready()
 ```
 
+**No model is imported at module scope, anywhere in plinta.** A package that
+does cannot be imported while the app registry is still populating — which is
+when a consumer's `AppConfig.ready()` runs — and the `AppRegistryNotReady` it
+raises surfaces a long way from its cause. Every package must import before
+`django.setup()`, checked by a test that imports each one in a fresh
+interpreter.
+
 Today generation is manual — called only from tests and the `rebuild_field_permissions` command — because model-driven generation only needs to change when *code* changes. DSF-driven generation must change when **configuration** changes, so a trigger becomes necessary where none exists.
 
 | Signal | Effect |

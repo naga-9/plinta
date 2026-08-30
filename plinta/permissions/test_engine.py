@@ -4,7 +4,7 @@ from django.contrib.auth.models import AnonymousUser, Permission, User
 from django.contrib.contenttypes.models import ContentType
 
 from plinta.permissions.engine import allowed, can, explain, fields, minted_fields
-from plinta.permissions.policies import PermissionPolicy, PolicyError
+from plinta.permissions.policies import PermissionPolicy
 from plinta.permissions.rules import AllowAll, HasPerm, Owner, Public
 from tests.testapp.models import Book
 
@@ -167,29 +167,6 @@ def test_anonymous_gets_no_fields():
 def test_minted_fields_reads_the_permission_table(ada):
     grant(ada, "view_book_title")
     assert minted_fields("view", Book) == {"title"}
-
-
-# --- policy registration ---------------------------------------------------
-
-
-def test_a_model_cannot_have_two_policies(policy_registry):
-    policy_registry.register_policy(Book, BookPolicy)
-    with pytest.raises(PolicyError, match="already has"):
-        policy_registry.register_policy(Book, BookPolicy)
-
-
-def test_a_non_policy_is_refused(policy_registry):
-    with pytest.raises(PolicyError, match="not a PermissionPolicy"):
-        policy_registry.register_policy(Book, object())
-
-
-def test_a_policy_lists_the_actions_it_governs():
-    assert BookPolicy().actions() == {"view", "change"}
-
-
-def test_registering_accepts_a_class_or_an_instance(policy_registry):
-    registered = policy_registry.register_policy(Book, BookPolicy)
-    assert isinstance(registered, BookPolicy)
 
 
 # --- explain ---------------------------------------------------------------

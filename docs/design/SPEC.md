@@ -3259,7 +3259,7 @@ Omitting it must raise `TypeError` at the call site. A management command that l
 
 ### 20.9 Testing
 
-- Tests live beside the code they test, in the app.
+- Tests live beside the code they test: `x.py` is tested by `test_x.py` in the same package. A module with no matching file is a module nobody checked, and the pairing makes that visible without a coverage tool.
 - A contrib package's tests must pass with only core and that package installed.
 - The integration suite — booting a real consuming project, seeding it, rendering through the test client — runs in CI. It covers the `reverse()` and template surface a package-only suite cannot reach.
 

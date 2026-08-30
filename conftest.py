@@ -3,6 +3,7 @@ import pytest
 
 from plinta.dates import ranges
 from plinta.events import signals
+from plinta.permissions import policies
 from plinta.forms import overrides
 from plinta.utils import placeholders
 
@@ -64,3 +65,13 @@ def _no_leaked_receivers():
     leaked = {s._plinta_name: len(s.receivers) - before[s]
               for s in signals.ALL if len(s.receivers) != before[s]}
     assert not leaked, f"receivers left connected: {leaked}"
+
+
+@pytest.fixture
+def policy_registry():
+    """Empty policy registry, restored afterwards."""
+    saved = dict(policies._registry)
+    policies._registry.clear()
+    yield policies
+    policies._registry.clear()
+    policies._registry.update(saved)

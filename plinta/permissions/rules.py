@@ -52,8 +52,20 @@ class Rule:
         args = ", ".join(f"{k}={v!r}" for k, v in vars(self).items())
         return f"{type(self).__name__}({args})"
 
+    @property
+    def label(self) -> str:
+        """One line naming this rule, for a decision trace.
+
+        A combinator says only what it is, since its children are printed
+        beneath it — repeating the whole subtree at every level makes the trace
+        unreadable, which defeats the point of having one.
+        """
+        return repr(self)
+
 
 class _Or(Rule):
+    label = "OR — either branch admits"
+
     def __init__(self, a: Rule, b: Rule):
         self.a, self.b = a, b
 
@@ -65,6 +77,8 @@ class _Or(Rule):
 
 
 class _And(Rule):
+    label = "AND — both branches must admit"
+
     def __init__(self, a: Rule, b: Rule):
         self.a, self.b = a, b
 
@@ -76,6 +90,8 @@ class _And(Rule):
 
 
 class _Not(Rule):
+    label = "NOT — inverts the branch below"
+
     def __init__(self, a: Rule):
         self.a = a
 

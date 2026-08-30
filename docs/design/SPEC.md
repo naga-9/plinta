@@ -615,7 +615,28 @@ plinta.events.emit_written(obj, changes=..., actor=..., source='nightly_import')
 
 Explicit, and it keeps the actor honest rather than inventing one.
 
-### 4.5 Batches
+### 4.5 A consumer emitting
+
+Three cases, and only one of them is plinta's business.
+
+**An existing signal, for a write plinta did not mediate.** Import the emit
+function and call it — no registration, because the vocabulary is already
+core's. An EDI importer emitting `object_written` gets audit, notifications and
+labels without any of them knowing it exists. A consumer with their own state
+machine emits `state_changed` and needs no `contrib.workflow` (§4.8).
+
+**An event of their own** — `order_shipped`, `invoice_paid`. A plain
+`django.dispatch.Signal` in their own app, and nothing to do with plinta.
+Registration exists so core can be filled by contrib *without importing it*; a
+consumer owns both the emitter and the listener, so a module-level signal and a
+direct import is both correct and simpler. Nothing in plinta will listen to it.
+
+**A sixth signal in plinta's vocabulary** — no. That is a core change under the
+admission test above. Before proposing one, check the first case: a domain event
+is usually a write or a state change, and emitting the existing signal is what
+buys the listeners.
+
+### 4.6 Batches
 
 A bulk write — an import of 5,000 rows — would emit 5,000 signals and produce 5,000 or more audit rows.
 
@@ -632,7 +653,7 @@ The stronger argument is not performance but **notifications**: without batching
 
 A listener that ignores the context still behaves correctly — just slower.
 
-### 4.6 Failure policy
+### 4.7 Failure policy
 
 A listener that raises is logged and swallowed. A failing audit row or a broken notification must never fail a user's save.
 
@@ -640,19 +661,19 @@ The consequence, stated rather than implied: **an audit gap is possible under li
 
 Ordering between listeners is undefined and must not be relied upon. Anything slow belongs in a queue the listener owns.
 
-### 4.7 `state_changed` is schema-pure
+### 4.8 `state_changed` is schema-pure
 
 `from_state` and `to_state` are strings; `metadata` is a JSON-serialisable dict carrying anything workflow-specific — workflow id, transition code, guard results.
 
 Core therefore never references a `Workflow`, `WorkflowState` or `WorkflowTransition` model, and a consumer with their own state machine can emit `state_changed` and get audit and notifications for free.
 
-### 4.8 Permission changes
+### 4.9 Permission changes
 
 **A grant or revoke emits `object_written` like any other write** — the target is the `Permission` or group-membership row, the actor is whoever applied it, `source='permission_admin'` (a value that already exists).
 
 No new signal. *Who granted what, to whom, when* is the first question after an incident, and it should not depend on `permission_service` remembering to log it.
 
-### 4.9 What this replaces
+### 4.10 What this replaces
 
 Every sideways import in the current tree:
 
@@ -1405,7 +1426,7 @@ export const plintaNotifications = {
     toggleDropdown: function() { fetch('/api/v1/notifications/dropdown/') ... }
 ```
 
-That is `contrib.notifications` code inside core chrome — a contrib concern living in core, exactly the violation §4.9 tabulates on the Python side, somewhere the AST import test would never look. `setViewParam` writes `view_pb<id>` URL parameters, which belongs with `blocks` rather than in the chrome file.
+That is `contrib.notifications` code inside core chrome — a contrib concern living in core, exactly the violation §4.10 tabulates on the Python side, somewhere the AST import test would never look. `setViewParam` writes `view_pb<id>` URL parameters, which belongs with `blocks` rather than in the chrome file.
 
 | Exports | Goes to |
 |---|---|
@@ -1552,7 +1573,7 @@ Every mutation goes through it. The current implementation is fifteen stages for
 
 Deletes follow the same authorise-then-emit shape. There is no restore signal — §8.9.
 
-**Three stages disappear into events.** `sync_labels`, `fire_notifications_stage` and `audit_changes` are stages 12–14 today — the three listeners in disguise (§4.9). They become subscribers, and the pipeline stops importing `labels`, `notifications` and `audit`.
+**Three stages disappear into events.** `sync_labels`, `fire_notifications_stage` and `audit_changes` are stages 12–14 today — the three listeners in disguise (§4.10). They become subscribers, and the pipeline stops importing `labels`, `notifications` and `audit`.
 
 **One stage stops being conditional.** `attach_recompute_siblings_row` is gated by a DSF flag with zero uses, and without the flag an inline edit returns no updated row at all. The **flag** goes, not the behaviour: the refetch becomes unconditional, so a write always returns the saved row (§21).
 
@@ -1684,7 +1705,7 @@ M2M is copied; reverse relations are not. A model needing deep copy implements `
 
 There is no bulk edit or delete endpoint today, and core does not gain one. **The write pipeline is single-row by design** — it authorises, validates and emits per row, and those guarantees are what make it the only mutation path.
 
-Bulk arrives as a **contrib importer**, which loops the pipeline inside `events.batch()` (§4.5) so listeners coalesce. That keeps per-row authorisation and per-row audit while making 5,000 rows cost one notification digest and one bulk audit insert.
+Bulk arrives as a **contrib importer**, which loops the pipeline inside `events.batch()` (§4.6) so listeners coalesce. That keeps per-row authorisation and per-row audit while making 5,000 rows cost one notification digest and one bulk audit insert.
 
 A bulk path that bypassed the pipeline for speed would bypass permissions with it. It is not offered.
 
@@ -2969,7 +2990,9 @@ def on_write(sender, obj, mode, changes, actor, source, **kw):
 
 Never import the emitter. Handlers must be fast and must not raise — a raising handler is logged and swallowed, and must never fail a user's save. Anything slow belongs in a queue you own.
 
-Available: `object_writing`, `object_written`, `object_deleted`, `state_changed`, `comment_posted`.
+Available: `object_writing`, `object_written`, `object_deleted`, `state_changed`, `comment_posted`. Every one carries the same envelope — `obj`, `actor`, `source` — so a handler subscribing to several reads one shape (§4.1).
+
+**To emit rather than listen**, call the matching `emit_*` function; a consumer needing an event plinta does not have declares a plain `django.dispatch.Signal` in their own app (§4.5).
 
 ### 18.5 Add a policy — `permissions` (§5.3)
 

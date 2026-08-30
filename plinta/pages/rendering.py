@@ -9,7 +9,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from plinta.pages.models import FilterSet, Page, PageBlock, PageFilterPreference
+from plinta.pages.models import (
+    FilterSet,
+    Page,
+    PageBlock,
+    PageFilter,
+    PageFilterPreference,
+)
 
 
 @dataclass(frozen=True)
@@ -41,12 +47,25 @@ def placements_for(page: Page, user, *, tab: str = "") -> list[PageBlock]:
     may see the *block* is decided when it renders, because an unviewable block
     is an empty slot rather than a missing one — the grid keeps its shape.
     """
+    # The content type is joined because every block resolves its model
+    # through it, which would otherwise be a query per placement.
     placements = page.placements.filter(is_visible=True).select_related(
-        "block", "block__data_source"
+        "block", "block__data_source", "block__data_source__content_type"
     )
     if tab:
         placements = placements.filter(tab__in=["", tab])
     return list(placements)
+
+
+def controls_of(page: Page) -> list[PageFilter]:
+    """The page's filter controls, read once per page instance.
+
+    Both the default-value lookup and the keyword building need them, and a
+    page is rendered once, so the second read is a round trip for nothing.
+    """
+    if not hasattr(page, "_plinta_controls"):
+        page._plinta_controls = list(page.filters.all())
+    return page._plinta_controls
 
 
 def default_filters(page: Page, user) -> dict[str, Any]:
@@ -72,7 +91,7 @@ def default_filters(page: Page, user) -> dict[str, Any]:
 
     return {
         f.field_name: f.default_value
-        for f in page.filters.all()
+        for f in controls_of(page)
         if f.default_value is not None
     }
 
@@ -97,7 +116,7 @@ def filter_kwargs(page: Page, values: dict[str, Any], user) -> dict[str, Any]:
     """
     resolved = resolve_filters(values, user)
     out: dict[str, Any] = {}
-    for control in page.filters.all():
+    for control in controls_of(page):
         value = resolved.get(control.field_name)
         if value is None or value == "" or value == []:
             continue

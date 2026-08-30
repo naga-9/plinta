@@ -2,6 +2,8 @@
 import pytest
 from django.contrib.auth.models import Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from plinta.blocks.models import Block, SavedView
 from plinta.datasources.models import DataSource, DataSourceField
@@ -325,3 +327,48 @@ def test_a_viewer_sees_the_sets_they_may_choose_from(screen):
     FilterSet.objects.create(page=page, name="shared", owner=None, values={})
     FilterSet.objects.create(page=page, name="bob's", owner=bob, values={})
     assert [s.name for s in saved_filter_sets(page, ada)] == ["mine", "shared"]
+
+
+# --- what a page of blocks costs -------------------------------------------
+
+
+@pytest.mark.django_db
+def test_each_extra_block_costs_a_constant(screen):
+    """A page's queries grow with the blocks on it and not faster. The page's
+    own reads — the menu, the filter controls, the permission cache — are paid
+    once however many blocks there are."""
+    page, block, ada = screen
+
+    def count_with(n):
+        page.placements.all().delete()
+        for i in range(n):
+            PageBlock.objects.create(page=page, block=block, order=i)
+        # Warm the content-type cache first: its miss is paid once per process,
+        # not once per render, so counting it would misattribute a fixed cost.
+        render_page(page, User.objects.get(pk=ada.pk))
+        with CaptureQueriesContext(connection) as q:
+            render_page(page, User.objects.get(pk=ada.pk))
+        return len(q.captured_queries)
+
+    one, two, four = count_with(1), count_with(2), count_with(4)
+    per_block = two - one
+    assert four == one + 3 * per_block, "a page of blocks must stay linear"
+    assert per_block <= 4, f"{per_block} queries per block is too many"
+
+
+@pytest.mark.django_db
+def test_more_rows_do_not_cost_more_queries(screen):
+    """The table draws one page, so a large model is the same page as a small
+    one — which is why an inline table does not need to be fetched."""
+    page, _, ada = screen
+
+    def count():
+        render_page(page, User.objects.get(pk=ada.pk))
+        with CaptureQueriesContext(connection) as q:
+            render_page(page, User.objects.get(pk=ada.pk))
+        return len(q.captured_queries)
+
+    small = count()
+    for i in range(100):
+        Book.objects.create(title=f"Book {i}", owner=ada)
+    assert count() == small

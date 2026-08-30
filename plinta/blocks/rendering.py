@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.db import models
+
 from plinta.blocks.models import Block, SavedView
 from plinta.blocks.narrowing import narrowing_for
 from plinta.components.base import ComponentConfig, Mode
@@ -32,11 +34,16 @@ def default_view(block: Block, user) -> SavedView | None:
 
     if user is None or not getattr(user, "is_authenticated", False):
         return None
-    defaults = allowed(user, "view", block.saved_views.filter(is_default=True))
-    return (
-        defaults.filter(owner=user).first()
-        or defaults.filter(owner__isnull=True).first()
+    # One query, not one per step: a block has at most a handful of defaults,
+    # and asking twice costs a round trip per block on a page.
+    defaults = list(
+        allowed(user, "view", block.saved_views.filter(is_default=True)).filter(
+            models.Q(owner=user) | models.Q(owner__isnull=True)
+        )
     )
+    mine = [v for v in defaults if v.owner_id == user.pk]
+    public = [v for v in defaults if v.owner_id is None]
+    return (mine or public or [None])[0]
 
 
 def merge(base: dict[str, Any], delta: dict[str, Any] | None) -> dict[str, Any]:

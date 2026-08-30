@@ -1714,6 +1714,10 @@ Blocks are shareable: `Owner | Public | InstancePerm` to view, `Owner | Instance
 
 Step 1 is the layer boundary that keeps personalisation out of components. Step 3 is why a block cannot widen access: the narrowing already happened below it.
 
+**A page of blocks costs a constant per block**, and the page's own reads — the permission cache, the filter controls, the placements — are paid once however many blocks it holds. That is inline's advantage over fetch and the reverse of the usual assumption: four fetched blocks are five requests, each rebuilding the viewer's permission cache, where four inline blocks are one request that builds it once.
+
+Pinned by a test, because the failure mode is a query per placement that only appears on a real dashboard.
+
 `mode` decides whether step 3 runs now or the client fetches later (§7.3) — the same `get_data()` either way.
 
 ### 8.3 The write pipeline

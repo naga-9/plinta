@@ -279,7 +279,9 @@ The register. Nowhere else in this document counts them; a count in two places i
 
 **Core's dependencies are Django, django-ninja and pydantic.** `openpyxl` and `pandas` leave with `export`, `Pillow` with `attachments`, `django-ckeditor-5` with `comments`, `weasyprint` with PDF. Nothing native, nothing heavy.
 
-**Core's front end is `core.js`, `table.js`, `row-editors.js` plus the shell's `theme-toggle.js` and generated `tokens.js`.** Its vendored libraries are Bootstrap, Bootstrap Icons, htmx, Tabulator, Tom Select, Luxon and GridStack — served from `static/`, never a CDN (§17). Plotly, WebDataRocks, Flexmonster and jsGantt travel with their components, so Tabulator is the only front-end major-version upgrade core carries.
+**Core's front end is `core.js`, `table.js`, `row-editors.js` plus the shell's `theme-toggle.js` and generated `tokens.js`.** It ships **no CSS framework** (§10.7): the styling is plinta's own, built from `tokens.json`. Its vendored libraries are Bootstrap Icons — the icon set alone, which needs none of Bootstrap's CSS — htmx, Tabulator, Tom Select, Luxon and GridStack, served from `static/`, never a CDN (§17). Plotly, WebDataRocks, Flexmonster and jsGantt travel with their components.
+
+**What a viewer actually loads is smaller than that list.** Page layout is CSS grid driven by the stored position, so viewing a page needs no layout JavaScript at all; GridStack loads only when someone enters edit mode. Tabulator loads only on a page holding a table. So Tabulator remains the only front-end major-version upgrade core carries.
 
 **A minimal install is eleven packages** — the core layers and nothing else. A full install adds eleven contrib packages and ten contrib components, so thirty-two. Both ends are supported configurations and both are exercised in CI (§20).
 
@@ -2077,6 +2079,8 @@ One base template, not two. Today `plinta/templates/plinta/base.html` and `plint
 
 It provides: the document head and asset loading, the topbar, the sidebar, the notification bell, the theme toggle, and the blocks `body` / `extra_css` / `extra_js` a page fills.
 
+**One base, and its regions in separate files.** `base.html` includes `topbar.html`, `sidebar.html` and `messages.html` rather than containing them, because a template is the unit someone overrides (§10.8). v1's single file meant changing the sidebar required forking the document head with it.
+
 ### 10.2 The sidebar
 
 Two sources, and both belong here:
@@ -2124,12 +2128,24 @@ Three today; two after the move below. They are the shell's data:
 
 The shell owns the theme, and the theme is generated rather than written.
 
-**`design/tokens.json` is the single source of truth.** `build_tokens` resolves its aliases, computes the `-rgb` companions Bootstrap needs, and emits:
+#### No CSS framework. Plinta styles its own screens.
 
-- `static/plinta/css/tokens.css` — `:root` for light, `[data-bs-theme="dark"]` for dark
+**Decided.** Core emits its own class names — `pl-sidebar__link`, `pl-card`, `pl-table` — and ships one stylesheet built against the tokens. Bootstrap is not a dependency of core, of contrib, or of a consumer.
+
+**Shipping Bootstrap as optional was considered and rejected.** Templates carrying `nav-link` and `btn` with Bootstrap absent are not degraded, they are unstyled, and §2.5 requires an `enhances` to name a substitute. "The page looks broken" is not one. Optional-but-assumed is worse than required.
+
+**Once the class names are ours, a framework earns nothing.** Core's markup would never say `card` or `btn`, so Bootstrap would contribute a reset and a variable scale that `tokens.json` already holds.
+
+**And a framework in core would break the cheapest override.** Retinting means redefining custom properties; with Bootstrap it means fighting its cascade or recompiling its Sass, which needs the build step §7.5 does not have. So a framework pushes consumers up the ladder (§10.8) to forking templates, where they stop receiving updates. Owning the CSS keeps most of them on the rung where they fork nothing.
+
+**What it covers is bounded**, because it styles what plinta renders and nothing else — no utility classes, no layout system for arbitrary markup: shell chrome, the grid, the block card, table, form controls, buttons, modal, toast, filter bar, and the auth screens. Around ten components.
+
+**`design/tokens.json` is the single source of truth.** `build_tokens` resolves its aliases, computes the `-rgb` companions a translucent surface needs, and emits:
+
+- `static/plinta/css/tokens.css` — `:root` for light, `[data-theme="dark"]` for dark
 - `static/plinta/js/tokens.js` — the chart palette and a `read()` helper
 
-`theme-toggle.js` switches `data-bs-theme` and remembers the choice. It and `tokens.js` are the shell's only JS.
+`theme-toggle.js` switches `data-theme` and remembers the choice. It and `tokens.js` are the shell's only JS. The attribute is `data-theme`, not `data-bs-theme`: nothing about it belongs to a vendor.
 
 **The shell ships no vendor theming.** `plotly-theme.js` maps tokens onto Plotly's layout, so it travels with the Plotly components (§7.4) and reads `tokens.read()` like any other consumer. The shell must not know Plotly exists, which is its `Must not know` line taken literally.
 
@@ -2137,17 +2153,47 @@ The shell owns the theme, and the theme is generated rather than written.
 
 **Contrib components read tokens, never colours.** A component wanting a series palette calls `tokens.read()`; it never ships a hex value.
 
-### 10.8 Decisions
+### 10.8 Overriding, and what that costs
+
+Four rungs, and the ladder only has its cheap ones because core owns its class names.
+
+| Lever | Forks | Keeps receiving updates |
+|---|---|---|
+| redefine CSS custom properties | nothing | yes |
+| replace the stylesheet, keep the markup | nothing | yes |
+| extend a template, override one block | that block | yes, for the rest of the file |
+| replace a template | that file | **no** |
+
+**Replacing the stylesheet must not require forking `base.html`**, so core's own `<link>` sits in its own block:
+
+```html
+{% block plinta_css %}<link rel="stylesheet" href="{% static 'plinta/css/plinta.css' %}">{% endblock %}
+```
+
+A consumer wanting Bootstrap specifically loads it there and writes a bridge stylesheet, or overrides the templates they care about. Both roads stay open; neither is core's concern.
+
+**Templates are split by override boundary**, not by taste: a separate file when someone would replace the whole thing, a block when they would change part of it. A forty-line `sidebar.html` is a cheap fork; a four-hundred-line `base.html` is not. `block.html` — the card around every widget — is the one most likely to be replaced, so it stays deliberately thin.
+
+**Three things become public API**, with the same stability obligation as the Python (§18.16): the **class names**, the **context** each template receives, and the **block names**. Without that, "override the template" is a promise broken every release.
+
+### 10.9 Decisions
 
 | Item | Decision |
 |---|---|
-| Two base templates | **one**, under `shell/` |
+| Two base templates | **one**, under `shell/`, with its regions in separate files |
+| CSS framework | **none** — core styles its own screens against the tokens |
+| Bootstrap | **not a dependency**, not even an optional one (§10.7) |
+| Theme attribute | `data-theme`, not `data-bs-theme` |
+| Template granularity | split by override boundary; blocks for partial changes |
+| Class names, template context, block names | **public API** (§18.16) |
 | `LoginRequiredMiddleware` | **required**, with a system check |
 | Fixed sidebar links | shell-rendered, shell-gated |
 | `pivot_provider_settings` context processor | **→ `contrib.components.pivot`** |
 | `plinta_tags` | keep — all five are generic |
 | Design tokens | keep — generated from `tokens.json`, enforced by `lint_hex_colors` |
-| Dark mode | keep — `data-bs-theme`, token-driven |
+| Dark mode | keep — `data-theme`, token-driven |
+| Layout in view mode | **CSS grid from the stored position** — no JavaScript |
+| GridStack | **edit mode only**, loaded on demand |
 
 ---
 
@@ -2264,6 +2310,8 @@ They are ordinary schema fields, not extras. They resist derivation for two sepa
 
 Arranges blocks on the 12-column grid — drag, resize, add, remove — driven by GridStack, persisting `PageBlock` positions.
 
+**GridStack is an edit-mode dependency only.** The stored `column` / `row` / `width` / `height` map straight onto CSS grid (§9.3), so a viewer renders the layout with no JavaScript and never downloads the composer.
+
 It also edits page settings: name, menu placement, type, filters.
 
 ### 12.5 Decisions
@@ -2276,6 +2324,7 @@ It also edits page settings: name, menu placement, type, filters.
 | Untyped config fields (`list[dict[str, Any]]`) | **typed sub-models**, so the engine can derive a repeating sub-form and validation is real |
 | Editors typing cannot produce | an **override registry** — a component declares a template per config field |
 | Grid persistence | `PageBlock` positions, GridStack-driven |
+| GridStack | **edit mode only** — view mode is CSS grid |
 
 ## 13. Framework pages and seeding
 
@@ -2654,7 +2703,7 @@ So every component here registers exactly the way an external package would. The
 
 ##### Vendor isolation
 
-A component's front-end dependency ships with it. Plotly arrives with `chart`, Flexmonster with `pivot`, jsGantt with `gantt`. Core carries Bootstrap and Tabulator and nothing else, so the only front-end major-version upgrade core must absorb is Tabulator's.
+A component's front-end dependency ships with it. Plotly arrives with `chart`, Flexmonster with `pivot`, jsGantt with `gantt`. Core carries no CSS framework at all (§10.7), so the only front-end major-version upgrade core must absorb is Tabulator's.
 
 ##### Enhancement
 
@@ -3094,7 +3143,7 @@ This is what stops the file from silently rotting the moment someone edits a das
 
 **Decided.** Assets are served from `static/`, not fetched from a CDN at runtime. There is no bundler, no `package.json`, no node in the toolchain.
 
-**The precedent already exists:** Bootstrap is served from `static/plinta/vendor/bootstrap/`. This extends that to everything that can follow it.
+**The precedent already exists:** v1 serves its vendored libraries from `static/plinta/vendor/`. This extends that to everything that can follow it.
 
 ### 17.1 Why not a CDN
 
@@ -3112,13 +3161,12 @@ Since plinta is pip-installed, a build could only ever run at **release time in 
 
 | Vendor | Used by | Lands |
 |---|---|---|
-| Bootstrap | core chrome | already vendored |
-| Bootstrap Icons | core chrome | vendor |
+| Bootstrap Icons | core chrome | vendor — the icon set alone; core ships no CSS framework (§10.7) |
 | htmx + `json-enc` | core transport | vendor |
 | Tabulator | `table` (core) | vendor |
 | Tom Select | pickers (core) | vendor |
 | Luxon | date handling (core) | vendor |
-| GridStack | the page composer (core) | vendor |
+| GridStack | the page composer (core) | vendor — loaded in edit mode only |
 | Plotly | `contrib.components.chart` | vendor **with that package** |
 | WebDataRocks | `contrib.components.pivot` | vendor, licence permitting |
 | Flexmonster | `contrib.components.pivot` | **cannot be vendored** — see below |
@@ -3307,7 +3355,9 @@ The register of declared relationships is §2.5, and it is the only place they a
 
 ### 18.16 Stability
 
-These six points, the six event signatures, and the `render` contracts are the public API. Everything else — module layout, internal helpers, template structure — may change without notice.
+These six points, the six event signatures, and the `render` contracts are the public API — and so is the **front end a consumer overrides** (§10.8): the class names core emits, the context each template receives, and its block names. Overriding a template is a supported extension point, so those three carry the same obligation as the Python; without that, the promise is broken every release.
+
+Everything else — module layout, internal helpers, which regions a template is split into — may change without notice.
 
 ---
 
@@ -3887,7 +3937,7 @@ Dependencies flow one way. Core is a closed set, enforced by an AST-walking test
 
 #### Consequences
 
-Core's dependencies become Django, django-ninja and pydantic. Its front end keeps only the chrome libraries plus Tabulator — all vendored under `static/`, never fetched from a CDN (§17) — so Tabulator is the only front-end major-version upgrade core must absorb.
+Core's dependencies become Django, django-ninja and pydantic. Its front end keeps only the chrome libraries plus Tabulator — all vendored under `static/`, never fetched from a CDN (§17), and with no CSS framework among them (§10.7) — so Tabulator is the only front-end major-version upgrade core must absorb.
 
 A minimal install is eleven packages; a full install is thirty-two. Both are supported and both are exercised in CI.
 
@@ -4023,7 +4073,7 @@ Adding a component is the only extension anybody would realistically write — i
 
 #### Consequences
 
-Front-end vendors ship with their components. Core carries Bootstrap and Tabulator, so Tabulator is the only front-end major-version upgrade core must absorb — Plotly, Flexmonster and jsGantt upgrades become the concern of whoever installs them.
+Front-end vendors ship with their components. Core carries no CSS framework and, of the data libraries, only Tabulator — so Tabulator is the only front-end major-version upgrade core must absorb, and Plotly, Flexmonster and jsGantt upgrades become the concern of whoever installs them.
 
 **Trade accepted:** core alone composes a detail page but renders a record as a single-row table until `contrib.components.details_card` is installed. `details-card` was the strongest candidate to keep in core and was excluded to keep the rule absolute — one reference implementation, no exceptions.
 

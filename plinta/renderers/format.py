@@ -20,8 +20,19 @@ if TYPE_CHECKING:  # a model import at module scope would break §20.1
 #: What a column shows when it has no value. Not "None", not "0".
 EMPTY = ""
 
-#: Formats whose value is a number and is rendered as one.
-NUMERIC_FORMATS = frozenset({"currency", "percent", "number"})
+def wants_number(field: DataSourceField | None) -> bool:
+    """Whether this column asks for numeric formatting of a non-numeric value.
+
+    The knobs say it: a column declaring decimals or grouping wants its value
+    treated as a number even when it arrives as a string. There is no
+    `format='number'` to say the same thing twice.
+    """
+    if field is None:
+        return False
+    return (
+        getattr(field, "decimals", None) is not None
+        or bool(getattr(field, "thousands_separator", False))
+    )
 
 
 def decimals_for(field: DataSourceField | None) -> int | None:
@@ -49,12 +60,14 @@ def format_value(value: Any, field: DataSourceField | None = None) -> str:
     if isinstance(value, bool):
         return affix(format_boolean(value), field)
     if isinstance(value, datetime.datetime):
-        return affix(format_datetime(value), field)
+        # A datetime column showing the day only — the one thing no knob says.
+        text = format_date(value) if fmt == "date" else format_datetime(value)
+        return affix(text, field)
     if isinstance(value, datetime.date):
         return affix(format_date(value), field)
     if isinstance(value, datetime.time):
         return affix(formats.time_format(value), field)
-    if fmt in NUMERIC_FORMATS or isinstance(value, (int, float, Decimal)):
+    if wants_number(field) or isinstance(value, (int, float, Decimal)):
         text = format_number(value, field)
     else:
         text = str(value)

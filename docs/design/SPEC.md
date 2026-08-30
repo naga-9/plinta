@@ -1122,7 +1122,7 @@ Per-field API flags stay rejected: field permissions already answer that questio
 | `editor_widget` | 279 | keep + **rename** | → `picker_mode`; values `auto` / `list` / `search` |
 | `visible` | 275 | keep | |
 | `header_filter` | 200 | keep | input 127, select 52 |
-| `format` | 45 | keep | currency, percent, date, datetime, number, textarea, html |
+| `format` | 45 | keep + **narrow** | `date`, `datetime`, `textarea`, `html` only — see §6.8 |
 | `editable` | 13 | keep | |
 | `filterable` | 9 | keep | |
 | `filter_widget` | 9 | keep | multiselect, daterange |
@@ -1130,6 +1130,8 @@ Per-field API flags stay rejected: field permissions already answer that questio
 | `width` | 0 | keep | Tabulator passthrough; default suffices |
 | `decimals` | — | **add** | new — see §6.8 |
 | `thousands_separator` | — | **add** | new — see §6.8 |
+| `prefix` | — | **add** | drawn before the value — see §6.8 |
+| `suffix` | — | **add** | drawn after — see §6.8 |
 | `is_fiscal_year` | 0 | **drop** | ERP schema convention → ADR 0006 (§24) |
 | `is_month` | 0 | **drop** | as above |
 | `recompute_siblings` | 0 | **drop flag** | invert default: always return the updated row |
@@ -1235,6 +1237,12 @@ Declared once on the field, every renderer honours it — the rule §7.1 already
 
 **`prefix` and `suffix` on `DataSourceField`.** Decided. Free text drawn around the value — a symbol, a unit, anything. Generic on purpose: `$`, `kg`, `ms`, `°C` and `%` become one mechanism, and core never learns what any of them mean.
 
+**`format` loses `currency`, `percent` and `number`.** Decided. Once precision is a knob and the symbol is a knob, those three members do the same thing as each other and nothing the knobs do not already say. A configurer describing money sets `prefix='$'` and `decimals=2`; a percentage is `suffix='%'`. This is the shape a pivot library already uses — a bag of display options, not a taxonomy of formats — and it is why `PivotBlockConfig.formats` could carry vendor format objects at all.
+
+Numeric treatment follows from the knobs: a column declaring `decimals` or `thousands_separator` has its value formatted as a number even when it arrives as a string, so nothing needs to say it twice.
+
+What survives are the four choices no knob can express: `date` and `datetime` (a datetime column showing the day only), and `textarea` and `html`, which the HTML renderer reads.
+
 **No `currency` field.** It was written and removed: nothing in core would have read it, and a currency code is a domain noun, which §2.2's noun test places in contrib. A consumer needing per-column denomination — for conversion, or a rate table — declares it in `contrib.organization` with an FK to the `DataSourceField`, the way every contrib app hangs data off core.
 
 ### 6.9 Checks this layer registers
@@ -1330,7 +1338,7 @@ A format the caller **explicitly** requests over HTTP and which is not installed
 
 **Shared format helpers live here.** Dates, numbers, currency, booleans and related objects format identically in HTML, a spreadsheet and an email because all three call the same helper. This is where `decimals` and `thousands_separator` (§6.8) land — declared once on the field, honoured by every format.
 
-Three decisions the helpers settle once:
+Formatting is driven entirely by what the column declares — `decimals`, `thousands_separator`, `prefix`, `suffix` — and core imposes nothing (§6.8). Three decisions the helpers settle once:
 
 **`percent` treats the stored value as the percentage.** 15 renders as "15.0%". Multiplying by a hundred here would make a renderer change the meaning of the data; a column storing a 0–1 fraction declares an annotation that multiplies, where the arithmetic is visible.
 

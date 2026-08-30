@@ -42,7 +42,7 @@ def test_none_is_an_empty_cell():
 
 
 def test_none_is_empty_whatever_the_format_says():
-    assert format_value(None, Field(format="currency")) == ""
+    assert format_value(None, Field()) == ""
 
 
 def test_an_empty_string_stays_empty():
@@ -50,7 +50,7 @@ def test_an_empty_string_stays_empty():
 
 
 def test_zero_is_not_empty():
-    assert format_value(0, Field(format="number")) == "0"
+    assert format_value(0, Field()) == "0"
 
 
 # --- booleans --------------------------------------------------------------
@@ -62,7 +62,7 @@ def test_a_boolean_reads_as_words():
 
 def test_a_boolean_is_not_treated_as_a_number():
     """bool is a subclass of int, so the order of the checks matters."""
-    assert format_value(True, Field(format="number")) == "Yes"
+    assert format_value(True, Field()) == "Yes"
 
 
 # --- dates -----------------------------------------------------------------
@@ -104,93 +104,93 @@ def test_a_plain_number_keeps_its_places():
 
 def test_an_unset_column_keeps_the_values_own_precision():
     """Not zero places — that would round 5.49 to 5 and look entirely correct."""
-    assert format_value(Decimal("1234.5"), Field(format="number")) == "1234.5"
-    assert format_value(Decimal("1234"), Field(format="number")) == "1234"
+    assert format_value(Decimal("1234.5"), Field()) == "1234.5"
+    assert format_value(Decimal("1234"), Field()) == "1234"
 
 
 def test_a_column_may_ask_for_four_decimals():
     """The ceiling v1 had: precision was hardcoded per format."""
-    assert format_value(Decimal("1.23456"), Field(format="number", decimals=4)) == "1.2346"
+    assert format_value(Decimal("1.23456"), Field(decimals=4)) == "1.2346"
 
 
 def test_zero_decimals_is_not_the_same_as_unset():
-    assert decimals_for(Field(format="number", decimals=0)) == 0
+    assert decimals_for(Field(decimals=0)) == 0
 
 
 def test_thousands_grouping_is_opt_in():
-    plain = Field(format="number")
-    grouped = Field(format="number", thousands_separator=True)
+    plain = Field()
+    grouped = Field(thousands_separator=True)
     assert format_value(1234567, plain) == "1234567"
     assert format_value(1234567, grouped) == "1,234,567"
 
 
 def test_it_rounds_rather_than_truncates():
     """Django's number_format truncates; 1.99 for 1.999 is a wrong number."""
-    assert format_value(Decimal("1.999"), Field(format="currency", decimals=2)) == "2.00"
+    assert format_value(Decimal("1.999"), Field(decimals=2)) == "2.00"
 
 
 def test_a_half_rounds_up():
-    assert format_value(Decimal("15.25"), Field(format="percent", decimals=1)) == "15.3"
+    assert format_value(Decimal("15.25"), Field(decimals=1)) == "15.3"
 
 
 def test_a_number_too_large_to_round_is_still_shown():
     """quantize raises past the context's 28 significant digits. A total that
     big is still a number worth showing, not a 500."""
-    field = Field(format="currency", decimals=4)
+    field = Field(decimals=4)
     assert format_value(Decimal("1e30"), field).startswith("1")
 
 
-def test_a_non_number_in_a_number_column_is_not_a_crash():
+def test_text_in_a_numeric_column_is_not_a_crash():
     """Configuration can point a numeric format at a text column."""
-    assert format_value("n/a", Field(format="number")) == "n/a"
+    assert format_value("n/a", Field()) == "n/a"
 
 
 # --- currency --------------------------------------------------------------
 
 
-def test_a_format_does_not_impose_a_precision():
-    """No per-format default table: the column says, or the value does."""
-    assert format_value(Decimal("1234.5"), Field(format="currency")) == "1234.5"
+def test_nothing_imposes_a_precision():
+    """The column says, or the value does. There is no format that decides."""
+    assert format_value(Decimal("1234.5"), Field()) == "1234.5"
 
 
 def test_a_column_draws_its_own_symbol():
-    field = Field(format="currency", prefix="$", decimals=2)
+    field = Field(prefix="$", decimals=2)
     assert format_value(Decimal("5"), field) == "$5.00"
 
 
 def test_two_currencies_on_one_screen():
     """Which a setting could never express."""
-    usd = Field(format="currency", prefix="$", decimals=2)
-    eur = Field(format="currency", prefix="€", decimals=2)
+    usd = Field(prefix="$", decimals=2)
+    eur = Field(prefix="€", decimals=2)
     assert format_value(Decimal("5"), usd) == "$5.00"
     assert format_value(Decimal("5"), eur) == "€5.00"
 
 
-def test_core_draws_no_symbol_of_its_own():
+def test_core_draws_no_symbol():
     """Which symbol a column wants is a fact about the data. Core formats the
     number and draws whatever the column declared — nothing more."""
-    assert format_value(Decimal("5"), Field(format="currency")) == "5"
+    assert format_value(Decimal("5"), Field()) == "5"
 
 
-def test_a_currency_column_with_nothing_declared_is_just_a_number():
-    assert format_value(Decimal("5"), Field(format="currency")) == "5"
+def test_a_column_declaring_nothing_is_just_a_number():
+    assert format_value(Decimal("5"), Field()) == "5"
 
 
 def test_nothing_is_rearranged_around_a_minus():
     """Accounting writes (5.00), some styles -$5.00, others $-5.00. Any
     convention core picked would be wrong for someone; a column wanting one
     registers a field renderer (§7.8)."""
-    field = Field(format="currency", prefix="$", decimals=2)
+    field = Field(prefix="$", decimals=2)
     assert format_value(Decimal("-5"), field) == "$-5.00"
 
 
 def test_a_negative_with_only_a_suffix_is_untouched():
-    assert format_value(Decimal("-5"), Field(format="number", suffix="kg")) == "-5kg"
+    assert format_value(Decimal("-5"), Field(suffix="kg")) == "-5kg"
 
 
-def test_a_currency_column_may_override_its_precision():
+def test_a_money_column_asks_for_its_own_precision():
     """Four places on a price column — the ceiling v1 had."""
-    field = Field(format="currency", prefix="$", decimals=4)
+    field = Field(prefix="$", decimals=4)
     assert format_value(Decimal("1.2345"), field) == "$1.2345"
 
 
@@ -198,11 +198,11 @@ def test_a_currency_column_may_override_its_precision():
 
 
 def test_a_suffix_is_drawn_after():
-    assert format_value(Decimal("1.5"), Field(format="number", decimals=1, suffix="kg")) == "1.5kg"
+    assert format_value(Decimal("1.5"), Field(decimals=1, suffix="kg")) == "1.5kg"
 
 
 def test_a_prefix_and_a_suffix_together():
-    field = Field(format="number", decimals=0, prefix="~", suffix=" ms")
+    field = Field(decimals=0, prefix="~", suffix=" ms")
     assert format_value(180, field) == "~180 ms"
 
 
@@ -210,19 +210,19 @@ def test_an_affix_needs_no_format():
     assert format_value(5, Field(suffix="°C")) == "5°C"
 
 
-def test_a_format_contributes_no_sign_of_its_own():
-    """Only what the column declared is drawn, so nothing doubles up."""
-    assert format_value(15, Field(format="percent")) == "15"
-    assert format_value(15, Field(format="percent", suffix="%")) == "15%"
+def test_a_percentage_is_a_suffix_and_nothing_more():
+    """There is no percent format; the sign is drawn because it was declared."""
+    assert format_value(15, Field()) == "15"
+    assert format_value(15, Field(suffix="%")) == "15%"
 
 
-def test_a_currency_column_may_put_its_symbol_after():
-    field = Field(format="currency", suffix=" kr", decimals=2)
+def test_a_symbol_may_go_after():
+    field = Field(suffix=" kr", decimals=2)
     assert format_value(Decimal("5"), field) == "5.00 kr"
 
 
 def test_an_empty_column_draws_nothing_extra():
-    assert format_value(5, Field(format="number")) == "5"
+    assert format_value(5, Field()) == "5"
 
 
 def test_an_affix_decorates_any_value_not_only_a_number():
@@ -237,8 +237,8 @@ def test_text_takes_an_affix_too():
 
 def test_an_empty_cell_gets_no_affix():
     """Otherwise a blank currency column renders as a lone symbol."""
-    assert format_value(None, Field(format="currency", prefix="$")) == ""
-    assert format_value("", Field(format="currency", prefix="$")) == ""
+    assert format_value(None, Field(prefix="$")) == ""
+    assert format_value("", Field(prefix="$")) == ""
 
 
 # --- percent ---------------------------------------------------------------
@@ -247,7 +247,32 @@ def test_an_empty_cell_gets_no_affix():
 def test_the_stored_value_is_the_percentage():
     """15 renders as 15, not 1500. Multiplying here would change the meaning
     of the data — a fraction declares an annotation, where it is visible."""
-    assert format_value(15, Field(format="percent", suffix="%")) == "15%"
+    assert format_value(15, Field(suffix="%")) == "15%"
+
+
+# --- the formats that survive ----------------------------------------------
+
+
+def test_a_datetime_column_may_show_the_day_only():
+    """The one thing no knob can say, which is why the choice still exists."""
+    value = datetime.datetime(2026, 1, 9, 14, 30)
+    assert format_value(value, Field(format="date")) == "Jan. 9, 2026"
+
+
+def test_a_datetime_shows_its_time_by_default():
+    value = datetime.datetime(2026, 1, 9, 14, 30)
+    assert "2:30" in format_value(value, Field())
+
+
+def test_the_knobs_decide_numeric_treatment_not_a_format():
+    """A string from an annotation is formatted as a number because the column
+    asked for decimals, not because it declared format='number'."""
+    assert format_value("1234.5", Field(decimals=2)) == "1234.50"
+    assert format_value("1234.5", Field()) == "1234.5"
+
+
+def test_grouping_alone_is_enough_to_mean_numeric():
+    assert format_value("1234567", Field(thousands_separator=True)) == "1,234,567"
 
 
 # --- everything else -------------------------------------------------------

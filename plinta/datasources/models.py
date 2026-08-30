@@ -24,12 +24,16 @@ class HeaderFilter(models.TextChoices):
 
 
 class Format(models.TextChoices):
+    """How a value is rendered when its Python type is not enough to say.
+
+    Money, percentages and counts are not members: they differ only in the
+    symbol and the precision a column declares, so `prefix`, `suffix` and
+    `decimals` say it directly. A format choice exists only where no knob can.
+    """
+
     NONE = "", "None"
-    CURRENCY = "currency", "Currency"
-    PERCENT = "percent", "Percent"
-    DATE = "date", "Date"
+    DATE = "date", "Date only"
     DATETIME = "datetime", "Date and time"
-    NUMBER = "number", "Number"
     TEXTAREA = "textarea", "Long text"
     HTML = "html", "HTML"
 

@@ -3942,9 +3942,9 @@ Layer 1 is §3, layer 2 is §4, and so on — §1 is scope and architecture.
 | 4 | `datasources` | Imports only 1–3. Every viewer-facing service takes a user. Owns the `DataSourceField` signals that drive field-permission minting, including the `pre_save` that makes a rename preserve grants. |
 | 5 | `renderers` | Contract plus HTML. No Excel, PDF or email. |
 | 6 | `components` | Contract, registry, `table`. No saved-view merge anywhere. |
-| 7 | `blocks` | Write pipeline emits its three signals — `object_writing`, `object_written`, `object_deleted` — and computes `changes`. Config-resolution hook exists and defaults to identity. |
+| 7 | `blocks` | Write pipeline emits its three signals — `object_writing`, `object_written`, `object_deleted` — and computes `changes`. `SavedView` merges directly; there is no hook, which went with the optionality (ADR 0004 (§24), revised). |
 | 8 | `pages` | Composition, `PageFilter`, menu. Blocks resolve by FK. Missing component and unviewable block both degrade to an empty slot. |
-| 9 | `shell` | One base template. `LoginRequiredMiddleware` with its system check. Tokens generated from `tokens.json`; `lint_hex_colors` green. A logged-in user can reach a page. |
+| 9 | `shell` | One base template and its regions. `LoginRequiredMiddleware` with its system check. Tokens generated from `tokens.json`; `lint_hex_colors` green. A logged-in user can reach a page, sort it and page it, with no vendor script loaded. |
 | 10 | authoring screens (§12) | A DataSource, a Block and a Page can be created, edited and arranged entirely in the browser. |
 | 11 | framework pages (§13) | `seed_platform_pages` is idempotent and yields a usable application on a fresh database. |
 | 12 | contrib, in any order | Each installs and uninstalls cleanly against core alone. |

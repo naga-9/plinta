@@ -557,13 +557,15 @@ Five signals. Core declares all five, including the two that contrib emits — a
 | `object_written` | `blocks` write pipeline, post-M2M | `obj`, `mode`, `changes`, `actor`, `source` |
 | `object_deleted` | `blocks` write pipeline | `obj`, `actor`, `source` |
 | `state_changed` | `contrib.workflow` | `obj`, `from_state`, `to_state`, `actor`, `comment`, `metadata`, `source` |
-| `comment_posted` | `contrib.comments` | `target`, `actor`, `body`, `metadata` |
+| `comment_posted` | `contrib.comments` | `target`, `actor`, `body`, `metadata`, `source` |
 
 A listener imports the signal from **core**, never from the emitter, so `audit` observing a workflow transition creates no dependency between the two apps.
 
-`source` is a short string naming the path that performed the write. Three exist today — `block_edit`, `block_delete`, `permission_admin` — and v2 adds at least `api` and `import`.
+`source` is a short string naming the path that performed the write. Three exist today — `block_edit`, `block_delete`, `permission_admin` — and v2 adds at least `api` and `import`. **Every signal carries it**, `comment_posted` included, so a listener subscribing to all five reads one payload shape rather than special-casing one.
 
-The payload carries **no request**. That is a web concern, and an event must be emittable from a management command.
+The payload carries **no request**. That is a web concern, and an event must be emittable from a management command. `actor` and `source` therefore default, so an emit from a script needs neither.
+
+**The sender is the model class.** `emit_written(book, …)` sends with `sender=Book`, so a listener interested in one model filters at connection time — `@receiver(object_written, sender=Book)` — rather than checking the type of every write in the system.
 
 ### 4.2 `object_written` carries the diff
 

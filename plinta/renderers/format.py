@@ -20,22 +20,19 @@ if TYPE_CHECKING:  # a model import at module scope would break §20.1
 #: What a column shows when it has no value. Not "None", not "0".
 EMPTY = ""
 
-#: Decimal places when the column does not say. v1's hardcoded values, kept —
-#: what §6.8 added is the override, not new defaults.
-DEFAULT_DECIMALS = {"currency": 2, "percent": 1, "number": 0}
-
 #: Formats whose value is a number and is rendered as one.
-NUMERIC_FORMATS = frozenset(DEFAULT_DECIMALS)
+NUMERIC_FORMATS = frozenset({"currency", "percent", "number"})
 
 
 def decimals_for(field: DataSourceField | None) -> int | None:
-    """How many decimal places this column asks for, or None to leave it alone."""
-    if field is None:
-        return None
-    declared = getattr(field, "decimals", None)
-    if declared is not None:
-        return declared
-    return DEFAULT_DECIMALS.get(getattr(field, "format", "") or "")
+    """How many decimal places this column asks for, or None for the value's own.
+
+    Unset means **leave the number alone** — 1234.5 shows as 1234.5. A default
+    of zero would instead round every number to an integer, so a price of 5.49
+    would render as 5 and look entirely correct. A ragged column asks to be
+    fixed; a wrong number does not.
+    """
+    return getattr(field, "decimals", None) if field is not None else None
 
 
 def format_value(value: Any, field: DataSourceField | None = None) -> str:

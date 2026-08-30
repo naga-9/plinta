@@ -1227,6 +1227,8 @@ Not to be confused with `datasources/api.py::fields_search`, which searches `Dat
 
 Precision is currently hardcoded in `renderers/table/html.py` — currency 2, percent 1, number **0** — so a field cannot ask for four decimals. A finance consumer hits that ceiling on its first price column.
 
+Those per-format defaults do not survive: `decimals` is nullable and unset means the value's own precision (§7.1).
+
 This is deduplication more than a new feature. The same "2 decimals" is declared twice today: implicitly by `format='currency'`, and again per-pivot in `PivotBlockConfig.formats`, which is a `list[dict[str, Any]]` carrying **Flexmonster's own format objects** unvalidated inside `Block.config`.
 
 Declared once on the field, every renderer honours it — the rule §7.1 already states for dates ("a date renders identically in HTML and in a spreadsheet because both call the same helper"). It also pulls vendor-shaped structure out of block config: a pivot may keep vendor config for vendor concerns, but formatting is universal.
@@ -1332,7 +1334,9 @@ Three decisions the helpers settle once:
 
 **`percent` treats the stored value as the percentage.** 15 renders as "15.0%". Multiplying by a hundred here would make a renderer change the meaning of the data; a column storing a 0–1 fraction declares an annotation that multiplies, where the arithmetic is visible.
 
-**Numbers round, they do not truncate.** Django's `number_format` truncates to `decimal_pos`, so 1.999 in a currency column would show as $1.99. The value is quantized before formatting.
+**Numbers round, they do not truncate.** Django's `number_format` truncates to `decimal_pos`, so 1.999 in a currency column would show as 1.99. The value is quantized before formatting.
+
+**A format imposes no precision; an unset column keeps the value's own.** `decimals` is nullable, and NULL means *leave the number alone* — 1234.5 shows as 1234.5. There is no per-format default table: v1 hardcoded currency 2, percent 1 and number **0**, which is where §6.8's ceiling came from, and a default of zero rounds a price of 5.49 to 5 while looking entirely correct. A ragged column asks to be fixed; a wrong number does not. `decimals=0` is a real instruction, distinct from unset.
 
 **Dates go through Django's format machinery, so the active locale decides.** Django 6 localises unconditionally; `DATE_FORMAT` is reached only when the locale module lacks it. That choice is Django's and plinta does not second-guess it.
 

@@ -102,7 +102,9 @@ def test_a_plain_number_keeps_its_places():
     assert format_number(Decimal("1234.5")) == "1234.5"
 
 
-def test_number_defaults_to_no_decimals():
+def test_an_unset_column_keeps_the_values_own_precision():
+    """Not zero places — that would round 5.49 to 5 and look entirely correct."""
+    assert format_value(Decimal("1234.5"), Field(format="number")) == "1234.5"
     assert format_value(Decimal("1234"), Field(format="number")) == "1234"
 
 
@@ -124,11 +126,11 @@ def test_thousands_grouping_is_opt_in():
 
 def test_it_rounds_rather_than_truncates():
     """Django's number_format truncates; 1.99 for 1.999 is a wrong number."""
-    assert format_value(Decimal("1.999"), Field(format="currency")) == "2.00"
+    assert format_value(Decimal("1.999"), Field(format="currency", decimals=2)) == "2.00"
 
 
 def test_a_half_rounds_up():
-    assert format_value(Decimal("15.25"), Field(format="percent")) == "15.3%"
+    assert format_value(Decimal("15.25"), Field(format="percent", decimals=1)) == "15.3%"
 
 
 def test_a_non_number_in_a_number_column_is_not_a_crash():
@@ -139,18 +141,20 @@ def test_a_non_number_in_a_number_column_is_not_a_crash():
 # --- currency --------------------------------------------------------------
 
 
-def test_currency_defaults_to_two_places():
-    assert format_value(Decimal("1234.5"), Field(format="currency")) == "1234.50"
+def test_a_format_does_not_impose_a_precision():
+    """No per-format default table: the column says, or the value does."""
+    assert format_value(Decimal("1234.5"), Field(format="currency")) == "1234.5"
 
 
 def test_a_column_draws_its_own_symbol():
-    assert format_value(Decimal("5"), Field(format="currency", prefix="$")) == "$5.00"
+    field = Field(format="currency", prefix="$", decimals=2)
+    assert format_value(Decimal("5"), field) == "$5.00"
 
 
 def test_two_currencies_on_one_screen():
     """Which a setting could never express."""
-    usd = Field(format="currency", prefix="$")
-    eur = Field(format="currency", prefix="€")
+    usd = Field(format="currency", prefix="$", decimals=2)
+    eur = Field(format="currency", prefix="€", decimals=2)
     assert format_value(Decimal("5"), usd) == "$5.00"
     assert format_value(Decimal("5"), eur) == "€5.00"
 
@@ -158,16 +162,17 @@ def test_two_currencies_on_one_screen():
 def test_core_draws_no_symbol_of_its_own():
     """Which symbol a column wants is a fact about the data. Core formats the
     number and draws whatever the column declared — nothing more."""
-    assert format_value(Decimal("5"), Field(format="currency")) == "5.00"
+    assert format_value(Decimal("5"), Field(format="currency")) == "5"
 
 
-def test_a_currency_column_without_a_code_is_just_a_number():
-    assert format_value(Decimal("5"), Field(format="currency")) == "5.00"
+def test_a_currency_column_with_nothing_declared_is_just_a_number():
+    assert format_value(Decimal("5"), Field(format="currency")) == "5"
 
 
 def test_a_negative_amount_puts_its_sign_outside_the_prefix():
     """-$5.00, which is what every spreadsheet writes, not $-5.00."""
-    assert format_value(Decimal("-5"), Field(format="currency", prefix="$")) == "-$5.00"
+    field = Field(format="currency", prefix="$", decimals=2)
+    assert format_value(Decimal("-5"), field) == "-$5.00"
 
 
 def test_a_negative_with_only_a_suffix_is_untouched():
@@ -198,11 +203,12 @@ def test_an_affix_needs_no_format():
 
 def test_an_affix_replaces_what_the_format_would_draw():
     """percent with suffix='%' shows one sign, not two."""
-    assert format_value(15, Field(format="percent", suffix="%")) == "15.0%"
+    assert format_value(15, Field(format="percent", suffix="%")) == "15%"
 
 
 def test_a_currency_column_may_put_its_symbol_after():
-    assert format_value(Decimal("5"), Field(format="currency", suffix=" kr")) == "5.00 kr"
+    field = Field(format="currency", suffix=" kr", decimals=2)
+    assert format_value(Decimal("5"), field) == "5.00 kr"
 
 
 def test_an_empty_column_draws_nothing_extra():
@@ -229,12 +235,8 @@ def test_an_empty_cell_gets_no_affix():
 
 
 def test_the_stored_value_is_the_percentage():
-    """15 renders as 15.0%. Multiplying here would change the data's meaning."""
-    assert format_value(15, Field(format="percent")) == "15.0%"
-
-
-def test_percent_defaults_to_one_place():
-    assert format_value(Decimal("15.25"), Field(format="percent")) == "15.3%"
+    """15 renders as 15%. Multiplying here would change the data's meaning."""
+    assert format_value(15, Field(format="percent")) == "15%"
 
 
 # --- everything else -------------------------------------------------------

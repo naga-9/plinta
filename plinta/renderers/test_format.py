@@ -133,6 +133,13 @@ def test_a_half_rounds_up():
     assert format_value(Decimal("15.25"), Field(format="percent", decimals=1)) == "15.3%"
 
 
+def test_a_number_too_large_to_round_is_still_shown():
+    """quantize raises past the context's 28 significant digits. A total that
+    big is still a number worth showing, not a 500."""
+    field = Field(format="currency", decimals=4)
+    assert format_value(Decimal("1e30"), field).startswith("1")
+
+
 def test_a_non_number_in_a_number_column_is_not_a_crash():
     """Configuration can point a numeric format at a text column."""
     assert format_value("n/a", Field(format="number")) == "n/a"

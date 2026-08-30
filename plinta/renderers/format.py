@@ -103,7 +103,15 @@ def format_number(value: Any, field: DataSourceField | None = None) -> str:
     if places is not None:
         # Django's number_format *truncates* to decimal_pos, so 1.999 at two
         # places would show as 1.99. Money must round.
-        number = number.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+        #
+        # scaleb builds the exemplar quantize wants: Decimal(1).scaleb(-2) is
+        # Decimal("0.01"), whose exponent is the target. A value needing more
+        # significant digits than the context allows raises instead, and a
+        # number too large to round is still a number worth showing.
+        try:
+            number = number.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+        except InvalidOperation:
+            places = None
     text = formats.number_format(
         number,
         decimal_pos=places,

@@ -11,4 +11,6 @@ class PagesConfig(AppConfig):
     def ready(self):
         # Imported for their side effects: registering the policies that make
         # pages and filter sets shareable, and the boot check.
-        from plinta.pages import checks, policies  # noqa: F401
+        from plinta.pages import checks, placeholders, policies  # noqa: F401
+
+        placeholders.register()

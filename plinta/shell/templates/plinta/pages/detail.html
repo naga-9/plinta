@@ -1,0 +1,31 @@
+{% extends "plinta/pages/page.html" %}
+{# One record, its blocks, and whatever each installed app contributes.
+
+   Extends the dashboard rather than repeating it: the grid, the filter bar
+   and the tabs are the same, and only the header and the sections differ. #}
+
+{% block title %}{{ record }} · {{ page.name }} · {{ site_name }}{% endblock %}
+{% block topbar_title %}{{ record }}{% endblock %}
+
+{% block page_header %}
+    <div class="pl-page__header">
+        <h1>{{ record }}</h1>
+        <span class="pl-muted">{{ page.name }}</span>
+    </div>
+{% endblock %}
+
+{% block page_body %}
+    {{ block.super }}
+
+    {% block capability_sections %}
+        {% for capability in capabilities %}
+            {% if capability.template %}
+                <section class="pl-card" style="margin-top: var(--pl-space-4)">
+                    <div class="pl-card__body">
+                        {% include capability.template %}
+                    </div>
+                </section>
+            {% endif %}
+        {% endfor %}
+    {% endblock %}
+{% endblock %}

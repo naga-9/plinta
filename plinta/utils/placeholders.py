@@ -26,6 +26,9 @@ class Context:
     """What a resolver may depend on. A token is evaluated per request."""
 
     user: Any = None
+    #: The row a detail page is about, when there is one. `utils` never
+    #: learns what a Page is — it holds a value that a resolver may read.
+    record: Any = None
 
 
 class PlaceholderError(Exception):

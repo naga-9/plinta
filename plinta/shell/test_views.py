@@ -334,3 +334,120 @@ def test_no_javascript_draws_the_table(screen, client):
     body = client.get(page.get_absolute_url()).content.decode()
     assert "tabulator" not in body.lower()
     assert body.count("<script") == 1  # theme-toggle, and nothing else
+
+
+# --- detail pages ----------------------------------------------------------
+
+
+@pytest.fixture
+def detail(screen, client):
+    """The same page, bound to one record."""
+    page, block, ada = screen
+    Page.objects.filter(pk=page.pk).update(
+        page_type=PageType.DETAIL,
+        primary_data_source=block.data_source,
+        context_param="book",
+    )
+    page.refresh_from_db()
+    page.placements.update(context_filter={"pk": "__RECORD__"})
+    return page, Book.objects.get(title="Dune"), ada
+
+
+def test_a_detail_page_shows_its_record(detail, client):
+    page, book, _ = detail
+    body = client.get(f"/pages/{page.pk}-catalog/{book.pk}/").content.decode()
+    assert "Dune" in body
+    assert "Emma" not in body
+
+
+def test_the_record_reaches_a_placements_filter(detail, client):
+    """Through __RECORD__ in its context_filter, so one placement serves every
+    record the page shows."""
+    page, book, _ = detail
+    other = Book.objects.get(title="Emma")
+    body = client.get(f"/pages/{page.pk}-catalog/{other.pk}/").content.decode()
+    assert "Emma" in body
+    assert "<td>Dune</td>" not in body
+
+
+def test_a_detail_page_without_a_record_is_not_found(detail, client):
+    page, _, _ = detail
+    assert client.get(page.get_absolute_url()).status_code == 404
+
+
+def test_a_record_that_does_not_exist_is_not_found(detail, client):
+    page, _, _ = detail
+    assert client.get(f"/pages/{page.pk}-catalog/9999/").status_code == 404
+
+
+def test_a_record_the_viewer_may_not_see_is_not_found(detail, client, policy_registry):
+    """A 404, not a 403: saying a record exists but is not yours is itself a
+    disclosure."""
+    from plinta.permissions.policies import PermissionPolicy, register_policy
+    from plinta.permissions.rules import FieldEq
+
+    class BookPolicy(PermissionPolicy):
+        view = FieldEq("in_print", False)
+
+    register_policy(Book, BookPolicy)
+    page, book, _ = detail
+    assert client.get(f"/pages/{page.pk}-catalog/{book.pk}/").status_code == 404
+
+
+def test_the_record_may_arrive_as_a_query_parameter(detail, client):
+    """A detail page reached from somewhere else often arrives as ?book=7."""
+    page, book, _ = detail
+    response = client.get(page.get_absolute_url(), {"book": book.pk})
+    assert response.status_code == 200
+    assert "Dune" in response.content.decode()
+
+
+def test_a_dashboard_ignores_a_record(screen, client):
+    """__RECORD__ resolves to None there, so a page that never asked for one
+    is unaffected."""
+    page, _, _ = screen
+    assert client.get(page.get_absolute_url()).status_code == 200
+
+
+def test_a_page_naming_no_model_cannot_bind_one(detail, client):
+    page, book, _ = detail
+    Page.objects.filter(pk=page.pk).update(primary_data_source=None)
+    assert client.get(f"/pages/{page.pk}-catalog/{book.pk}/").status_code == 404
+
+
+# --- capability sections ---------------------------------------------------
+
+
+def test_a_dashboard_draws_no_sections(screen, client):
+    page, _, _ = screen
+    assert client.get(page.get_absolute_url()).context["capabilities"] == []
+
+
+def test_a_detail_page_draws_what_the_apps_contribute(
+    detail, client, capability_registry
+):
+    """Which is how comments, attachments and the rest reach a screen — none
+    of them named anywhere in core."""
+    capability_registry.register_capability(
+        "notes", "Notes", template="plinta/pages/block.html"
+    )
+    page, book, _ = detail
+    body = client.get(f"/pages/{page.pk}-catalog/{book.pk}/").content.decode()
+    assert "pl-card" in body
+
+
+def test_a_capability_that_declines_this_row_is_absent(
+    detail, client, capability_registry
+):
+    capability_registry.register_capability(
+        "notes", "Notes", applies_to=lambda obj, user=None, **kw: False
+    )
+    page, book, _ = detail
+    response = client.get(f"/pages/{page.pk}-catalog/{book.pk}/")
+    assert response.context["capabilities"] == []
+
+
+def test_with_no_contrib_installed_there_are_no_sections(detail, client):
+    page, book, _ = detail
+    response = client.get(f"/pages/{page.pk}-catalog/{book.pk}/")
+    assert response.context["capabilities"] == []

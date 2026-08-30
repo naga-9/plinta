@@ -14,6 +14,10 @@ urlpatterns = [
     # a rename does not break a link someone shared (§9.0).
     path("pages/<int:pk>-<slug:slug>/", views.page_view, name="page"),
     path("pages/<int:pk>/", views.page_view, name="page_by_id"),
+    # A detail page: the record in the path, so the URL is shareable and the
+    # page is what somebody sends a colleague.
+    path("pages/<int:pk>-<slug:slug>/<str:record>/", views.page_view, name="record"),
+    path("pages/<int:pk>/<str:record>/", views.page_view, name="record_by_id"),
     path("accounts/login/", auth_views.LoginView.as_view(
         template_name="plinta/auth/login.html"), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),

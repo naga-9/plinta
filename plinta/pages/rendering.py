@@ -98,25 +98,30 @@ def default_filters(page: Page, user) -> dict[str, Any]:
     }
 
 
-def resolve_filters(values: dict[str, Any], user) -> dict[str, Any]:
+def resolve_filters(values: dict[str, Any], user, record: Any = None) -> dict[str, Any]:
     """Filter values with their placeholders resolved for this viewer.
 
     A token nothing registered is left as written, so it matches nothing rather
     than widening the filter it was written to narrow.
+
+    ``record`` is the row a detail page is about, which is what `__RECORD__`
+    resolves to.
     """
     from plinta.utils.placeholders import Context, resolve_values
 
-    return resolve_values(values or {}, Context(user=user))
+    return resolve_values(values or {}, Context(user=user, record=record))
 
 
-def filter_kwargs(page: Page, values: dict[str, Any], user) -> dict[str, Any]:
+def filter_kwargs(
+    page: Page, values: dict[str, Any], user, record: Any = None
+) -> dict[str, Any]:
     """The stored values as ORM keyword arguments.
 
     Each declared filter contributes its own lookup, so a control declared
     ``in`` filters with ``__in``. A value for a field the page does not declare
     is ignored: the bar is what the page exposes, and the query string is not.
     """
-    resolved = resolve_filters(values, user)
+    resolved = resolve_filters(values, user, record)
     out: dict[str, Any] = {}
     for control in controls_of(page):
         value = resolved.get(control.field_name)
@@ -134,11 +139,16 @@ def render_page(
     tab: str = "",
     filters: dict[str, Any] | None = None,
     query: Any = None,
+    record: Any = None,
 ) -> list[Placement]:
     """Draw every placement on ``page`` for ``user``.
 
     Returns one `Placement` per slot, including the empty ones, so the grid
     keeps its shape when a block is hidden or its component is uninstalled.
+
+    ``record`` is the row a detail page is about. It reaches a placement
+    through its ``context_filter``, where `__RECORD__` resolves to the row's
+    primary key — so one placement serves every record the page shows.
 
     ``query`` is the request's query string, handed to each block so it can
     build its own sort and page links. Each placement's parameters are
@@ -148,7 +158,7 @@ def render_page(
     from plinta.blocks.rendering import BlockRenderError, render_block
 
     values = default_filters(page, user) if filters is None else filters
-    kwargs = filter_kwargs(page, values, user)
+    kwargs = filter_kwargs(page, values, user, record)
 
     drawn = []
     for placement in placements_for(page, user, tab=tab):
@@ -159,7 +169,7 @@ def render_page(
                 user,
                 extra_filters={
                     **kwargs,
-                    **resolve_filters(placement.context_filter, user),
+                    **resolve_filters(placement.context_filter, user, record),
                 },
                 query=query,
                 param_prefix=f"b{placement.pk}_",

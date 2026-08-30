@@ -40,7 +40,36 @@ def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None
     return sent or None
 
 
-def page_view(request: HttpRequest, pk: int, slug: str = "") -> HttpResponse:
+def bound_record(page: Page, request: HttpRequest, record_pk=None):
+    """The row a detail page is about, or None.
+
+    Taken from the URL when the path carries one, otherwise from the query
+    parameter the page names in `context_param` — a detail page reached from
+    somewhere else often arrives as `?id=7`.
+
+    Raises:
+        Http404: the page names no model, the row does not exist, or the
+            viewer may not see it. A 404 rather than a 403 throughout: saying
+            a record exists but is not yours is itself a disclosure.
+    """
+    if record_pk is None and page.context_param:
+        record_pk = request.GET.get(page.context_param)
+    if record_pk in (None, ""):
+        return None
+
+    source = page.primary_data_source
+    if source is None or source.model is None:
+        raise Http404("this page names no model to show")
+
+    row = source.model._default_manager.filter(pk=record_pk).first()
+    if row is None or not can(request.user, "view", row):
+        raise Http404("no such record")
+    return row
+
+
+def page_view(
+    request: HttpRequest, pk: int, slug: str = "", record: str | None = None
+) -> HttpResponse:
     """Draw one page for this viewer.
 
     A page the viewer may not see is a 404 rather than a 403: telling someone
@@ -61,26 +90,51 @@ def page_view(request: HttpRequest, pk: int, slug: str = "") -> HttpResponse:
     if page.page_type == PageType.CUSTOM_TEMPLATE and page.template_name:
         return render(request, page.template_name, {"page": page})
 
+    row = bound_record(page, request, record)
+    if page.page_type == PageType.DETAIL and row is None:
+        raise Http404("a detail page needs a record")
+
     tab = request.GET.get("tab", "")
     submitted = submitted_filters(request, page)
     if submitted is not None:
         remember_filters(page, request.user, submitted)
     values = submitted if submitted is not None else default_filters(page, request.user)
 
+    template = (
+        "plinta/pages/detail.html"
+        if page.page_type == PageType.DETAIL
+        else "plinta/pages/page.html"
+    )
     return render(
         request,
-        "plinta/pages/page.html",
+        template,
         {
             "page": page,
             "tab": tab,
+            "record": row,
+            "capabilities": capability_sections(row, request.user),
             "placements": render_page(
                 page,
                 request.user,
                 tab=tab,
                 filters=values,
                 query=request.GET,
+                record=row,
             ),
             "filter_values": values,
             "filter_sets": saved_filter_sets(page, request.user),
         },
     )
+
+
+def capability_sections(record, user) -> list:
+    """What each installed app contributes to this record's page.
+
+    Empty when there is no record and when nothing is installed, so a
+    dashboard draws none and an installation with no contrib app draws none.
+    """
+    from plinta.blocks.capabilities import for_object
+
+    if record is None:
+        return []
+    return for_object(record, user=user)

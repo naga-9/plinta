@@ -2016,10 +2016,22 @@ Usage across a live install of 36 pages:
 | Type | Renders |
 |---|---|
 | `dashboard` | blocks on a 12-column grid |
-| `detail` | blocks scoped to one record of `primary_data_source`, bound by `context_param` |
+| `detail` | blocks scoped to one record of `primary_data_source`, plus whatever each installed app contributes |
 | `custom-template` | a named template — used for account settings, the permission console, the capability matrix |
 
 `custom-template` is the escape hatch, and it is where plinta's own non-composed screens live. It is not a general-purpose CMS: the template is a path plinta or a consumer ships, not authored content.
+
+#### How a detail page reaches its record
+
+**In the path** — `/pages/<id>-<slug>/<record>/` — so the URL is the thing somebody sends a colleague. `context_param` names a query parameter that may carry it instead, for a page reached from another system as `?book=7`.
+
+**The record reaches a block through `__RECORD__`**, a placeholder resolving to its primary key. A placement writes `context_filter={"pk": "__RECORD__"}` or `{"book_id": "__RECORD__"}`, and one placement then serves every record the page shows.
+
+That is the whole mechanism: no second filtering path, no context object threaded through components, and `utils` still knows nothing about pages — `Context` carries a value, and `pages` registers the token that reads it.
+
+**A record the viewer may not see is a 404**, like the page itself. Saying a record exists but is not theirs is a disclosure.
+
+**Capability sections are drawn here and only here.** A detail page asks the registry what applies to this row and includes each template; a dashboard has no row, so it draws none. Core names no capability — an installation with no contrib app draws nothing, and that is the same code path.
 
 ### 9.3 Composition
 

@@ -11,6 +11,7 @@ INSTALLED_APPS = [
     "plinta.datasources",
     "plinta.renderers",
     "plinta.components",
+    "plinta.blocks",
     "tests.testapp",
 ]
 

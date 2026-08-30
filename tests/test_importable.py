@@ -23,6 +23,7 @@ PACKAGES = [
     "plinta.datasources",
     "plinta.renderers",
     "plinta.components",
+    "plinta.blocks",
 ]
 
 

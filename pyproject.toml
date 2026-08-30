@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plinta-core"
+version = "0.1.0"
+description = "Turn Django models into interactive, permission-aware screens."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Nagabrahmam Mantha" }]
+keywords = ["django", "dashboard", "business-intelligence", "low-code", "permissions", "workflow"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Django",
+    "Framework :: Django :: 6.0",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+requires-python = ">=3.12"
+# Core is Django, django-ninja and pydantic — nothing native, nothing heavy
+# (SPEC §2.6). Every other dependency belongs to the contrib package that needs
+# it and is declared as an extra when that package lands: openpyxl and pandas
+# with `export`, Pillow with `attachments`, django-ckeditor-5 with `comments`,
+# weasyprint with PDF.
+dependencies = [
+    "Django>=6.0,<7.0",
+    "django-ninja>=1.6",
+    "pydantic>=2.11",
+]
+
+[project.optional-dependencies]
+# Standalone test suite — `pip install -e .[test]` then `pytest`.
+test = ["pytest>=8", "pytest-django>=4.8"]
+# Dev tooling — `pip install -e .[dev]` then `ruff check .`.
+dev = ["ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://github.com/naga-9/plinta"
+Repository = "https://github.com/naga-9/plinta"
+Documentation = "https://plinta.readthedocs.io/"
+Issues = "https://github.com/naga-9/plinta/issues"
+
+[tool.hatch.build.targets.wheel]
+# The importable package. Hatchling ships every file under it — Python modules
+# plus templates/, static/, and migrations/ — so the apps work once installed.
+packages = ["plinta"]
+
+[tool.ruff]
+target-version = "py312"
+# Auto-generated migrations carry Django's boilerplate; not ours to lint.
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+# Start with pyflakes (F): unused imports/vars, redefinitions, undefined names,
+# empty f-strings — the correctness/dead-code rules, verified clean across the
+# tree. Broaden (E, I, B, UP, …) over time as the backlog is worked down.
+select = ["F"]

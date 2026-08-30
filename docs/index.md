@@ -1,0 +1,24 @@
+# plinta
+
+Plinta turns Django models into interactive, permission-aware screens.
+
+A consuming project defines plain Django models. Plinta registers them, renders them as configurable screens, enforces row- and field-level access on every read and write, and lets a non-developer rearrange those screens at runtime without a deployment.
+
+## Status: v2 is being built
+
+The package is being rebuilt from the bottom up, one layer at a time, against a single specification.
+
+**[The v2 specification](design/SPEC.md)** is the only authoritative document here. It states what each layer is, what it may import, what it must not know, and what is deliberately not being built.
+
+Nothing else is published yet, because nothing else is true yet. Documentation for a layer is written when that layer lands — a page describing code that does not exist is the failure mode the specification's own §21.11 catalogues.
+
+## v1
+
+The previous version is the tag **`v1.0`**: eighteen Django apps, ~29k LOC, all mandatory, with its own documentation set.
+
+```
+git show v1.0:plinta/permissions/rules.py
+git show v1.0:docs/building/permissions.md
+```
+
+It is a reference, not a target. Where v1 and the specification disagree, the specification is the decision and v1 is the thing being replaced — including where v1's documentation described behaviour its code never had.

@@ -2145,7 +2145,7 @@ All four are ordinary permission-gated screens: `view_block`, `change_datasource
 
 ### 12.1 The Data Sources screen
 
-Registers a model and manages its columns. One screen, two levels: a list of DataSources, and per DataSource its `DataSourceField` rows with their sixteen options (§6.2).
+Registers a model and manages its columns. One screen, two levels: a list of DataSources, and per DataSource its `DataSourceField` rows with their thirteen options (§6.2).
 
 Creating a DataSourceField mints its field permissions; renaming one renames the codename; deleting removes them (§5.7). The screen is therefore the entry point for the permission surface as well as the column surface — which is worth knowing before changing it.
 

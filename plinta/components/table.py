@@ -41,6 +41,8 @@ class TableConfig(ComponentConfig):
     height: str = ""
     #: A column whose value links to the row's detail page.
     row_link_field: str = ""
+    #: What the table says when nothing matched. Blank uses the default.
+    empty_text: str = ""
 
 
 @register_component("table", label="Table")

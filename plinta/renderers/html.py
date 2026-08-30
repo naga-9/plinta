@@ -19,6 +19,9 @@ from plinta.renderers.registry import register_renderer
 #: Formats whose value is already markup and is emitted unescaped.
 MARKUP_FORMATS = frozenset({"html"})
 
+#: What a table with no rows says, when the block does not word it itself.
+EMPTY_TEXT = "No records"
+
 
 def value_of(row: Any, path: str) -> Any:
     """Follow a column path across a row.
@@ -60,9 +63,7 @@ class HtmlRenderer(Renderer):
         user=None,
     ) -> str:
         fields = list(fields)
-        header = format_html_join(
-            "", "<th>{}</th>", ((f.label,) for f in fields)
-        )
+        header = format_html_join("", "<th>{}</th>", ((f.label,) for f in fields))
         body = format_html_join(
             "",
             "<tr>{}</tr>",
@@ -75,6 +76,20 @@ class HtmlRenderer(Renderer):
                 for row in rows
             ),
         )
+        if not body:
+            body = self.empty_row(fields, (config or {}).get("empty_text") or EMPTY_TEXT)
         return format_html(
             "<table><thead><tr>{}</tr></thead><tbody>{}</tbody></table>", header, body
+        )
+
+    def empty_row(self, fields: list[Any], text: str) -> str:
+        """What a table with no rows says.
+
+        A table drawn with an empty body reads as broken; one that says so
+        reads as a filter that matched nothing, which is what it usually is.
+        """
+        return format_html(
+            '<tr class="pl-table__empty"><td colspan="{}">{}</td></tr>',
+            max(len(fields), 1),
+            text,
         )

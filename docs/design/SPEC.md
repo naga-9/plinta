@@ -279,7 +279,7 @@ The register. Nowhere else in this document counts them; a count in two places i
 
 **Core's dependencies are Django, django-ninja and pydantic.** `openpyxl` and `pandas` leave with `export`, `Pillow` with `attachments`, `django-ckeditor-5` with `comments`, `weasyprint` with PDF. Nothing native, nothing heavy.
 
-**Core's front end is the shared client plus the shell's `theme-toggle.js` and generated `tokens.js`.** It ships **no CSS framework** (§10.7) and **no grid library** (§11.2): the styling is plinta's own, built from `tokens.json`, and core's `table` is server-rendered HTML. Its vendored libraries are Bootstrap Icons — the icon set alone, which needs none of Bootstrap's CSS — Tom Select, Luxon and GridStack, served from `static/`, never a CDN (§17). Tabulator ships with `contrib.components.datagrid`; Plotly, WebDataRocks, Flexmonster and jsGantt with theirs.
+**Core's front end is the shared client plus the shell's `theme-toggle.js` and generated `tokens.js`.** It ships **no CSS framework** (§10.8) and **no grid library** (§11.2): the styling is plinta's own, built from `tokens.json`, and core's `table` is server-rendered HTML. Its vendored libraries are Bootstrap Icons — the icon set alone, which needs none of Bootstrap's CSS — Tom Select, Luxon and GridStack, served from `static/`, never a CDN (§17). Tabulator ships with `contrib.components.datagrid`; Plotly, WebDataRocks, Flexmonster and jsGantt with theirs.
 
 **What a viewer loads is close to nothing.** Layout is CSS grid driven by the stored position, so viewing a page needs no layout JavaScript; GridStack loads only in edit mode. **Core carries no front-end major-version upgrade at all** — every vendor that could impose one travels with a component someone chose to install.
 
@@ -2009,12 +2009,17 @@ The position is written by drag and resize in the browser and read straight into
 
 **Blocks resolve by foreign key**, never by name — §8.10's reasoning, applied here: a name is unique only per owner and cannot address a shared resource.
 
-**Two degradations, both normal states rather than errors:**
+**Three degradations. Two are normal states; the third is a failure that is contained rather than propagated:**
 
-- the viewer may not see a placed block → empty slot
-- the block's component type is not installed → empty slot
+| Cause | Slot shows |
+|---|---|
+| the viewer may not see the placed block | empty slot |
+| the component type is not installed | empty slot |
+| the block **raised** while drawing | a message in that slot |
 
-Making a placed block private, or uninstalling a component, must never break the page that holds it.
+Making a placed block private, or uninstalling a component, must never break the page that holds it — and neither must a misconfigured block. A dashboard of eight going dark because one names a config key its component dropped is the failure this prevents.
+
+**Contained, not hidden.** The original exception is logged with its traceback and re-raised as a `BlockRenderError` naming the block, so the page can put a message in one slot and draw the rest. **In `DEBUG` it is not caught at all**: a developer wants the traceback, not a tidy card.
 
 ### 9.4 The filter bar
 
@@ -2088,7 +2093,7 @@ One base template, not two. Today `plinta/templates/plinta/base.html` and `plint
 
 It provides: the document head and asset loading, the topbar, the sidebar, the notification bell, the theme toggle, and the blocks `body` / `extra_css` / `extra_js` a page fills.
 
-**One base, and its regions in separate files**, because a template is the unit someone overrides (§10.8). v1's single file meant changing the sidebar required forking the document head with it.
+**One base, and its regions in separate files**, because a template is the unit someone overrides (§10.9). v1's single file meant changing the sidebar required forking the document head with it.
 
 Namespaced under `plinta/`, so the path a consumer shadows is unambiguous:
 
@@ -2146,13 +2151,29 @@ Three today; two after the move below. They are the shell's data:
 
 `deployment_env` is renamed **`branding`**. Once the environment badge is deleted (§19.4) it returns a site name and a topbar colour, and a processor whose name no longer describes what it returns is the drift this document exists to stop.
 
-### 10.6 Template tags
+### 10.6 Loading, empty and error
+
+Three states, and v2 splits them by mode (§7.3) rather than giving every block all three.
+
+| State | server-rendered inline | data-embedded inline | fetch |
+|---|---|---|---|
+| **loading** | none — the HTML arrives finished | none | the client's spinner |
+| **empty** | the renderer draws it | the adapter | the adapter |
+| **error** | the block card | the adapter | the client's alert |
+
+**Loading is a `fetch` concern only.** An inline block has nothing to wait for, so a spinner over one is an animation for a state that never exists. The client owns the indicator, once, for the components that fetch (§7.4).
+
+**Empty belongs to whoever draws.** For a server-rendered table that is the renderer, which is the only thing that knows the body came out empty. A table with an empty body reads as broken; one that says "No records" reads as a filter that matched nothing, which is what it usually is. A block may word it itself with `empty_text`.
+
+**Error appears in the block's own slot** (§9.3), so a broken block is visible and localised rather than either silent or fatal. Over the wire it is the client's one error path; on the server it is the card.
+
+### 10.7 Template tags
 
 `plinta_tags` provides `site_name`, `get_item`, `classify_value`, `isodate` and `to_json`. All generic; all stay.
 
 `comments_tags` ships with `contrib.comments`.
 
-### 10.7 Theming
+### 10.8 Theming
 
 The shell owns the theme, and the theme is generated rather than written.
 
@@ -2164,7 +2185,7 @@ The shell owns the theme, and the theme is generated rather than written.
 
 **Once the class names are ours, a framework earns nothing.** Core's markup would never say `card` or `btn`, so Bootstrap would contribute a reset and a variable scale that `tokens.json` already holds.
 
-**And a framework in core would break the cheapest override.** Retinting means redefining custom properties; with Bootstrap it means fighting its cascade or recompiling its Sass, which needs the build step §7.5 does not have. So a framework pushes consumers up the ladder (§10.8) to forking templates, where they stop receiving updates. Owning the CSS keeps most of them on the rung where they fork nothing.
+**And a framework in core would break the cheapest override.** Retinting means redefining custom properties; with Bootstrap it means fighting its cascade or recompiling its Sass, which needs the build step §7.5 does not have. So a framework pushes consumers up the ladder (§10.9) to forking templates, where they stop receiving updates. Owning the CSS keeps most of them on the rung where they fork nothing.
 
 **What it covers is bounded**, because it styles what plinta renders and nothing else — no utility classes, no layout system for arbitrary markup: shell chrome, the grid, the block card, table, form controls, buttons, modal, toast, filter bar, and the auth screens. Around ten components.
 
@@ -2181,7 +2202,7 @@ The shell owns the theme, and the theme is generated rather than written.
 
 **Contrib components read tokens, never colours.** A component wanting a series palette calls `tokens.read()`; it never ships a hex value.
 
-### 10.8 Overriding, and what that costs
+### 10.9 Overriding, and what that costs
 
 Four rungs, and the ladder only has its cheap ones because core owns its class names.
 
@@ -2204,13 +2225,13 @@ A consumer wanting Bootstrap specifically loads it there and writes a bridge sty
 
 **Three things become public API**, with the same stability obligation as the Python (§18.16): the **class names**, the **context** each template receives, and the **block names**. Without that, "override the template" is a promise broken every release.
 
-### 10.9 Decisions
+### 10.10 Decisions
 
 | Item | Decision |
 |---|---|
 | Two base templates | **one**, under `shell/`, with its regions in separate files |
 | CSS framework | **none** — core styles its own screens against the tokens |
-| Bootstrap | **not a dependency**, not even an optional one (§10.7) |
+| Bootstrap | **not a dependency**, not even an optional one (§10.8) |
 | Theme attribute | `data-theme`, not `data-bs-theme` |
 | Template granularity | split by override boundary; blocks for partial changes |
 | Class names, template context, block names | **public API** (§18.16) |
@@ -2280,7 +2301,7 @@ What it does not do is what a grid library is for: dragging a column wider, re-s
 
 It registers under its own key rather than replacing `table`, because the component registry refuses a duplicate by design (§7.2). A block chooses one, and a page may hold both.
 
-**Why the split.** A grid library is an opinion about how a table behaves, and putting one in core makes every consumer either accept that opinion or fight it. The same argument that keeps a CSS framework out of core (§10.7) applies with more force here, because a table is the component most likely to be replaced: a consumer who prefers AG Grid, DataTables or their own writes a component and registers it, rather than working around Tabulator.
+**Why the split.** A grid library is an opinion about how a table behaves, and putting one in core makes every consumer either accept that opinion or fight it. The same argument that keeps a CSS framework out of core (§10.8) applies with more force here, because a table is the component most likely to be replaced: a consumer who prefers AG Grid, DataTables or their own writes a component and registers it, rather than working around Tabulator.
 
 **The payoff is that a viewer's page loads no vendor JavaScript at all.** Layout is CSS grid from the stored position, styling is plinta's own, and the table is HTML. Core carries no front-end major-version upgrade — not one.
 
@@ -2750,7 +2771,7 @@ So every component here registers exactly the way an external package would. The
 
 ##### Vendor isolation
 
-A component's front-end dependency ships with it. Plotly arrives with `chart`, Flexmonster with `pivot`, jsGantt with `gantt`, Tabulator with `datagrid`. Core carries no CSS framework (§10.7) and no grid library (§11.2), so it absorbs no front-end major-version upgrade at all.
+A component's front-end dependency ships with it. Plotly arrives with `chart`, Flexmonster with `pivot`, jsGantt with `gantt`, Tabulator with `datagrid`. Core carries no CSS framework (§10.8) and no grid library (§11.2), so it absorbs no front-end major-version upgrade at all.
 
 ##### Enhancement
 
@@ -3208,7 +3229,7 @@ Since plinta is pip-installed, a build could only ever run at **release time in 
 
 | Vendor | Used by | Lands |
 |---|---|---|
-| Bootstrap Icons | core chrome | vendor — the icon set alone; core ships no CSS framework (§10.7) |
+| Bootstrap Icons | core chrome | vendor — the icon set alone; core ships no CSS framework (§10.8) |
 | htmx + `json-enc` | core transport | vendor |
 | Tabulator | `datagrid` (contrib) | vendor, with the component |
 | Tom Select | pickers (core) | vendor |
@@ -3984,7 +4005,7 @@ Dependencies flow one way. Core is a closed set, enforced by an AST-walking test
 
 #### Consequences
 
-Core's dependencies become Django, django-ninja and pydantic. Its front end keeps only the chrome libraries — vendored under `static/`, never fetched from a CDN (§17), with no CSS framework (§10.7) and no grid library (§11.2) among them — so core absorbs no front-end major-version upgrade.
+Core's dependencies become Django, django-ninja and pydantic. Its front end keeps only the chrome libraries — vendored under `static/`, never fetched from a CDN (§17), with no CSS framework (§10.8) and no grid library (§11.2) among them — so core absorbs no front-end major-version upgrade.
 
 A minimal install is eleven packages; a full install is thirty-two. Both are supported and both are exercised in CI.
 

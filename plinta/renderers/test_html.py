@@ -125,9 +125,27 @@ def test_a_cell_per_column():
     assert "<td>Dune</td><td>412</td>" in out
 
 
-def test_no_rows_is_an_empty_body():
+def test_no_rows_says_so():
+    """An empty table body reads as broken; one that says so reads as a filter
+    that matched nothing, which is what it usually is."""
     out = render([], [Field("title", "Title")])
-    assert "<tbody></tbody>" in out
+    assert "No records" in out
+
+
+def test_the_empty_row_spans_every_column():
+    out = render([], [Field("title"), Field("pages")])
+    assert 'colspan="2"' in out
+
+
+def test_a_block_may_word_the_empty_state_itself():
+    out = HtmlRenderer().render([], [Field("title")], {"empty_text": "No books yet"}, None)
+    assert "No books yet" in out
+    assert "No records" not in out
+
+
+def test_an_empty_state_is_escaped():
+    out = HtmlRenderer().render([], [Field("title")], {"empty_text": "<b>none</b>"}, None)
+    assert "<b>none</b>" not in out
 
 
 def test_no_columns_is_an_empty_header():

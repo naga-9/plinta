@@ -6,18 +6,36 @@ component is one resolved config that never mentions a saved view.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from django.db import models
+
+from django.conf import settings
 
 from plinta.blocks.models import Block, SavedView
 from plinta.blocks.narrowing import narrowing_for
 from plinta.components.base import ComponentConfig, Mode
 from plinta.components.registry import find
 
+logger = logging.getLogger(__name__)
+
 #: What a block renders when its component type is not installed, or the
 #: viewer may not see it. A normal state, not an error.
 EMPTY_SLOT = ""
+
+
+class BlockRenderError(Exception):
+    """A block could not be drawn.
+
+    Raised in place of whatever went wrong, so a caller drawing several blocks
+    can put a message in one slot and carry on with the rest. The original is
+    logged with its traceback.
+    """
+
+    def __init__(self, block_name: str):
+        self.block_name = block_name
+        super().__init__(f"{block_name} could not be drawn")
 
 
 def default_view(block: Block, user) -> SavedView | None:
@@ -117,12 +135,21 @@ def render_block(
     if component is None:
         return EMPTY_SLOT
 
-    config = component.validate(effective_config(block, user, view))
-    return component.render(
-        config,
-        user,
-        datasource=block.data_source,
-        narrow=narrowing_for(block, user, extra_filters),
-        block=block,
-        **context,
-    )
+    try:
+        config = component.validate(effective_config(block, user, view))
+        return component.render(
+            config,
+            user,
+            datasource=block.data_source,
+            narrow=narrowing_for(block, user, extra_filters),
+            block=block,
+            **context,
+        )
+    except Exception:
+        # One block must not take down the page holding it — the same reason
+        # an uninstalled component degrades. Raised in DEBUG, because a
+        # developer wants the traceback, not a tidy card.
+        if settings.DEBUG:
+            raise
+        logger.exception("block %r failed to render", block.name)
+        raise BlockRenderError(block.name) from None

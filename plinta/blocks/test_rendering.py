@@ -278,12 +278,40 @@ def test_a_saved_view_cannot_widen_what_the_viewer_may_see(block):
     assert "Dune" not in out
 
 
-def test_a_block_config_a_component_rejects_raises(block):
-    """A typo is a loud failure, not a silently ignored key."""
+def test_a_block_that_cannot_be_drawn_raises_a_block_error(block, settings):
+    """Not the component's own exception: a caller drawing eight blocks needs
+    to know which one failed and carry on, not to handle every kind of failure
+    a component can have."""
+    from plinta.blocks.rendering import BlockRenderError
+
+    settings.DEBUG = False
+    b, ada = block
+    b.config = {"page_sise": 10}
+    b.save()
+    with pytest.raises(BlockRenderError) as exc:
+        render_block(b, ada)
+    assert exc.value.block_name == "books-table"
+
+
+def test_in_debug_the_original_error_is_raised(block, settings):
+    """A developer wants the traceback, not a tidy card."""
     from plinta.components.base import ConfigError
 
+    settings.DEBUG = True
     b, ada = block
     b.config = {"page_sise": 10}
     b.save()
     with pytest.raises(ConfigError):
         render_block(b, ada)
+
+
+def test_a_failure_is_logged_with_its_traceback(block, settings, caplog):
+    from plinta.blocks.rendering import BlockRenderError
+
+    settings.DEBUG = False
+    b, ada = block
+    b.config = {"page_sise": 10}
+    b.save()
+    with pytest.raises(BlockRenderError):
+        render_block(b, ada)
+    assert "books-table" in caplog.text

@@ -123,6 +123,26 @@ def test_a_block_the_viewer_may_not_see_keeps_its_slot(screen):
     assert drawn[0].is_empty
 
 
+def test_a_block_that_fails_says_so_in_its_slot(screen, settings):
+    """The other seven still draw. A dashboard must not go dark because one
+    block was misconfigured."""
+    settings.DEBUG = False
+    page, block, ada = screen
+    broken = Block.objects.create(
+        name="broken",
+        component_type="table",
+        data_source=block.data_source,
+        owner=ada,
+        config={"page_sise": 10},
+    )
+    PageBlock.objects.create(page=page, block=broken, order=1)
+
+    drawn = render_page(page, ada)
+    assert "Dune" in drawn[0].html
+    assert drawn[1].error
+    assert not drawn[1].is_empty
+
+
 def test_an_uninstalled_component_keeps_its_slot(screen):
     page, block, ada = screen
     block.component_type = "heatmap"

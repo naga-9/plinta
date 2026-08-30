@@ -28,6 +28,8 @@ class Placement:
     row: int
     width: int
     height: int
+    #: Set when the block could not be drawn. The card shows this instead.
+    error: str = ""
 
     @property
     def title(self) -> str:
@@ -37,7 +39,7 @@ class Placement:
     @property
     def is_empty(self) -> bool:
         """Whether this drew nothing — an empty slot."""
-        return not self.html
+        return not self.html and not self.error
 
 
 def placements_for(page: Page, user, *, tab: str = "") -> list[PageBlock]:
@@ -133,22 +135,31 @@ def render_page(
     Returns one `Placement` per slot, including the empty ones, so the grid
     keeps its shape when a block is hidden or its component is uninstalled.
     """
-    from plinta.blocks.rendering import render_block
+    from plinta.blocks.rendering import BlockRenderError, render_block
 
     values = default_filters(page, user) if filters is None else filters
     kwargs = filter_kwargs(page, values, user)
 
     drawn = []
     for placement in placements_for(page, user, tab=tab):
-        html = render_block(
-            placement.block,
-            user,
-            extra_filters={**kwargs, **resolve_filters(placement.context_filter, user)},
-        )
+        html, error = "", ""
+        try:
+            html = render_block(
+                placement.block,
+                user,
+                extra_filters={
+                    **kwargs,
+                    **resolve_filters(placement.context_filter, user),
+                },
+            )
+        except BlockRenderError as exc:
+            # The block says so in its own slot; the other seven still draw.
+            error = str(exc)
         drawn.append(
             Placement(
                 placement=placement,
                 html=html,
+                error=error,
                 column=placement.column,
                 row=placement.row,
                 width=placement.width,

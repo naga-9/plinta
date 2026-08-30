@@ -20,6 +20,7 @@ PACKAGES = [
     "plinta.forms",
     "plinta.events",
     "plinta.permissions",
+    "plinta.datasources",
 ]
 
 

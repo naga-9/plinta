@@ -2,6 +2,7 @@
 import pytest
 
 from plinta.dates import ranges
+from plinta.datasources import modifiers
 from plinta.events import signals
 from plinta.permissions import actions, policies
 from plinta.forms import overrides
@@ -85,3 +86,13 @@ def action_registry():
     yield actions
     actions._registry.clear()
     actions._registry.update(saved)
+
+
+@pytest.fixture
+def modifier_registry():
+    """Empty queryset-modifier registry, restored afterwards."""
+    saved = dict(modifiers._registry)
+    modifiers._registry.clear()
+    yield modifiers
+    modifiers._registry.clear()
+    modifiers._registry.update(saved)

@@ -3310,6 +3310,8 @@ plinta/contrib/<app>/      contrib
 
 Every app: `apps.py` (declaring `requires` / `enhances` / `composes`), `models.py`, `api.py` (its router), `policies.py` (its permission policies), `migrations/`, and its own templates and static under a namespaced directory.
 
+**An app package's `__init__.py` re-exports nothing.** Django imports the package before its models are loadable, so an `__init__` reaching them — directly, or through any module that imports them — raises `AppRegistryNotReady` and the app cannot be installed at all. Callers import from the module. Packages with no models re-export freely; the rule follows the models, not the layer.
+
 A component ships with whatever owns it. Core never lists optional components.
 
 ### 20.2 `app_label` is pinned and permanent

@@ -730,7 +730,7 @@ The access engine. Every read and every write passes through it.
 | **Field permissions from** | concrete model fields | `DataSourceField` rows |
 | **Computed / reverse / property columns** | ungated — the gate returns `True` | minted and enforced |
 | **Field gate default** | allow | deny |
-| **Actions** | fixed: view / add / change / delete | open set; row actions and capabilities |
+| **Actions** | fixed: view / add / change / delete | open set; row actions and capabilities, registered and minted (§5.5) |
 | **Organisation rules** | in core | `contrib.organization`, behind generic `FieldInUserSet` |
 | **Workflow rule** | in core | `contrib.workflow` |
 | **Plinta's own models** | no field permissions possible | registered DataSources, `show_in_api = False` |
@@ -829,7 +829,16 @@ register_action("export", "export", filters_rows=False)
 
 **Minting an unregistered action is refused**, or the console offers a permission nothing checks.
 
-`filters_rows` records which kind it is. A capability leaves it False and composes with another action's filter; a row action sets it True and a policy may narrow it.
+`filters_rows` records which kind it is, and **it is enforced**: `allowed(user, 'export', qs)` raises rather than returning a set that looks filtered and is not.
+
+That is not tidiness. A capability has no policy rule, so filtering by one returns every row the *model* permission admits — including rows the user cannot view. An export feature written as `allowed(user, 'export', qs)` would ship data its user has no access to, and the call reads as though it were safe. The two halves are asked separately:
+
+```python
+if can(user, "export", Book):                  # the capability
+    rows = allowed(user, "view", queryset)     # the rows
+```
+
+Django's four are not registered, so nothing here applies to them.
 
 A capability with no policy rule is tier-1 only: the model permission decides. A policy may still narrow one — `export = HasPerm('…') & ~Public` — but rarely needs to.
 

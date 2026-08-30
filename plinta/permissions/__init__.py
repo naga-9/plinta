@@ -9,7 +9,7 @@ from plinta.permissions.actions import (
     mint_for,
     register_action,
 )
-from plinta.permissions.engine import allowed, can, explain, fields
+from plinta.permissions.engine import NotARowAction, allowed, can, explain, fields
 from plinta.permissions.grants import (
     PermissionEscalation,
     add_to_group,
@@ -55,6 +55,7 @@ __all__ = [
     "Action",
     "ActionError",
     "FieldPermissionError",
+    "NotARowAction",
     "PermissionEscalation",
     "PermissionPolicy",
     "PolicyError",

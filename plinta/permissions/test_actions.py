@@ -9,7 +9,7 @@ from plinta.permissions.actions import (
     mint_action,
     mint_for,
 )
-from plinta.permissions.engine import can
+from plinta.permissions.engine import NotARowAction, allowed, can
 from plinta.permissions.policies import PermissionPolicy
 from plinta.permissions.rules import Owner, Public
 from tests.testapp.models import Book, Region
@@ -133,6 +133,55 @@ def test_a_capability_falls_back_to_the_model_permission(action_registry, policy
     book = Book.objects.create(title="Emma", owner=None)
 
     assert can(ada, "import", book) is True, "no rule for import, so the permission decides"
+
+
+def test_filtering_by_a_capability_is_refused(action_registry, policy_registry, db):
+    """It would return every row the model permission admits, including
+    rows the user cannot view — a leak that reads as a filtered set."""
+    class BookPolicy(PermissionPolicy):
+        view = Owner() | Public()
+
+    policy_registry.register_policy(Book, BookPolicy)
+    action_registry.register_action("export")
+    mint_for(Book)
+
+    ada = User.objects.create(username="ada")
+    bob = User.objects.create(username="bob")
+    for c in ("view_book", "export_book"):
+        ada.user_permissions.add(Permission.objects.get(codename=c))
+    ada = User.objects.get(pk=ada.pk)
+    Book.objects.create(title="Dune", owner=ada)
+    Book.objects.create(title="Emma", owner=bob)
+
+    with pytest.raises(NotARowAction, match="capability"):
+        allowed(ada, "export", Book.objects.all())
+
+    # what the caller should have written
+    assert can(ada, "export", Book) is True
+    assert allowed(ada, "view", Book.objects.all()).count() == 1
+
+
+def test_a_row_action_may_be_filtered(action_registry, policy_registry, db):
+    class BookPolicy(PermissionPolicy):
+        archive = Owner()
+
+    policy_registry.register_policy(Book, BookPolicy)
+    action_registry.register_action("archive", filters_rows=True)
+    mint_for(Book)
+
+    ada = User.objects.create(username="ada")
+    ada.user_permissions.add(Permission.objects.get(codename="archive_book"))
+    ada = User.objects.get(pk=ada.pk)
+    Book.objects.create(title="Dune", owner=ada)
+    Book.objects.create(title="Emma", owner=User.objects.create(username="bob"))
+
+    assert allowed(ada, "archive", Book.objects.all()).count() == 1
+
+
+def test_djangos_own_actions_are_unaffected(db):
+    """They are not registered, so nothing new applies to them."""
+    ada = User.objects.create(username="ada")
+    assert allowed(ada, "view", Book.objects.all()).count() == 0
 
 
 def test_a_policy_may_still_narrow_one(action_registry, policy_registry, db):

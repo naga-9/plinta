@@ -15,6 +15,7 @@ from dataclasses import dataclass, field as dc_field
 
 from django.db.models import Model, QuerySet
 
+from plinta.permissions.actions import registered as registered_actions
 from plinta.permissions.fields import minted_fields
 from plinta.permissions.policies import policy_for
 from plinta.permissions.rules import Rule
@@ -67,8 +68,26 @@ def can(user, action: str, target) -> bool:
     return True if rule is None else rule.evaluate(user, target)
 
 
+class NotARowAction(Exception):
+    """`allowed` was asked to filter by a capability, which narrows no rows."""
+
+
 def allowed(user, action: str, queryset: QuerySet) -> QuerySet:
-    """The rows of ``queryset`` on which ``user`` may perform ``action``."""
+    """The rows of ``queryset`` on which ``user`` may perform ``action``.
+
+    Raises:
+        NotARowAction: ``action`` is a registered capability. There is no set of
+            exportable rows distinct from viewable ones, so filtering by one
+            would return every row the model permission admits — including rows
+            the user cannot see. Ask ``can(user, action, Model)`` for the
+            capability and ``allowed(user, "view", qs)`` for the rows.
+    """
+    registered = registered_actions().get(action)
+    if registered is not None and not registered.filters_rows:
+        raise NotARowAction(
+            f"{action!r} is a capability, not a row action: it filters nothing. "
+            f'Use can(user, {action!r}, Model) and allowed(user, "view", queryset).'
+        )
     if _is_superuser(user):
         return queryset
     if not _authenticated(user):

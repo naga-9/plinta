@@ -1733,6 +1733,10 @@ Every mutation goes through it. The current implementation is fifteen stages for
 
 Deletes follow the same authorise-then-emit shape. There is no restore signal — §8.10.
 
+**A denied field is refused, not dropped.** Writing a field the user may not change raises, naming every field refused, rather than saving the rest — a partial write reported as a success is the worse answer.
+
+**The diff's `before` is read from the database**, not from the instance, which already carries the new values by the time the write runs. A field whose value did not change is absent from `changes`; on create every written field appears with `None` before it.
+
 **Three stages disappear into events.** `sync_labels`, `fire_notifications_stage` and `audit_changes` are stages 12–14 today — the three listeners in disguise (§4.10). They become subscribers, and the pipeline stops importing `labels`, `notifications` and `audit`.
 
 **One stage stops being conditional.** `attach_recompute_siblings_row` is gated by a DSF flag with zero uses, and without the flag an inline edit returns no updated row at all. The **flag** goes, not the behaviour: the refetch becomes unconditional, so a write always returns the saved row (§21).

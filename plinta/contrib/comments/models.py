@@ -47,10 +47,27 @@ class Comment(models.Model):
     object_id = models.PositiveIntegerField()
     target = GenericForeignKey("content_type", "object_id")
 
-    #: A reply. One level: a thread that nests without limit is a thread
-    #: nobody can follow, and the parent is enough to group a conversation.
+    #: A reply, to any depth. How deep a thread is *drawn* is a template's
+    #: decision; re-parenting one here would silently move a remark somebody
+    #: aimed at a particular reply.
     reply_to = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies"
+    )
+
+    #: Null is public. Set makes the comment private to its owner, the people
+    #: in ``visible_to`` and the groups in ``visible_to_groups``.
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="owned_comments",
+    )
+    visible_to = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name="visible_comments"
+    )
+    visible_to_groups = models.ManyToManyField(
+        "auth.Group", blank=True, related_name="visible_comments"
     )
 
     posted_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -80,6 +97,23 @@ class Comment(models.Model):
         if self.deleted_at is None:
             self.deleted_at = timezone.now()
             self.save(update_fields=["deleted_at"])
+
+    @property
+    def is_private(self) -> bool:
+        """Whether this comment is anything other than public."""
+        return self.owner_id is not None
+
+    def depth(self) -> int:
+        """How many replies deep this sits. Zero for a top-level remark.
+
+        For a template deciding how far to indent, since the model stores any
+        depth and the drawing is where a limit belongs.
+        """
+        level, parent = 0, self.reply_to
+        while parent is not None and level < 100:
+            level += 1
+            parent = parent.reply_to
+        return level
 
     def mentions(self) -> list[str]:
         """The usernames named in the body, in the order they appear."""

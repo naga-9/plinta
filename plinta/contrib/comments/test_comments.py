@@ -154,13 +154,81 @@ def test_a_reply_is_grouped_under_its_parent(people, book):
     assert list(first.replies.all()) == [reply]
 
 
-def test_replies_do_not_nest_beyond_one_level(people, book):
-    """A thread that nests without limit is one nobody can follow."""
+def test_a_reply_may_reply_to_a_reply(people, book):
+    """Stored as sent. Re-parenting it here would silently move a remark
+    somebody aimed at a particular reply; how deep a thread is *drawn* is a
+    template's decision."""
     ada, bob = people
     first = post(book, "A question", ada)
     reply = post(book, "An answer", bob, reply_to=first)
     deeper = post(book, "A follow-up", ada, reply_to=reply)
-    assert deeper.reply_to == first
+    assert deeper.reply_to == reply
+
+
+def test_depth_is_readable_for_whoever_draws_it(people, book):
+    ada, bob = people
+    first = post(book, "A question", ada)
+    reply = post(book, "An answer", bob, reply_to=first)
+    deeper = post(book, "A follow-up", ada, reply_to=reply)
+    assert [c.depth() for c in (first, reply, deeper)] == [0, 1, 2]
+
+
+# --- privacy ---------------------------------------------------------------
+
+
+def test_a_comment_with_no_owner_is_public(people, book):
+    ada, bob = people
+    post(book, "for everyone", ada)
+    assert len(thread(book, bob)) == 1
+
+
+def test_an_owned_comment_is_private(people, book):
+    ada, bob = people
+    post(book, "just me", ada, owner=ada)
+    assert thread(book, bob) == []
+    assert len(thread(book, ada)) == 1
+
+
+def test_a_private_comment_may_name_who_sees_it(people, book):
+    ada, bob = people
+    post(book, "you and me", ada, owner=ada, visible_to=[bob])
+    assert len(thread(book, bob)) == 1
+
+
+def test_a_private_comment_may_name_a_group(people, book):
+    from django.contrib.auth.models import Group
+
+    ada, bob = people
+    editors = Group.objects.create(name="Editors")
+    bob.groups.add(editors)
+    post(book, "for the editors", ada, owner=ada, visible_to_groups=[editors])
+    assert len(thread(book, User.objects.get(pk=bob.pk))) == 1
+
+
+def test_somebody_outside_the_group_still_cannot_see_it(people, book):
+    from django.contrib.auth.models import Group
+
+    ada, bob = people
+    editors = Group.objects.create(name="Editors")
+    post(book, "for the editors", ada, owner=ada, visible_to_groups=[editors])
+    assert thread(book, bob) == []
+
+
+def test_making_it_private_is_not_the_same_as_writing_it(people, book):
+    """change and delete are the author's; owner is about who may read."""
+    ada, bob = people
+    comment = post(book, "mine", ada, owner=bob)
+    with pytest.raises(CommentDenied):
+        edit(comment, "yours", bob)
+    edit(comment, "still mine", ada)
+
+
+def test_a_private_thread_and_a_public_one_coexist(people, book):
+    ada, bob = people
+    post(book, "public", ada)
+    post(book, "private", ada, owner=ada)
+    assert [c.body for c in thread(book, bob)] == ["public"]
+    assert len(thread(book, ada)) == 2
 
 
 # --- mentions --------------------------------------------------------------

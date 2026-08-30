@@ -2832,6 +2832,20 @@ The alternative — calling a notification app from here — is what makes that 
 
 **A mention that matches nobody is ignored.** A typo is not an error: refusing to post the comment is a worse answer than nobody being told.
 
+##### Where the line falls between this app and its consumer
+
+Some of the above are the platform's to decide and some are not, and the test is whether getting it wrong is a **defect** or a **preference**.
+
+| | whose | why |
+|---|---|---|
+| commenting needs sight of the row | the app's | otherwise it is a way of reading a record you may not read |
+| an owner-less comment is public | the app's | it is the permission model, and half of it cannot live elsewhere |
+| a mention matching nobody is ignored | the app's | robustness; the alternative refuses a valid comment |
+| **how deep a thread is drawn** | **the consumer's** | a display choice, and capping it in the model loses what somebody meant |
+| whether an edit is announced | the app's, for now | announcing corrections is noise by default; a consumer wanting it subscribes to `object_written` on `Comment` |
+
+**Replies nest to any depth.** The model stores what was sent — a reply may reply to a reply — and `depth()` tells whoever draws it how far in a comment sits. Collapsing a reply's parent at write time would silently move a remark somebody aimed at a particular one, and a limit belongs where the drawing happens.
+
 ##### Dependencies
 
 `django-ckeditor-5` ships with this app, not with core. Rich-text editing is a comment feature, not a platform feature.

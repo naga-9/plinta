@@ -36,8 +36,26 @@ def resolve_mentions(names: list[str]) -> list[Any]:
     return list(User.objects.filter(**{f"{field}__in": names}))
 
 
-def post(target: Any, body: str, author, *, reply_to=None, source: str = "") -> Any:
+def post(
+    target: Any,
+    body: str,
+    author,
+    *,
+    reply_to=None,
+    owner=None,
+    visible_to=None,
+    visible_to_groups=None,
+    source: str = "",
+) -> Any:
     """Add a comment to ``target`` and announce it.
+
+    ``owner`` makes the comment private: only its owner, the users in
+    ``visible_to`` and the groups in ``visible_to_groups`` may read it. Left
+    unset, the comment is public to anyone who may reach the thread.
+
+    A reply may reply to a reply. How deep a thread is *drawn* is a template's
+    decision — re-parenting here would silently move a remark somebody aimed
+    at a particular reply.
 
     Raises:
         CommentDenied: the author may not view the row they are commenting on.
@@ -51,17 +69,18 @@ def post(target: Any, body: str, author, *, reply_to=None, source: str = "") -> 
         raise CommentDenied("a comment needs a body")
     if not can(author, "view", target):
         raise CommentDenied("may not comment on a row you may not see")
-    if reply_to is not None and reply_to.reply_to_id is not None:
-        # One level. A thread that nests without limit is one nobody follows.
-        reply_to = reply_to.reply_to
-
     comment = Comment.objects.create(
         body=body.strip(),
         author=author if getattr(author, "pk", None) else None,
         content_type=ContentType.objects.get_for_model(type(target)),
         object_id=target.pk,
         reply_to=reply_to,
+        owner=owner,
     )
+    if visible_to:
+        comment.visible_to.set(visible_to)
+    if visible_to_groups:
+        comment.visible_to_groups.set(visible_to_groups)
 
     signals.emit_comment_posted(
         target,

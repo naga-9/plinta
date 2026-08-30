@@ -7,6 +7,7 @@ calendar belongs to a legal entity, not to core.
 from __future__ import annotations
 
 import calendar
+import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date
@@ -36,8 +37,12 @@ def register_range(name: str, label: str, resolve: Resolver) -> Range:
     """Register a range.
 
     Raises:
-        RangeError: the name is already taken.
+        RangeError: the name is already taken, or is not lowercase
+            ``[a-z][a-z0-9_]*``. A range name is stored in configuration, so it
+            follows the same rule as every other registered name.
     """
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
+        raise RangeError(f"{name!r} must be lowercase [a-z][a-z0-9_]*")
     if name in _registry:
         raise RangeError(f"{name!r} is already registered")
     _registry[name] = Range(name=name, label=label, resolve=resolve)

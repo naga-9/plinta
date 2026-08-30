@@ -93,6 +93,13 @@ def test_a_contrib_package_registers_its_own(range_registry):
     assert bounds(resolve_q("due", "current_fiscal_year", TODAY)) == {"due__year": 2026}
 
 
+@pytest.mark.parametrize("name", ["Current Month", "current month", "1st", "with-dash", ""])
+def test_an_unusable_range_name_is_refused(range_registry, name):
+    """A range name is stored in config, so it follows the same rule as a token."""
+    with pytest.raises(RangeError):
+        range_registry.register_range(name, "X", lambda field, today: Q())
+
+
 def test_a_duplicate_name_is_refused(range_registry):
     range_registry.register_range("x", "X", lambda field, today: Q())
     with pytest.raises(RangeError, match="already registered"):

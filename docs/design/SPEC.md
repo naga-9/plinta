@@ -2808,11 +2808,29 @@ The `comments_section` component ships **with this app**, registered from its ow
 
 A model opts in with a `comments` generic relation. The capability probe finds it and the section becomes available on that model's detail pages.
 
+**Opting in makes the app required for whoever opted in.** A `GenericRelation("plinta_comments.Comment")` names a model, so Django cannot resolve it with the app uninstalled — the consumer's own model stops working, not just the section.
+
+That does not contradict "degrades when absent" (§2.5), and the distinction is worth stating exactly:
+
+| | with `comments` uninstalled |
+|---|---|
+| a consumer who never opted in | everything works; the section is simply absent |
+| a block naming `comments_section` | an empty slot |
+| a consumer whose model declares the relation | **their model does not load** |
+
+So the app is optional to plinta and not optional to a model that opted in — which is what a `GenericRelation` means, and is the reason it counts as a **generic** coupling on plinta's side and a real dependency on the consumer's. A consumer who wants comments to be removable declares the relation in a separate app they can uninstall together, or drops the relation and lets the probe find nothing.
+
 ##### Mentions
 
 Mentions are extracted from the body at post time and carried on the emitted `comment_posted` event. This app resolves who was mentioned; it does not decide what happens next.
 
-Previously it imported `notifications.triggers` at module scope, which made notifications mandatory for anyone wanting comments.
+The alternative — calling a notification app from here — is what makes that app mandatory for anybody who wants comments. This one emits and stops.
+
+**An edit emits nothing.** A correction is not a new remark, and announcing one would notify a thread every time somebody fixed a typo.
+
+**Withdrawing keeps the row.** A thread with a hole in it reads as a bug, and a reply answering a vanished remark reads as nonsense, so the shape of the conversation survives what was said.
+
+**A mention that matches nobody is ignored.** A typo is not an error: refusing to post the comment is a worse answer than nobody being told.
 
 ##### Dependencies
 

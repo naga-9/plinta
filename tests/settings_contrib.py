@@ -11,4 +11,6 @@ INSTALLED_APPS = [  # noqa: F405
     *INSTALLED_APPS,  # noqa: F405
     "plinta.contrib.audit",
     "plinta.contrib.notifications",
+    "plinta.contrib.comments",
+    "tests.contribapp",
 ]

@@ -1381,7 +1381,9 @@ Each component declares a pydantic config schema with `extra='forbid'`, so a typ
 
 A block referencing an unregistered component type renders as an **empty slot** — a normal state, not an error, mirroring how a page already degrades a block the viewer may not see. The registry offers both lookups: `find` returns None, which is that path, and `get` raises for a caller that already knows the type is installed.
 
-**Which columns appear is not config.** They come from the DataSource's fields, narrowed by field permission (§6.3). A `columns` key in a component's schema would be a second answer to a question `datasources` already answers, and one that could name a column the viewer may not see. `extra='forbid'` rejects it.
+**A column choice is config, and it narrows.** `columns` is on the base schema, because it is where a saved view's column choice arrives once `blocks` has merged it (§8.2) — a saved view's editor *is* column-visibility UI (§14.4).
+
+Three sources, three jobs: `DataSourceField.visible` is the DataSource's default order, field permission is the **ceiling**, and the merged config is what this viewer chose out of what they may see. So the config narrows and reorders and can never widen: a name the viewer has no permission for is dropped rather than honoured, the same fail-closed rule an undeclared column already follows (§5.7). Otherwise personalisation would be a permission bypass — save a view naming a revoked column and get it back.
 
 **`get_data` is on the base class**, so it calls `get_available_fields`, collects the joins the columns' field renderers declared (§7.8), and passes both to `get_queryset`. A component written tomorrow gets prefetch derivation and computed columns without knowing either exists; one that needs to narrow further overrides it and calls `super()` first — which is how `table` applies its `sort`.
 

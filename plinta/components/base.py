@@ -12,6 +12,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import Field as PydanticField
 
 if TYPE_CHECKING:
     from plinta.datasources.models import DataSource, DataSourceField
@@ -35,6 +36,11 @@ class ComponentConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    #: Which columns to draw, in order. Empty means every permitted one, in
+    #: the DataSource's order. This is where a saved view's column choice
+    #: arrives, already merged (§8.2).
+    columns: list[str] = PydanticField(default_factory=list)
+
 
 class ConfigError(Exception):
     """A block's config does not match its component's schema."""
@@ -43,6 +49,23 @@ class ConfigError(Exception):
         self.component = component
         self.errors = errors
         super().__init__(f"invalid config for {component!r}: {errors}")
+
+
+def choose_columns(
+    permitted: list[DataSourceField], config: ComponentConfig
+) -> list[DataSourceField]:
+    """The columns to draw, in the order the config asks for them.
+
+    A config **narrows and reorders**; it can never widen. A name the viewer
+    may not see is dropped rather than honoured, which is the same fail-closed
+    rule an undeclared column already follows (§5.7) — so a saved view cannot
+    become a way to ask for a column someone revoked.
+    """
+    names = getattr(config, "columns", None)
+    if not names:
+        return permitted
+    by_name = {f.field_name: f for f in permitted}
+    return [by_name[name] for name in names if name in by_name]
 
 
 class Component:
@@ -85,7 +108,7 @@ class Component:
         from plinta.datasources import services
         from plinta.renderers.fields import joins_for
 
-        fields = services.get_available_fields(datasource, user)
+        fields = choose_columns(services.get_available_fields(datasource, user), config)
         select, prefetch = joins_for(fields)
         rows = services.get_queryset(
             datasource,

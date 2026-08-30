@@ -67,11 +67,13 @@ def test_a_sort_direction_is_constrained():
         TableComponent().validate({"sort": [{"field": "title", "direction": "sideways"}]})
 
 
-def test_columns_are_not_config():
-    """They come from the DataSource, narrowed by field permission — config
-    naming one would be a second answer to that question."""
-    with pytest.raises(ConfigError):
-        TableComponent().validate({"columns": ["title"]})
+def test_a_column_choice_is_config():
+    """Where a saved view's column choice arrives, already merged (§8.2)."""
+    assert TableComponent().validate({"columns": ["title"]}).columns == ["title"]
+
+
+def test_no_column_choice_means_every_permitted_one():
+    assert TableComponent().validate({}).columns == []
 
 
 # --- registration ----------------------------------------------------------
@@ -139,6 +141,43 @@ def test_a_column_the_viewer_may_not_see_is_absent(books):
     out = TableComponent().render(TableConfig(), ada, datasource=ds)
     assert "<th>Title</th>" not in out
     assert "Dune" not in out
+
+
+@pytest.mark.django_db
+def test_a_column_choice_narrows_the_table(books):
+    ds, ada = books
+    out = TableComponent().render(TableConfig(columns=["title"]), ada, datasource=ds)
+    assert "<th>Title</th>" in out
+    assert "<th>Region</th>" not in out
+
+
+@pytest.mark.django_db
+def test_a_column_choice_reorders_the_table(books):
+    ds, ada = books
+    config = TableConfig(columns=["region__name", "title"])
+    out = TableComponent().render(config, ada, datasource=ds)
+    assert out.index("<th>Region</th>") < out.index("<th>Title</th>")
+
+
+@pytest.mark.django_db
+def test_a_column_choice_cannot_widen(books):
+    """A saved view naming a column the viewer may not see is not a way to
+    ask for it — otherwise personalisation would be a permission bypass."""
+    ds, ada = books
+    ada.user_permissions.remove(Permission.objects.get(codename="view_book_title"))
+    ada = User.objects.get(pk=ada.pk)
+    out = TableComponent().render(TableConfig(columns=["title"]), ada, datasource=ds)
+    assert "<th>Title</th>" not in out
+    assert "Dune" not in out
+
+
+@pytest.mark.django_db
+def test_a_column_choice_naming_nothing_real_is_dropped(books):
+    ds, ada = books
+    config = TableConfig(columns=["title", "nonesuch"])
+    out = TableComponent().render(config, ada, datasource=ds)
+    assert "<th>Title</th>" in out
+    assert out.count("<th>") == 1
 
 
 @pytest.mark.django_db

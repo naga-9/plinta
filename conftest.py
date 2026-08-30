@@ -99,6 +99,18 @@ def modifier_registry():
 
 
 @pytest.fixture
+def capability_registry():
+    """Empty capability registry, restored afterwards."""
+    from plinta.blocks import capabilities
+
+    saved = dict(capabilities._registry)
+    capabilities._registry.clear()
+    yield capabilities
+    capabilities._registry.clear()
+    capabilities._registry.update(saved)
+
+
+@pytest.fixture
 def component_registry():
     """Empty component registry, restored afterwards."""
     from plinta.components import registry

@@ -1788,9 +1788,12 @@ The matrix's precomputed `state` argument — which exists so each probe stays O
 layer walks the Blocks, because `utils` cannot read one.
 
 A token with no provider is left in the filter verbatim rather than blanked — so
-without this it fails silently, matching nothing rather than widening. Reads
-rows, so it is a management command rather than a `django.core.checks` function
-(§20.3).
+without this it fails silently, matching nothing rather than widening. That
+choice is what makes the check necessary.
+
+A `django.core.checks` function, like the other four (§20.3). Reading rows is no
+obstacle: a check that queries returns nothing on a `DatabaseError`, since
+failing there would block the migration that fixes it.
 
 ### 8.7 What this layer owns
 
@@ -1806,6 +1809,7 @@ It does **not** own: the export endpoint (`contrib.export`, §14) or anything a 
 | `queryset_modifier` help text | **fix** — it stores a registered key, not a dotted path |
 | Union validation errors | **collapse here** — pydantic reports one error per union branch, so a bad `base_filter` value yields five messages under one field. `loc[1]` names the branch; collapse to one message stating the rule, which only this layer can word |
 | `mode` on the block | **add** — overrides the component default |
+| Capability probes | **both registered together**, by the owning app; `prepare` runs once per capability, not once per model |
 | `sync_labels`, `fire_notifications`, `audit_changes` stages | **deleted** — become event subscribers |
 | `recompute_siblings` flag | **dropped**; the refetch becomes unconditional — the capability stays |
 | Capability registry location | stays in `blocks` |

@@ -9,6 +9,6 @@ class BlocksConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
 
     def ready(self):
-        # Imported for its side effect: registering the policies that make
-        # blocks and saved views shareable.
-        from plinta.blocks import policies  # noqa: F401
+        # Imported for their side effects: registering the policies that make
+        # blocks and saved views shareable, and the boot check.
+        from plinta.blocks import checks, policies  # noqa: F401

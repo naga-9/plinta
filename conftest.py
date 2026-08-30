@@ -99,6 +99,18 @@ def modifier_registry():
 
 
 @pytest.fixture
+def field_renderer_registry():
+    """Empty field-renderer registry, restored afterwards."""
+    from plinta.renderers import fields as field_renderers
+
+    saved = dict(field_renderers._registry)
+    field_renderers._registry.clear()
+    yield field_renderers
+    field_renderers._registry.clear()
+    field_renderers._registry.update(saved)
+
+
+@pytest.fixture
 def annotation_registry():
     """Empty annotation registry, restored afterwards."""
     saved = dict(annotations._registry)

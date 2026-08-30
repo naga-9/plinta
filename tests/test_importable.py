@@ -21,6 +21,7 @@ PACKAGES = [
     "plinta.events",
     "plinta.permissions",
     "plinta.datasources",
+    "plinta.renderers",
 ]
 
 

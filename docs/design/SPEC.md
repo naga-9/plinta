@@ -1586,6 +1586,19 @@ Today a model may implement `serialize_for_table()`, `table_select_related()`, `
 
 A field renderer is registered, declares how a value renders, and **declares what it needs joined** — which is what §6.5 depends on for prefetch derivation to see relations no column names.
 
+```python
+@register_field_renderer("label_chips", prefetch_related=["labels"])
+def label_chips(value, *, obj, field, user) -> str: ...
+```
+
+**A column names one**, in `DataSourceField.renderer`, so binding is configuration like every other display option (§6.8) rather than a property of the consumer's model. Unset formats the value.
+
+**The declared joins are the reason it is a registration** and not a duck-typed method. Derivation sees column paths; a renderer reaching `obj.labels` from a column called `title` is invisible to it. `joins_for(columns)` returns them, and they reach `get_queryset` as `extra_select` and `extra_prefetch`.
+
+**Field renderers produce HTML.** A chip is markup and a spreadsheet cell is not, so other formats call `format_value` instead. Output is trusted: registering a renderer is the same trust as writing a template.
+
+**A column naming an unregistered renderer is a boot error** (`plinta.renderers.E001`). It would otherwise raise one row into the page, having also silently lost the joins it declared. The check lives here because `datasources` cannot see the registry.
+
 `expand_for_table` and `expand_color` are dropped with `expand_columns`.
 
 ### 7.9 Decisions

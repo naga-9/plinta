@@ -42,7 +42,12 @@ def _model(datasource: DataSource):
 
 
 def get_queryset(
-    datasource: DataSource, user, *, columns: list[str] | None = None
+    datasource: DataSource,
+    user,
+    *,
+    columns: list[str] | None = None,
+    extra_select: list[str] | None = None,
+    extra_prefetch: list[str] | None = None,
 ) -> QuerySet:
     """The rows of ``datasource`` this user may view, with the joins they need.
 
@@ -51,13 +56,20 @@ def get_queryset(
     the joins by forgetting to ask for them.
 
     Pass an explicit list to narrow it, or ``[]`` for rows with no joins at all.
+
+    The extras carry joins a field renderer declared, which a path cannot say.
     """
     _require_user(user)
     model = _model(datasource)
     rows = allowed(user, "view", model._default_manager.all())
     if columns is None:
         columns = [f.field_name for f in get_available_fields(datasource, user)]
-    return prefetch.apply(annotations.apply(rows, columns), columns)
+    return prefetch.apply(
+        annotations.apply(rows, columns),
+        columns,
+        extra_select=extra_select or (),
+        extra_prefetch=extra_prefetch or (),
+    )
 
 
 def get_available_fields(datasource: DataSource, user) -> list[DataSourceField]:

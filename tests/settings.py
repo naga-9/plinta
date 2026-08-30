@@ -9,6 +9,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "plinta.permissions",
     "plinta.datasources",
+    "plinta.renderers",
     "tests.testapp",
 ]
 

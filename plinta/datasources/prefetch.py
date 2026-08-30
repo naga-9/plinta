@@ -59,14 +59,21 @@ def _field(model, name):
         return None
 
 
-def apply(queryset: QuerySet, paths: Iterable[str], *, extra_select: Iterable[str] = ()) -> QuerySet:
+def apply(
+    queryset: QuerySet,
+    paths: Iterable[str],
+    *,
+    extra_select: Iterable[str] = (),
+    extra_prefetch: Iterable[str] = (),
+) -> QuerySet:
     """Apply the derived joins to ``queryset``.
 
-    ``extra_select`` is for a renderer that reads a relation no column names —
-    it declares that at registration rather than the derivation guessing.
+    The extras are for a renderer that reads a relation no column names — it
+    declares that at registration rather than the derivation guessing.
     """
     select, prefetch = derive(queryset.model, paths)
     select |= set(extra_select)
+    prefetch |= set(extra_prefetch)
     if select:
         queryset = queryset.select_related(*sorted(select))
     if prefetch:

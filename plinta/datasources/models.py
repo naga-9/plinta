@@ -139,6 +139,13 @@ class DataSourceField(models.Model):
         default="",
         help_text="Drawn after the value, e.g. 'kg' or '%'.",
     )
+    renderer = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="A registered field renderer to draw this column with. "
+        "Unset formats the value.",
+    )
 
     # --- sorting and filtering ---
     sorter = models.CharField(max_length=10, choices=Sorter, default=Sorter.STRING)

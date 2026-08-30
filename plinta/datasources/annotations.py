@@ -45,9 +45,8 @@ def register_annotation(name: str, *, output_field=None):
         def order_total():
             return F("quantity") * F("unit_price")
 
-    **Argument-free by design.** An argument from configuration would be a path
-    from stored data into an ORM call, and therefore a validation surface. The
-    developer writes the relation, knows the model, and owns the consequence.
+    **Argument-free by design.** An argument from configuration is a path from
+    stored data into an ORM call, and therefore a validation surface.
 
     Raises:
         AnnotationError: the name is taken, or is not lowercase

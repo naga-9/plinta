@@ -76,10 +76,8 @@ def sync_field(model: type[Model], field_name: str, *, editable: bool = False) -
 def rename_field(model: type[Model], old_name: str, new_name: str) -> int:
     """Rename a column's permissions **in place**, so grants survive.
 
-    Deleting and recreating would drop every grant on the column silently,
-    which is the failure this exists to prevent: the rows in
-    ``auth_user_user_permissions`` point at a permission's primary key, and a
-    new row has a new one.
+    ``auth_user_user_permissions`` points at a permission's primary key, so
+    deleting and recreating would drop every grant on the column silently.
 
     Returns the number of permissions renamed.
 

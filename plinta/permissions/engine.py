@@ -6,8 +6,8 @@
     explain(user, action, target)    -> a decision trace, diagnostic only
 
 Two tiers decide every action: the Django model permission, **and** the
-registered policy. Both must hold. Stating that here rather than at each call
-site is what keeps the superuser bypass in one place instead of seventeen.
+registered policy. Both must hold. Deciding it here rather than at each call
+site is what keeps the superuser bypass in one place.
 """
 from __future__ import annotations
 

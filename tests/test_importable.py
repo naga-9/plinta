@@ -24,6 +24,7 @@ PACKAGES = [
     "plinta.renderers",
     "plinta.components",
     "plinta.blocks",
+    "plinta.pages",
 ]
 
 

@@ -81,7 +81,14 @@ def mode_of(block: Block) -> Mode | None:
     return Mode(block.mode) if block.mode else component.mode
 
 
-def render_block(block: Block, user, *, view: SavedView | None = None, **context: Any) -> str:
+def render_block(
+    block: Block,
+    user,
+    *,
+    view: SavedView | None = None,
+    extra_filters: dict[str, Any] | None = None,
+    **context: Any,
+) -> str:
     """Draw ``block`` for ``user``.
 
     1. Resolve the effective config — the block's, with the viewer's delta over it.
@@ -90,6 +97,9 @@ def render_block(block: Block, user, *, view: SavedView | None = None, **context
     4. Call the component with the resolved config and the block's narrowing.
 
     Step 3 is why a block cannot widen access: the narrowing happened below it.
+
+    ``extra_filters`` is resolved filter kwargs from whatever placed the block.
+    A page passes its filter bar and the placement's context filter through it.
     """
     from plinta.permissions import can
 
@@ -105,7 +115,7 @@ def render_block(block: Block, user, *, view: SavedView | None = None, **context
         config,
         user,
         datasource=block.data_source,
-        narrow=narrowing_for(block, user),
+        narrow=narrowing_for(block, user, extra_filters),
         block=block,
         **context,
     )

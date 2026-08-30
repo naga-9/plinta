@@ -2007,7 +2007,11 @@ Making a placed block private, or uninstalling a component, must never break the
 
 Filter *values* are personalisation and live here as `FilterSet` and `PageFilterPreference` — the same delta-over-a-base shape `SavedView` has over a Block.
 
-Filter values honour placeholders (§3.6), so `__CURRENT_QUARTER__` resolves at query time.
+Filter values honour placeholders (§3.6), so `__CURRENT_QUARTER__` resolves at query time — and is **stored as written**, so a remembered filter keeps meaning the current quarter rather than freezing to the one it was saved in.
+
+**Which values apply when the viewer sent none:** their remembered state, then their own default `FilterSet`, then a public one, then each control's own `default_value`. The same chain shape as a block's saved view (§8.2), and for the same reason: every step is a mark someone made.
+
+**A value for a field the page does not declare is ignored.** The bar is what the page exposes; a query string is not, and honouring an undeclared key would let a URL filter on a column the page never offered.
 
 **`PageFilterMapping` — keep, deferred.** It lets one filter drive blocks over *different* DataSources, mapping to a different field path on each — so a single "sector" control filters an instruments table on `sector`, a prices chart on `instrument__sector`, and a fundamentals block on `instrument__sector__code`.
 

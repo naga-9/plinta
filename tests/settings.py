@@ -10,6 +10,7 @@ INSTALLED_APPS = [
     "plinta.permissions",
     "plinta.datasources",
     "plinta.renderers",
+    "plinta.components",
     "tests.testapp",
 ]
 

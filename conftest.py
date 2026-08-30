@@ -99,6 +99,18 @@ def modifier_registry():
 
 
 @pytest.fixture
+def component_registry():
+    """Empty component registry, restored afterwards."""
+    from plinta.components import registry
+
+    saved = dict(registry._registry)
+    registry._registry.clear()
+    yield registry
+    registry._registry.clear()
+    registry._registry.update(saved)
+
+
+@pytest.fixture
 def renderer_registry():
     """Empty renderer registry, restored afterwards."""
     from plinta.renderers import registry

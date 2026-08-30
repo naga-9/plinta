@@ -1379,7 +1379,11 @@ Each component declares a pydantic config schema with `extra='forbid'`, so a typ
 
 **Core ships `table` and nothing else** (ADR 0005 (§24)). Every other component registers through the same door a third party would use, so the contract is dogfooded rather than asserted.
 
-A block referencing an unregistered component type renders as an **empty slot** — a normal state, not an error, mirroring how a page already degrades a block the viewer may not see.
+A block referencing an unregistered component type renders as an **empty slot** — a normal state, not an error, mirroring how a page already degrades a block the viewer may not see. The registry offers both lookups: `find` returns None, which is that path, and `get` raises for a caller that already knows the type is installed.
+
+**Which columns appear is not config.** They come from the DataSource's fields, narrowed by field permission (§6.3). A `columns` key in a component's schema would be a second answer to a question `datasources` already answers, and one that could name a column the viewer may not see. `extra='forbid'` rejects it.
+
+**`get_data` is on the base class**, so it calls `get_available_fields`, collects the joins the columns' field renderers declared (§7.8), and passes both to `get_queryset`. A component written tomorrow gets prefetch derivation and computed columns without knowing either exists; one that needs to narrow further overrides it and calls `super()` first — which is how `table` applies its `sort`.
 
 ### 7.3 Two rendering modes
 

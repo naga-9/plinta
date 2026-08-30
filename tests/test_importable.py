@@ -22,6 +22,7 @@ PACKAGES = [
     "plinta.permissions",
     "plinta.datasources",
     "plinta.renderers",
+    "plinta.components",
 ]
 
 

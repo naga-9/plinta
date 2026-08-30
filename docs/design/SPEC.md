@@ -393,7 +393,7 @@ Calendar arithmetic, and nothing that knows what a company is.
 
 ### 3.3 `forms`
 
-A pydantic schema in, a rendered form and a parsed dict out. Extracted from `components/block_settings/api.py`, where ~205 of 667 lines are a generic engine wearing a component's name (§8.8).
+A pydantic schema in, a rendered form and a parsed dict out. Extracted from `components/block_settings/api.py`, where ~205 of 667 lines are a generic engine wearing a component's name (§8.9).
 
 | Function | Does |
 |---|---|
@@ -469,7 +469,7 @@ They look like one and are not, which §20.4's test settles: a **range** takes `
 
 Both are extension points. `contrib.organization` registers fiscal ranges into the first and fiscal tokens into the second, and core imports no fiscal helper either way.
 
-So the design carries **four** registries, not three: annotations (§6.9), queryset modifiers (§6.4), placeholders (§3.6) and ranges.
+So the design carries **four** registries, not three: annotations (§6.10), queryset modifiers (§6.4), placeholders (§3.6) and ranges.
 
 #### One placeholder registry, three consumers:
 
@@ -941,7 +941,7 @@ Sharing is **additive**: an object is owned *and* shared, and sharing never demo
 
 *"Look at my report"* is share. *"Here is a starting dashboard for your team"* is push. Push needs no new machinery: it is `copy_to` applied to a list, and it requires view on the source plus `add` on the model.
 
-**Copy takes owned children with it** — a Page brings its `PageBlock` and `PageFilter` rows — declared per model rather than implemented per model (§8.9).
+**Copy takes owned children with it** — a Page brings its `PageBlock` and `PageFilter` rows — declared per model rather than implemented per model (§8.10).
 
 ### 5.11 The permission console
 
@@ -1181,7 +1181,22 @@ This is deduplication more than a new feature. The same "2 decimals" is declared
 
 Declared once on the field, every renderer honours it — the rule §7.1 already states for dates ("a date renders identically in HTML and in a spreadsheet because both call the same helper"). It also pulls vendor-shaped structure out of block config: a pivot may keep vendor config for vendor concerns, but formatting is universal.
 
-### 6.9 Computed columns
+### 6.9 Checks this layer registers
+
+Two, both from §5.13, which could not live in `permissions` because that layer
+cannot import a DataSource.
+
+**A DataSource-backed model with no registered policy** — informational, not an
+error. Row-level control is opt-in and most models never need it (§5.3), but
+the absence fails open, so it is reported rather than assumed.
+
+**A `DataSourceField` naming an unregistered annotation** — an error. The column
+would render as nothing with no indication why, since the queryset simply never
+gains the annotation.
+
+Both read rows, so both return nothing on a `DatabaseError` (§20.3).
+
+### 6.10 Computed columns
 
 **Registered ORM annotations. Argument-free. Nothing else.**
 
@@ -1367,7 +1382,7 @@ The cost is a second round trip.
 
 `?filterset=42` resolved server-side would mean `contrib.api` reaching into `pages` for a `FilterSet`, which is legal — contrib may import any core layer — but would still add a fourth registry.
 
-Rejected because the design already carries four registries — annotations (§6.9), queryset modifiers (§6.4), placeholders (§3.6) and date ranges (§3.6) — and a fifth must earn its place. One boolean on one model achieves the same thing.
+Rejected because the design already carries four registries — annotations (§6.10), queryset modifiers (§6.4), placeholders (§3.6) and date ranges (§3.6) — and a fifth must earn its place. One boolean on one model achieves the same thing.
 
 **The test before adding a registry:** if a proposed registry shares an input shape and an output shape with an existing one, it is the same registry under another name. The four differ genuinely — the query-parameter one is the only one the *caller* drives rather than configuration — but "genuinely different" is not the same as "worth its weight."
 
@@ -1541,7 +1556,7 @@ A saved view is a **delta over a Block**, so it belongs with blocks (§14.3a).
 | `name`, `config` (the delta), `owner`, `is_default` | keep |
 | `view_type` | **dropped** — derivable |
 
-**`block_name` → `block` FK.** It is the last place the name-as-reference defect survives; §5.10 fixed it for permission codenames, §8.9 for URLs, §9.3 for page composition.
+**`block_name` → `block` FK.** It is the last place the name-as-reference defect survives; §5.10 fixed it for permission codenames, §8.10 for URLs, §9.3 for page composition.
 
 Three things it fixes:
 
@@ -1598,7 +1613,7 @@ Every mutation goes through it. The current implementation is fifteen stages for
 | 5 | compute `changes` — `{field: (before, after)}`, including M2M |
 | 6 | emit `object_written` |
 
-Deletes follow the same authorise-then-emit shape. There is no restore signal — §8.9.
+Deletes follow the same authorise-then-emit shape. There is no restore signal — §8.10.
 
 **Three stages disappear into events.** `sync_labels`, `fire_notifications_stage` and `audit_changes` are stages 12–14 today — the three listeners in disguise (§4.10). They become subscribers, and the pipeline stops importing `labels`, `notifications` and `audit`.
 
@@ -1636,13 +1651,24 @@ The two probe signatures stay different, and legitimately so — the edit-form p
 
 The matrix's precomputed `state` argument — which exists so each probe stays O(1) rather than issuing a query per model — survives as an optional `prepare()` on the capability.
 
-### 8.6 What this layer owns
+### 8.6 Checks this layer registers
+
+**Unresolved placeholder tokens** in `Block.base_filter` and in `create_defaults`
+(§3.6). `utils.unresolved(values)` names the tokens nothing has registered; this
+layer walks the Blocks, because `utils` cannot read one.
+
+A token with no provider is left in the filter verbatim rather than blanked — so
+without this it fails silently, matching nothing rather than widening. Reads
+rows, so it is a management command rather than a `django.core.checks` function
+(§20.3).
+
+### 8.7 What this layer owns
 
 The block CRUD and inspector API, the write endpoints, the data endpoint that serves `fetch`-mode components (§7.3), the capability registry, and block sharing.
 
 It does **not** own: the export endpoint (`contrib.export`, §14) or anything a page does with a block.
 
-### 8.7 Decisions
+### 8.8 Decisions
 
 | Item | Decision |
 |---|---|
@@ -1665,7 +1691,7 @@ It does **not** own: the export endpoint (`contrib.export`, §14) or anything a 
 | `/export/`, `/pivot/export/` | **move to contrib** |
 | `/actions-inline/` | **deleted** with `actions` (ADR 0008 (§24)) |
 
-### 8.8 The inspector, and the form engine inside it
+### 8.9 The inspector, and the form engine inside it
 
 **The inspector stays in `blocks`.** It edits a core model and its endpoints are block endpoints. But a third of it does not belong to blocks at all.
 
@@ -1683,7 +1709,7 @@ It does **not** own: the export endpoint (`contrib.export`, §14) or anything a 
 
 **To verify when §14 reaches personalisation:** saved views and filter sets are not schema forms today — a saved view's editor is column-visibility UI. They benefit from the engine only where they edit a schema-backed config, which is `values` for `FilterSet` and the delta for `SavedView`. Check rather than assume.
 
-### 8.9 Delete, duplicate, bulk, and block identity
+### 8.10 Delete, duplicate, bulk, and block identity
 
 #### Delete is hard, and `delete()` is the model's business
 
@@ -1772,13 +1798,13 @@ Build layer 8. A Page composes blocks into a screen, gives them a shared filter 
 
 `/pages/<id>-<slug>/`. The **id** resolves the page; the slug is ignored on lookup and exists to make the URL readable.
 
-`Page.slug` is unique *per owner* today, which has the same defect §8.9 found in `Block.name`: a per-owner identifier cannot address a shared resource, so `/pages/catalog/` resolves to a different page depending on who asks.
+`Page.slug` is unique *per owner* today, which has the same defect §8.10 found in `Block.name`: a per-owner identifier cannot address a shared resource, so `/pages/catalog/` resolves to a different page depending on who asks.
 
 **Global slug uniqueness was considered and rejected.** In an organisation of 500 people it would require them to negotiate over `my-dashboard` — the identifier's scarcity would become a user-facing problem, which is never an acceptable trade for a naming convenience.
 
 Id-authoritative addressing gives all three properties: everyone may name a page `my-dashboard`, a shared link always resolves to the page that was shared, and a rename does not break existing links. Slug uniqueness stays per-owner, so a person's own pages remain distinguishable in their menu.
 
-This is §8.9's rule with a nicer surface: address by id, let names be for humans.
+This is §8.10's rule with a nicer surface: address by id, let names be for humans.
 
 ### 9.1 Models
 
@@ -1832,7 +1858,7 @@ Usage across a live install of 36 pages:
 
 `PageBlock` places a block at a grid position and carries its own title, visibility and context filter. It travels with its page, is never independently shareable, and the same block may appear on several pages at different sizes.
 
-**Blocks resolve by foreign key**, never by name — §8.9's reasoning, applied here: a name is unique only per owner and cannot address a shared resource.
+**Blocks resolve by foreign key**, never by name — §8.10's reasoning, applied here: a name is unique only per owner and cannot address a shared resource.
 
 **Two degradations, both normal states rather than errors:**
 
@@ -1863,15 +1889,21 @@ The menu is assembled from **pages the viewer may see**, so it is permission-fil
 
 `admin_only` on a section or group is the same defect as `is_system`: a flag acting as a permission. It goes; visibility follows from the pages inside it, which are already permission-filtered.
 
-### 9.6 What leaves this layer
+### 9.6 Checks this layer registers
+
+**Unresolved placeholder tokens** in `PageFilter` values, `FilterSet.values` and
+`PageFilterPreference` (§3.6) — the same shape as §8.6, over the dicts this
+layer stores.
+
+### 9.7 What leaves this layer
 
 **The capability matrix registrations.** `pages/capabilities.py` defines probes for seven contrib apps and registers their matrix rows centrally, which is why it imports `notifications.triggers._handlers`. Six of the seven survive — the actions probe leaves with its app — and each registers its own (§8.5); pages renders a registry it knows nothing about.
 
 **The account-settings organisation cards.** `_get_account_settings_context` reads `usercompanyaccess_set` — org concepts in a core view. They move to `contrib.organization`, which contributes them to the page.
 
-**`duplicate_page`.** Replaced by `copy_to` walking declared children (§8.9).
+**`duplicate_page`.** Replaced by `copy_to` walking declared children (§8.10).
 
-### 9.7 Decisions
+### 9.8 Decisions
 
 | Item | Decision |
 |---|---|
@@ -2068,7 +2100,7 @@ Lists every block a viewer may see, with its component type, DataSource and owne
 
 ### 12.3 The block inspector
 
-Edits one block's config. It **derives its form from the component's pydantic schema** — walking `model_fields`, choosing a widget per annotation, coercing the POST back (§8.8).
+Edits one block's config. It **derives its form from the component's pydantic schema** — walking `model_fields`, choosing a widget per annotation, coercing the POST back (§8.9).
 
 **Thirteen config fields carry a hand-written editor today**, one template each under `overrides/fields/<component_type>_<field>.html`, replacing the derived widget for that one row:
 
@@ -2098,7 +2130,7 @@ It also edits page settings: name, menu placement, type, filters.
 |---|---|
 | Authoring screens | **ship with plinta** — they are the product, not tooling |
 | Gating | ordinary model and instance permissions; no admin concept |
-| Form derivation | from the component's pydantic schema (§8.8) |
+| Form derivation | from the component's pydantic schema (§8.9) |
 | Untyped config fields (`list[dict[str, Any]]`) | **typed sub-models**, so the engine can derive a repeating sub-form and validation is real |
 | Editors typing cannot produce | an **override registry** — a component declares a template per config field |
 | Grid persistence | `PageBlock` positions, GridStack-driven |
@@ -2154,7 +2186,7 @@ Two are new. `seed_audit_page` takes over the viewer the orchestrator builds inl
 
 These screens are `Page`, `Block` and `DataSource` rows — the same rows a user creates in the browser, with no privileged status.
 
-**Consequence:** a consumer may edit or delete them, and re-running the seeder restores them. That is the intended behaviour, and it is why `is_system` is dropped (§9.7) — protection belongs to permissions, not to a flag that makes some rows special.
+**Consequence:** a consumer may edit or delete them, and re-running the seeder restores them. That is the intended behaviour, and it is why `is_system` is dropped (§9.8) — protection belongs to permissions, not to a flag that makes some rows special.
 
 **Consequence for the config lifecycle:** `dumpconfig` (§16) exports seeded rows alongside authored ones, because there is no difference between them. A consumer who customises a shipped screen keeps that customisation in their own export.
 
@@ -2264,9 +2296,9 @@ Decisions taken elsewhere that land on a package here. The per-app entries in §
 
 | App | Gains |
 |---|---|
-| `export` | the two export endpoints from `blocks` (§8.9); a `('table', 'json')` renderer for block-shaped output (§7.3); asset location as a provider property (§17) |
-| `organization` | the fiscal half of `organization/utils.py` (§3.4); the fiscal **placeholder** registrations (§3.6); the account-settings org cards from `pages` (§9.6); the three scope rules from core (§5.4) |
-| `audit` | create rows carry initial values in `metadata` (§21); `record_restore` deleted with the signal (§8.9) |
+| `export` | the two export endpoints from `blocks` (§8.10); a `('table', 'json')` renderer for block-shaped output (§7.3); asset location as a provider property (§17) |
+| `organization` | the fiscal half of `organization/utils.py` (§3.4); the fiscal **placeholder** registrations (§3.6); the account-settings org cards from `pages` (§9.7); the three scope rules from core (§5.4) |
+| `audit` | create rows carry initial values in `metadata` (§21); `record_restore` deleted with the signal (§8.10) |
 | `workflow` | `WorkflowStateAllowed` and its `workflow_state` prefetch from core `permissions` (§5.4); the `isinstance(WorkflowMixin)` validation stage from core's write pipeline, as an `object_writing` subscriber (§23) |
 | `components.*` | the whole catalogue — see **§11**, which supersedes the summary here |
 | every app | registers its own matrix capability rather than `pages` doing it (§8.5) |
@@ -3059,7 +3091,7 @@ def overdue_only(qs, request, **kw):
 
 Registration is mandatory: configuration names a registered key, never a dotted import path, so a saved config cannot cause arbitrary code to be imported. May narrow; must not widen.
 
-### 18.8 Add a computed column — `datasources` (§6.9)
+### 18.8 Add a computed column — `datasources` (§6.10)
 
 ```python
 @register_annotation('order_total', output_field=DecimalField())
@@ -3233,25 +3265,46 @@ Content types, generic relations and permission codenames are all keyed on `app_
 
 Pinning is what lets `plinta.labels` become `plinta.contrib.labels` as a pure import-path change, with no data migration.
 
-### 20.3 The import boundary is a test
+### 20.3 A check belongs to the layer that can see what it validates
+
+`django.core.checks` functions are registered per app, and every layer
+registers its own. A layer cannot check what it cannot import, so a check is
+owed by whoever holds the configuration it reads — not by whoever noticed it
+was needed.
+
+| Check | Reads | Owed by |
+|---|---|---|
+| a `HasPerm` naming an unminted codename | the policy registry | `permissions` (§5.13) |
+| a DataSource-backed model with no policy | DataSources | `datasources` (§6.9) |
+| a `DataSourceField` naming an unregistered annotation | DataSourceFields | `datasources` (§6.9) |
+| unresolved placeholder tokens | stored filter dicts | `blocks`, `pages`, `contrib.reports` (§3.6) |
+| `LoginRequiredMiddleware` absent | `settings.MIDDLEWARE` | `shell` (§10.4) |
+
+**A check that reads rows must survive an unmigrated database.** Checks run
+during `migrate`, so one that queries returns nothing on a `DatabaseError`
+rather than raising — failing there blocks the migration that would fix it. A
+check reading only settings or a registry has no such problem and should raise
+normally.
+
+### 20.4 The import boundary is a test
 
 `tests/test_import_boundary.py` walks the AST of every core module and fails if one imports `plinta.contrib`. It also fails when a contrib package imports another without a declared `enhances` or `composes`.
 
 The rule is enforced mechanically because a rule enforced by discipline is a rule that lasts until the first deadline. Every coupling in the previous design was added by someone who knew better and was in a hurry.
 
-### 20.4 Before adding a registry
+### 20.5 Before adding a registry
 
 The design carries registries for annotations, queryset modifiers, placeholders and date ranges. Before a fifth: **if a proposed registry shares an input shape and an output shape with an existing one, it is the same registry under another name.**
 
 Passing that test is necessary, not sufficient. A mechanism must also be worth its weight — a query-parameter registry for resolving saved filters by id was genuinely distinct and still rejected, because one boolean on one model achieved the same thing.
 
-### 20.5 The JS mirrors the package layout
+### 20.6 The JS mirrors the package layout
 
 A component's adapter ships with its component; a contrib app's front-end code ships with that app; core carries the client and the chrome, and nothing else. Same layering as the Python, same one-way rule.
 
 The import-boundary test covers JS as well. A regex over import paths is cruder than the AST walk, but it catches what matters — and without it the front end drifts while the back end is policed, which is how `contrib.notifications` code ended up inside core's `core.js`.
 
-### 20.6 Optionality is a CI job, not a claim
+### 20.7 Optionality is a CI job, not a claim
 
 Two installs are supported and both are exercised:
 
@@ -3260,31 +3313,31 @@ Two installs are supported and both are exercised:
 
 CI boots both, runs the suite against both, and renders a page under each. Optionality that is not tested is optionality that has already broken.
 
-### 20.7 Migrations
+### 20.8 Migrations
 
 - One `0001_initial` per app until there is a reason otherwise.
 - No migration in core may depend on a contrib app. This is checkable and is checked.
 - Data migrations that fix up a one-time upgrade are deleted once every deployment has passed them; they are not carried forever.
 
-### 20.8 Permissions
+### 20.9 Permissions
 
 **Every function that reads data takes a user, and it is required.** There is no unfiltered path and no system user (§6.3). A parameter typed `user=None` is a security defect waiting for a caller: the caller that forgets it gets every row instead of an error.
 
 Omitting it must raise `TypeError` at the call site. A management command that legitimately acts for no one passes an explicit sentinel and is read as unusual, rather than looking like an ordinary call with an argument missing.
 
-### 20.9 Testing
+### 20.10 Testing
 
 - Tests live beside the code they test: `x.py` is tested by `test_x.py` in the same package. A module with no matching file is a module nobody checked, and the pairing makes that visible without a coverage tool.
 - A contrib package's tests must pass with only core and that package installed.
 - The integration suite — booting a real consuming project, seeding it, rendering through the test client — runs in CI. It covers the `reverse()` and template surface a package-only suite cannot reach.
 
-### 20.10 Naming
+### 20.11 Naming
 
 Component types are lowercase and hyphenated: `details-card`, `comments-section`.
 Event signals are past tense: `object_written`, `state_changed`.
 Capability names are singular nouns: `comments`, `labels`, `audit_history`.
 
-### 20.11 Documentation
+### 20.12 Documentation
 
 State the decision. Where a decision has a non-obvious consequence, state the consequence. Do not record the debate.
 
@@ -3294,7 +3347,7 @@ A decision that changes the architecture gets an ADR in `design/adr/`; a decisio
 
 **Code cites an ADR, never a section of this document.** `ADR 0006` is stable by convention and immutable by design. `§5.4` is a pointer into a numbering that moves — the same name-as-reference defect §8.1 removes from `SavedView.block_name` and §8.9 from block URLs. A docstring naming a section is a broken link waiting for the next reorganisation.
 
-### 20.12 What survives the build
+### 20.13 What survives the build
 
 This document is mostly a **plan**, and a plan that outlives its execution becomes a second source of truth for facts the code already states. That is how four of v1's documented behaviours came to describe something the code never did (§21.11).
 
@@ -3411,7 +3464,7 @@ Plinta silently requires methods on a consumer's model. §1 promises it requires
 | `serialize_for_table()` | `Label` | keep, **redesign** |
 | `table_select_related()` | `Label` | keep, **redesign** |
 | `get_notification_recipients()` | `Action`, which leaves plinta (ADR 0008 (§24)) | keep as an extension point, **redesigned** — an explicit subscription, with no shipped implementer |
-| `duplicate(user)` | `Action` | the model leaves plinta; the hook stays, with `Block` and `SavedView` as its reference implementations (§8.9) |
+| `duplicate(user)` | `Action` | the model leaves plinta; the hook stays, with `Block` and `SavedView` as its reference implementations (§8.10) |
 
 **Redesign** means replacing `hasattr` duck-typing with a declared, registered extension point: the table cases become one **field renderer** registration, the notification case an explicit subscription.
 
@@ -3450,7 +3503,7 @@ It disappears with the user admin under ADR 0002 (§24). Recorded so the behavio
 
 ### 21.7 `pages` — swept
 
-**The decisions live in §9.1 and §9.7**, with the layer that owns them, and are not repeated. The census behind them: 36 pages, of which `page_type` is set on all 36 (dashboard 27, custom-template 7, detail 2), `template_name` on 7, `context_param` on 2, `tabs` on 1, and `config`, `is_system`, `external_url` and `PageFilterMapping` on none.
+**The decisions live in §9.1 and §9.8**, with the layer that owns them, and are not repeated. The census behind them: 36 pages, of which `page_type` is set on all 36 (dashboard 27, custom-template 7, detail 2), `template_name` on 7, `context_param` on 2, `tabs` on 1, and `config`, `is_system`, `external_url` and `PageFilterMapping` on none.
 
 Two of those zeroes resolve differently, which is the whole reason the count is evidence rather than proof: `is_system` and `external_url` are dropped because each is a mechanism the design replaces, while `PageFilterMapping` is deferred because it is `pages/0003` — newer than the install that shows no rows.
 
@@ -3475,7 +3528,7 @@ That makes the log only conditionally replayable: current state can be wound bac
 
 Called by nobody. Its docstring describes it as *"the symmetric companion to `record_delete` for consuming projects"*, so it was written as an offering rather than for a plinta code path — and no plinta code path restores anything.
 
-**Dropped with the `object_restored` signal (§8.9).** A consumer with soft delete flips a flag, which is an update: `object_written` carrying `changes={'is_deleted': (True, False)}` names the field and both values, which is more than a bare restore row ever could.
+**Dropped with the `object_restored` signal (§8.10).** A consumer with soft delete flips a flag, which is an update: `object_written` carrying `changes={'is_deleted': (True, False)}` names the field and both values, which is more than a bare restore row ever could.
 
 ### 21.11 Cross-cutting sweep: documentation drift
 
@@ -3556,7 +3609,7 @@ Each was removed for a reason that does not expire.
 | `HTML_KWARGS` | Fragments leave the OpenAPI framework entirely |
 | `runtests` management command | Superseded by the pytest harness |
 | `duplicate_user` admin action | Copied the password hash without resetting it; dies with the user model |
-| `duplicate_page` service | `copy_to` walks a model's declared children instead (§8.9) |
+| `duplicate_page` service | `copy_to` walks a model's declared children instead (§8.10) |
 | `STATUS` and the topbar environment badge | One name, three reads, two meanings; `TOPBAR_COLOR` distinguishes environments and cannot disagree with itself (§19.4) |
 | `contrib.actions` and `Urgency` | Plinta ships facilities, not domains; a task tracker with `responsible`, `urgency` and `blocked_by` is one application's domain. Rebuilt as a consumer app if wanted (ADR 0008 (§24)) |
 | Global slug uniqueness for pages | Five hundred people cannot negotiate over `my-dashboard` |

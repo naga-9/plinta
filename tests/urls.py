@@ -12,3 +12,6 @@ if apps.is_installed("plinta.contrib.notifications"):
     urlpatterns += [
         path("notifications/", include("plinta.contrib.notifications.urls")),
     ]
+
+if apps.is_installed("plinta.contrib.workflow"):
+    urlpatterns += [path("workflow/", include("plinta.contrib.workflow.urls"))]

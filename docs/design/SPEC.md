@@ -3206,6 +3206,18 @@ Minted when the transition is saved, removed when it is deleted, and **renamed i
 
 `available(obj, user)` returns every move out of the current state, **including the refused ones and why**. A move that vanishes reads as a missing feature; one greyed out with "you do not have permission to make this move" reads as a permission to ask for.
 
+##### The screens
+
+**A capability, not a component.** The status panel is about *one record* and hangs off a detail page; a component draws rows. It says where the row is, offers the moves, and shows the history behind a fold.
+
+**Which models are governed is read from the rows**, not from a registry in code — a workflow is data, so the question belongs to the database. Deactivating one removes the panel.
+
+**A refused move is drawn greyed with its reason in the title**, which is what makes `available` returning refusals useful rather than merely honest.
+
+**A transition is a POST.** A move is a write, and a write behind a GET is a link a crawler can follow. The row is found through the workflow's own content type rather than trusted from the request, so a caller cannot name a transition on one model and a row on another.
+
+**A state renders as a chip through a registered field renderer**, so a table column shows "In review" rather than `review`, in whatever class the state declares. The colour is a class name, so core's tokens draw it and this app names no palette. A code nothing describes still shows — a state removed from a workflow leaves rows holding it, and the code is more useful than nothing.
+
 ##### Guards
 
 A transition is permitted when the actor holds its declared permission and the model's instance policy admits the object. Transition permissions are generated per transition, so "may move Open → In Progress" is grantable independently of "may edit".

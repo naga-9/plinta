@@ -10,7 +10,7 @@ class WorkflowConfig(AppConfig):
 
     #: The state machine needs these two. An admin screen would add more, and
     #: arrives as a seeder rather than as a dependency of the machine.
-    requires = ["plinta.events", "plinta.permissions"]
+    requires = ["plinta.events", "plinta.permissions", "plinta.blocks", "plinta.renderers"]
 
     #: Reading where a row has been needs a recorded history. With audit
     #: absent, `history()` returns nothing and the panel says so — the state
@@ -18,6 +18,13 @@ class WorkflowConfig(AppConfig):
     enhances = ["plinta.contrib.audit"]
 
     def ready(self):
-        from plinta.contrib.workflow import policies, signals  # noqa: F401
+        from plinta.contrib.workflow import (  # noqa: F401
+            capabilities,
+            policies,
+            renderers,
+            signals,
+        )
 
         signals.connect()
+        capabilities.register()
+        renderers.register()

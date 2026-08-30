@@ -1,0 +1,56 @@
+{% load plinta_workflow %}
+{# Where this row is, where it may go, and where it has been.
+
+   Refused moves are drawn greyed with their reason rather than hidden: a
+   button that vanishes reads as a missing feature. #}
+{% workflow_panel record user as panel %}
+
+{% if panel.workflow %}
+<section class="pl-stack" data-plinta-capability="workflow">
+    <h3>Status</h3>
+
+    <div class="pl-row">
+        <span class="pl-chip {{ panel.state.colour }}">
+            {{ panel.state.label|default:"No status" }}</span>
+    </div>
+
+    {% if panel.moves %}
+        <div class="pl-row">
+            {% for move in panel.moves %}
+                {% if move.permitted %}
+                    <form method="post" action="{% url 'workflow:transition' move.transition.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="record" value="{{ record.pk }}">
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button type="submit" class="pl-btn pl-btn--sm"
+                                {% if move.transition.requires_confirmation %}
+                                data-plinta-confirm="{{ move.label }}?"{% endif %}>
+                            {{ move.label }}</button>
+                    </form>
+                {% else %}
+                    <button type="button" class="pl-btn pl-btn--sm" disabled
+                            title="{{ move.reason }}">{{ move.label }}</button>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if panel.history %}
+        <details>
+            <summary class="pl-muted">History</summary>
+            <div class="pl-stack">
+                {% for entry in panel.history %}
+                    <div class="pl-row">
+                        <span class="pl-muted">{{ entry.at }}</span>
+                        <span>{{ entry.actor|default:"Somebody" }}</span>
+                        <span class="pl-muted">{{ entry.changes.state.0 }} →
+                            {{ entry.changes.state.1 }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </details>
+    {% else %}
+        <p class="pl-muted">No recorded transitions.</p>
+    {% endif %}
+</section>
+{% endif %}

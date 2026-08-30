@@ -1231,7 +1231,13 @@ This is deduplication more than a new feature. The same "2 decimals" is declared
 
 Declared once on the field, every renderer honours it — the rule §7.1 already states for dates ("a date renders identically in HTML and in a spreadsheet because both call the same helper"). It also pulls vendor-shaped structure out of block config: a pivot may keep vendor config for vendor concerns, but formatting is universal.
 
-**`currency` on `DataSourceField`.** Decided. An ISO code, blank by default. The column declares what its numbers are denominated in; `renderers` prefixes it and does nothing else. Conversion and symbols live in `contrib.organization`, reached through a field renderer (§7.8) — core carries neither a rate table nor a symbol map.
+**`prefix`, `suffix` and `currency` on `DataSourceField`.** Decided.
+
+`prefix` and `suffix` are free text drawn around the value — a symbol, a unit, anything. Generic on purpose: `$`, `kg`, `ms`, `°C` and `%` are one mechanism, and core never learns what any of them mean.
+
+`currency` is an ISO code, and is **semantic rather than display**: it says what the numbers are denominated in, so conversion knows. A column showing dollars declares `currency='USD'` *and* `prefix='$'` — the first is read by `contrib.organization`, the second is drawn.
+
+Conversion and symbol tables live in `contrib.organization`, reached through a field renderer (§7.8). Core carries neither.
 
 ### 6.9 Checks this layer registers
 
@@ -1334,9 +1340,13 @@ Three decisions the helpers settle once:
 
 **Dates go through Django's format machinery, so the active locale decides.** Django 6 localises unconditionally; `DATE_FORMAT` is reached only when the locale module lacks it. That choice is Django's and plinta does not second-guess it.
 
-**Currency belongs to the column, and core does not convert.** A `currency` column declares an ISO code on its `DataSourceField` (§6.8); core prefixes it — "USD 1,234.50" — and knows no symbols and no rates. Which symbol to draw and what rate to apply are `contrib.organization`'s, supplied through a field renderer (§7.8).
+**A column draws its own affixes, and core does not convert.** `prefix` and `suffix` (§6.8) go around the formatted value, whatever its type. One rule governs them:
 
-A setting would put a domain fact in core and could not express a screen showing USD and EUR side by side, which is the ordinary case for the consumer this exists for.
+> A declared affix **replaces** what the format would have drawn. With neither declared, `currency` prefixes its ISO code and `percent` appends a sign — so a number is never bare of what it means.
+
+So `percent` with `suffix='%'` shows one sign rather than two, and a `SEK` column with `suffix=' kr'` shows no stray code beside it. An empty cell takes no affix, or a blank currency column would render as a lone symbol.
+
+A setting could not express a screen showing USD and EUR side by side, which is the ordinary case for the consumer this exists for. Rates and symbol tables stay in `contrib.organization`, reached through a field renderer (§7.8).
 
 `components` imports this layer for those helpers. That is the only direction allowed.
 

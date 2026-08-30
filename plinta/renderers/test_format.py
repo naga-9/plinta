@@ -18,11 +18,21 @@ from plinta.renderers.format import (
 class Field:
     """The parts of a DataSourceField a formatter reads."""
 
-    def __init__(self, format="", decimals=None, thousands_separator=False, currency=""):
+    def __init__(
+        self,
+        format="",
+        decimals=None,
+        thousands_separator=False,
+        currency="",
+        prefix="",
+        suffix="",
+    ):
         self.format = format
         self.decimals = decimals
         self.thousands_separator = thousands_separator
         self.currency = currency
+        self.prefix = prefix
+        self.suffix = suffix
 
 
 # --- nothing ---------------------------------------------------------------
@@ -135,18 +145,30 @@ def test_currency_defaults_to_two_places():
     assert format_value(Decimal("1234.5"), Field(format="currency")) == "1234.50"
 
 
-def test_the_column_declares_its_currency():
-    """Two currencies on one screen — which a setting could never express."""
-    usd = Field(format="currency", currency="USD")
-    eur = Field(format="currency", currency="EUR")
-    assert format_value(Decimal("5"), usd) == "USD 5.00"
-    assert format_value(Decimal("5"), eur) == "EUR 5.00"
+def test_a_column_may_draw_its_own_symbol():
+    field = Field(format="currency", currency="USD", prefix="$")
+    assert format_value(Decimal("5"), field) == "$5.00"
 
 
-def test_core_draws_no_symbol():
-    """Which symbol, and at what rate, is contrib.organization's — supplied
-    through a field renderer (§7.8). Core knows the code and nothing else."""
-    assert "$" not in format_value(Decimal("5"), Field(format="currency", currency="USD"))
+def test_two_currencies_on_one_screen():
+    """Which a setting could never express."""
+    usd = Field(format="currency", currency="USD", prefix="$")
+    eur = Field(format="currency", currency="EUR", prefix="€")
+    assert format_value(Decimal("5"), usd) == "$5.00"
+    assert format_value(Decimal("5"), eur) == "€5.00"
+
+
+def test_the_code_is_prefixed_when_no_symbol_is_declared():
+    """A number is never left bare of what it means."""
+    assert format_value(Decimal("5"), Field(format="currency", currency="USD")) == "USD 5.00"
+
+
+def test_the_code_is_semantic_and_the_prefix_is_display():
+    """Declaring a symbol does not erase what the numbers are denominated in —
+    that is what conversion reads."""
+    field = Field(format="currency", currency="USD", prefix="$")
+    assert field.currency == "USD"
+    assert "USD" not in format_value(Decimal("5"), field)
 
 
 def test_a_currency_column_without_a_code_is_just_a_number():
@@ -161,6 +183,53 @@ def test_a_currency_column_may_override_its_precision():
     """Four places on a price column — the ceiling v1 had."""
     field = Field(format="currency", currency="USD", decimals=4)
     assert format_value(Decimal("1.2345"), field) == "USD 1.2345"
+
+
+# --- affixes ---------------------------------------------------------------
+
+
+def test_a_suffix_is_drawn_after():
+    assert format_value(Decimal("1.5"), Field(format="number", decimals=1, suffix="kg")) == "1.5kg"
+
+
+def test_a_prefix_and_a_suffix_together():
+    field = Field(format="number", decimals=0, prefix="~", suffix=" ms")
+    assert format_value(180, field) == "~180 ms"
+
+
+def test_an_affix_needs_no_format():
+    assert format_value(5, Field(suffix="°C")) == "5°C"
+
+
+def test_an_affix_replaces_what_the_format_would_draw():
+    """percent with suffix='%' shows one sign, not two."""
+    assert format_value(15, Field(format="percent", suffix="%")) == "15.0%"
+
+
+def test_a_currency_column_with_only_a_suffix_drops_the_code():
+    """The affix was declared, so it decides — no code sneaks in beside it."""
+    field = Field(format="currency", currency="SEK", suffix=" kr")
+    assert format_value(Decimal("5"), field) == "5.00 kr"
+
+
+def test_an_empty_column_draws_nothing_extra():
+    assert format_value(5, Field(format="number")) == "5"
+
+
+def test_an_affix_decorates_any_value_not_only_a_number():
+    """A suffix on a date column drawing nothing would be a silent no-op."""
+    field = Field(suffix=" (est.)")
+    assert format_value(datetime.date(2026, 1, 9), field) == "Jan. 9, 2026 (est.)"
+
+
+def test_text_takes_an_affix_too():
+    assert format_value("Dune", Field(prefix="«", suffix="»")) == "«Dune»"
+
+
+def test_an_empty_cell_gets_no_affix():
+    """Otherwise a blank currency column renders as a lone symbol."""
+    assert format_value(None, Field(format="currency", prefix="$")) == ""
+    assert format_value("", Field(format="currency", prefix="$")) == ""
 
 
 # --- percent ---------------------------------------------------------------

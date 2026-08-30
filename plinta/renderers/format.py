@@ -50,16 +50,18 @@ def format_value(value: Any, field: DataSourceField | None = None) -> str:
     fmt = (getattr(field, "format", "") or "") if field is not None else ""
 
     if isinstance(value, bool):
-        return format_boolean(value)
+        return affix(format_boolean(value), field, fmt)
     if isinstance(value, datetime.datetime):
-        return format_datetime(value)
+        return affix(format_datetime(value), field, fmt)
     if isinstance(value, datetime.date):
-        return format_date(value)
+        return affix(format_date(value), field, fmt)
     if isinstance(value, datetime.time):
-        return formats.time_format(value)
+        return affix(formats.time_format(value), field, fmt)
     if fmt in NUMERIC_FORMATS or isinstance(value, (int, float, Decimal)):
-        return format_number(value, field)
-    return str(value)
+        text = format_number(value, field)
+    else:
+        text = str(value)
+    return affix(text, field, fmt) if text else EMPTY
 
 
 def format_boolean(value: bool) -> str:
@@ -86,10 +88,8 @@ def format_datetime(value: datetime.datetime) -> str:
 def format_number(value: Any, field: DataSourceField | None = None) -> str:
     """A number with the column's precision, grouping, symbol and sign.
 
-    A ``currency`` column is prefixed with the ISO code it declares — "USD
-    1,234.50". Core knows no symbols and performs no conversion: which symbol
-    to draw and what rate to apply are `contrib.organization`'s, supplied
-    through a field renderer (§7.8).
+    The bare number. Whatever is drawn around it — a symbol, a unit, a sign —
+    is ``affix``'s.
 
     ``percent`` treats the **stored value as the percentage**: 15 renders as
     "15.0%". Multiplying by a hundred here would make a renderer change the
@@ -102,7 +102,6 @@ def format_number(value: Any, field: DataSourceField | None = None) -> str:
     except (InvalidOperation, ValueError, TypeError):
         return str(value)
 
-    fmt = (getattr(field, "format", "") or "") if field is not None else ""
     places = decimals_for(field)
     if places is not None:
         # Django's number_format *truncates* to decimal_pos, so 1.999 at two
@@ -114,9 +113,24 @@ def format_number(value: Any, field: DataSourceField | None = None) -> str:
         force_grouping=bool(getattr(field, "thousands_separator", False)),
     )
 
-    if fmt == "currency":
-        code = (getattr(field, "currency", "") or "") if field is not None else ""
-        return f"{code} {text}" if code else text
-    if fmt == "percent":
-        return f"{text}%"
     return text
+
+
+def affix(text: str, field: DataSourceField | None, fmt: str) -> str:
+    """Put the column's prefix and suffix around a formatted number.
+
+    A declared affix **replaces** what the format would have drawn, so a
+    ``percent`` column with ``suffix='%'`` shows one sign rather than two. With
+    neither declared, ``currency`` prefixes its code and ``percent`` appends a
+    sign — a number is never left bare of what it means.
+    """
+    prefix = (getattr(field, "prefix", "") or "") if field is not None else ""
+    suffix = (getattr(field, "suffix", "") or "") if field is not None else ""
+
+    if not prefix and not suffix:
+        if fmt == "currency":
+            prefix = (getattr(field, "currency", "") or "") if field is not None else ""
+            return f"{prefix} {text}" if prefix else text
+        if fmt == "percent":
+            suffix = "%"
+    return f"{prefix}{text}{suffix}"

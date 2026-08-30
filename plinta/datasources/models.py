@@ -124,12 +124,26 @@ class DataSourceField(models.Model):
         null=True, blank=True, help_text="Decimal places. Honoured by every renderer."
     )
     thousands_separator = models.BooleanField(default=False)
+    prefix = models.CharField(
+        max_length=8,
+        blank=True,
+        default="",
+        help_text="Drawn before the value, e.g. '$'. Replaces whatever the format "
+        "would have drawn.",
+    )
+    suffix = models.CharField(
+        max_length=8,
+        blank=True,
+        default="",
+        help_text="Drawn after the value, e.g. 'kg' or '%'.",
+    )
     currency = models.CharField(
         max_length=3,
         blank=True,
         default="",
-        help_text="ISO code for a currency column, e.g. 'USD'. Core prefixes it; "
-        "converting it or showing a symbol is a field renderer's job.",
+        help_text="ISO code for a currency column, e.g. 'USD'. Semantic, not "
+        "display: it says what the numbers are denominated in, so conversion "
+        "knows. Use 'prefix' to draw a symbol.",
     )
 
     # --- sorting and filtering ---

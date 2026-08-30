@@ -1,8 +1,10 @@
 """The table component.
 
-The only one core ships. Every other component registers through the same door
-a third party would use (ADR 0005), so the contract is dogfooded rather than
-asserted.
+The only one core ships, and it carries no vendor: a grid library is an
+opinion about how a table behaves, and one in core would make every consumer
+either accept it or fight it. Every other component registers through the same
+door a third party would use (ADR 0005), so the contract is dogfooded rather
+than asserted.
 """
 from __future__ import annotations
 
@@ -42,11 +44,17 @@ class TableConfig(ComponentConfig):
 
 @register_component("table", label="Table")
 class TableComponent(Component):
-    """Rows and columns, sorted and paged by the client."""
+    """Rows and columns, rendered on the server.
+
+    No grid library. Sorting, paging and filtering are the server's, reached by
+    ordinary links and the page's filter bar, so a viewer needs no JavaScript.
+    A consumer wanting client-side sorting, column resizing or inline cell
+    editing installs `datagrid`, or registers their own component.
+    """
 
     config_schema = TableConfig
-    #: The client sorts, filters and pages, and a large table cannot be inlined.
-    mode = Mode.FETCH
+    #: The rows are in the HTML, so there is nothing to fetch.
+    mode = Mode.INLINE
 
     def get_data(self, config: TableConfig, user, *, datasource, narrow=None):
         """The base rows and fields, ordered as the config asks."""

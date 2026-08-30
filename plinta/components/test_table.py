@@ -83,9 +83,10 @@ def test_table_is_registered():
     assert isinstance(get("table"), TableComponent)
 
 
-def test_it_fetches_rather_than_inlining():
-    """The client sorts, filters and pages; a large table cannot be inlined."""
-    assert TableComponent.mode is Mode.FETCH
+def test_it_renders_inline():
+    """Server-rendered, so the rows are in the HTML and there is nothing to
+    fetch. A viewer loads no JavaScript for a table."""
+    assert TableComponent.mode is Mode.INLINE
 
 
 # --- drawing ---------------------------------------------------------------

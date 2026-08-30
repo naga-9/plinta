@@ -279,9 +279,9 @@ The register. Nowhere else in this document counts them; a count in two places i
 
 **Core's dependencies are Django, django-ninja and pydantic.** `openpyxl` and `pandas` leave with `export`, `Pillow` with `attachments`, `django-ckeditor-5` with `comments`, `weasyprint` with PDF. Nothing native, nothing heavy.
 
-**Core's front end is `core.js`, `table.js`, `row-editors.js` plus the shell's `theme-toggle.js` and generated `tokens.js`.** It ships **no CSS framework** (§10.7): the styling is plinta's own, built from `tokens.json`. Its vendored libraries are Bootstrap Icons — the icon set alone, which needs none of Bootstrap's CSS — htmx, Tabulator, Tom Select, Luxon and GridStack, served from `static/`, never a CDN (§17). Plotly, WebDataRocks, Flexmonster and jsGantt travel with their components.
+**Core's front end is the shared client plus the shell's `theme-toggle.js` and generated `tokens.js`.** It ships **no CSS framework** (§10.7) and **no grid library** (§11.2): the styling is plinta's own, built from `tokens.json`, and core's `table` is server-rendered HTML. Its vendored libraries are Bootstrap Icons — the icon set alone, which needs none of Bootstrap's CSS — Tom Select, Luxon and GridStack, served from `static/`, never a CDN (§17). Tabulator ships with `contrib.components.datagrid`; Plotly, WebDataRocks, Flexmonster and jsGantt with theirs.
 
-**What a viewer actually loads is smaller than that list.** Page layout is CSS grid driven by the stored position, so viewing a page needs no layout JavaScript at all; GridStack loads only when someone enters edit mode. Tabulator loads only on a page holding a table. So Tabulator remains the only front-end major-version upgrade core carries.
+**What a viewer loads is close to nothing.** Layout is CSS grid driven by the stored position, so viewing a page needs no layout JavaScript; GridStack loads only in edit mode. **Core carries no front-end major-version upgrade at all** — every vendor that could impose one travels with a component someone chose to install.
 
 **A minimal install is eleven packages** — the core layers and nothing else. A full install adds eleven contrib packages and ten contrib components, so thirty-two. Both ends are supported configurations and both are exercised in CI (§20).
 
@@ -1402,8 +1402,9 @@ Every component implements `get_data()`. The mode decides *when* it is called:
 
 | Component | Default | Why |
 |---|---|---|
-| `table`, `kanban`, `gantt`, `pivot` | **fetch** | the client sorts, filters and pages; a 10,000-row table cannot be inlined |
+| `datagrid`, `kanban`, `gantt`, `pivot` | **fetch** | the client sorts, filters and pages; a 10,000-row grid cannot be inlined |
 | `chart`, `kpi`, `gauge` | **inline** | a finished data blob, or a single number; no client-side manipulation |
+| `table` | **inline** | server-rendered; sorting and paging are links, not a client (§11.2) |
 | `details-card`, `text`, `alert`, `repeater`, capability sections | **inline** | display only |
 
 **Three defaults change.** `chart`, `kpi` and `gauge` are `AJAX = True` today, so a dashboard with eight KPIs makes eight extra round trips to deliver eight numbers. The recorded reason was not payload size — `kpis/component.py:59` says *"gating runs in the AJAX endpoint, not here"* — so the mode was chosen to put the permission check in one place. Under §5 that reason is gone: `can()` and `allowed()` are called by the data path wherever it runs.
@@ -1506,7 +1507,7 @@ Two kinds of work are mixed together in each:
 | re-fetch when a page filter changes | wire cell editors |
 | preserve scroll across refresh | |
 
-**The client is the left column, written once. An adapter is the right column, one per component type.**
+**The client is the left column, written once. An adapter is the right column, one per component type.** Core's own `table` needs neither, being server-rendered (§11.2); the client exists for the components that fetch, and ships in core so contrib does not each write one.
 
 ```js
 registerAdapter('table', TableAdapter);
@@ -2226,7 +2227,8 @@ Eleven components ship. **Core ships `table`; every other one is a contrib packa
 
 | Component | Lives | Vendor | Mode | LOC |
 |---|---|---|---|---|
-| `table` | **core** | Tabulator | fetch | 976 |
+| `table` | **core** | **none** | **inline** | 976 |
+| `datagrid` | contrib | Tabulator | fetch | — |
 | `kanban` | contrib | — | fetch | 1,106 |
 | `pivot` | contrib | WebDataRocks / Flexmonster | fetch | 799 |
 | `gantt` | contrib | jsGantt | fetch | 735 |
@@ -2254,7 +2256,19 @@ These are passthrough, not plinta's contract, and flattening them into `Block.co
 
 ### 11.2 Per-component decisions
 
-**`table`** — core, the reference implementation. Keeps `fetch` mode: a 10,000-row table cannot be inlined, and Tabulator's remote pagination is what makes it work.
+**`table`** — core, the reference implementation, and **server-rendered with no vendor at all**. `inline` mode: the rows are in the HTML.
+
+Sorting, paging and filtering happen on the server, reached by ordinary links and the page's filter bar — `?sort=title&page=2`, the shape Django's own admin has always had. It works with JavaScript disabled and needs no client at all.
+
+What it does not do is what a grid library is for: dragging a column wider, re-sorting without a round trip, and editing a cell in place. Core ships the write endpoint and a server-rendered row-edit form; **inline cell editing is `datagrid`'s**.
+
+**`datagrid`** — contrib, Tabulator, `fetch` mode. The interactive table: client-side sort and filter, remote pagination, column resize and reorder, inline cell editing.
+
+It registers under its own key rather than replacing `table`, because the component registry refuses a duplicate by design (§7.2). A block chooses one, and a page may hold both.
+
+**Why the split.** A grid library is an opinion about how a table behaves, and putting one in core makes every consumer either accept that opinion or fight it. The same argument that keeps a CSS framework out of core (§10.7) applies with more force here, because a table is the component most likely to be replaced: a consumer who prefers AG Grid, DataTables or their own writes a component and registers it, rather than working around Tabulator.
+
+**The payoff is that a viewer's page loads no vendor JavaScript at all.** Layout is CSS grid from the stored position, styling is plinta's own, and the table is HTML. Core carries no front-end major-version upgrade — not one.
 
 **`kanban`** — the largest at 1,106 LOC and 18 config keys. Shows label chips when `contrib.labels` is installed and colours columns by workflow state when `contrib.workflow` is — both declared `enhances`, each naming its substitute (§2.5).
 
@@ -2722,7 +2736,7 @@ So every component here registers exactly the way an external package would. The
 
 ##### Vendor isolation
 
-A component's front-end dependency ships with it. Plotly arrives with `chart`, Flexmonster with `pivot`, jsGantt with `gantt`. Core carries no CSS framework at all (§10.7), so the only front-end major-version upgrade core must absorb is Tabulator's.
+A component's front-end dependency ships with it. Plotly arrives with `chart`, Flexmonster with `pivot`, jsGantt with `gantt`, Tabulator with `datagrid`. Core carries no CSS framework (§10.7) and no grid library (§11.2), so it absorbs no front-end major-version upgrade at all.
 
 ##### Enhancement
 
@@ -3182,7 +3196,7 @@ Since plinta is pip-installed, a build could only ever run at **release time in 
 |---|---|---|
 | Bootstrap Icons | core chrome | vendor — the icon set alone; core ships no CSS framework (§10.7) |
 | htmx + `json-enc` | core transport | vendor |
-| Tabulator | `table` (core) | vendor |
+| Tabulator | `datagrid` (contrib) | vendor, with the component |
 | Tom Select | pickers (core) | vendor |
 | Luxon | date handling (core) | vendor |
 | GridStack | the page composer (core) | vendor — loaded in edit mode only |
@@ -3190,7 +3204,7 @@ Since plinta is pip-installed, a build could only ever run at **release time in 
 | WebDataRocks | `contrib.components.pivot` | vendor, licence permitting |
 | Flexmonster | `contrib.components.pivot` | **cannot be vendored** — see below |
 
-A component's vendor ships with the component, so core carries only chrome plus Tabulator (ADR 0005 (§24)).
+A component's vendor ships with the component, so core carries chrome and nothing else (ADR 0005 (§24)).
 
 ### 17.4 Two constraints that shape it
 
@@ -3956,7 +3970,7 @@ Dependencies flow one way. Core is a closed set, enforced by an AST-walking test
 
 #### Consequences
 
-Core's dependencies become Django, django-ninja and pydantic. Its front end keeps only the chrome libraries plus Tabulator — all vendored under `static/`, never fetched from a CDN (§17), and with no CSS framework among them (§10.7) — so Tabulator is the only front-end major-version upgrade core must absorb.
+Core's dependencies become Django, django-ninja and pydantic. Its front end keeps only the chrome libraries — vendored under `static/`, never fetched from a CDN (§17), with no CSS framework (§10.7) and no grid library (§11.2) among them — so core absorbs no front-end major-version upgrade.
 
 A minimal install is eleven packages; a full install is thirty-two. Both are supported and both are exercised in CI.
 
@@ -4092,7 +4106,7 @@ Adding a component is the only extension anybody would realistically write — i
 
 #### Consequences
 
-Front-end vendors ship with their components. Core carries no CSS framework and, of the data libraries, only Tabulator — so Tabulator is the only front-end major-version upgrade core must absorb, and Plotly, Flexmonster and jsGantt upgrades become the concern of whoever installs them.
+Front-end vendors ship with their components, and core carries neither a CSS framework nor a grid library. So core absorbs no front-end major-version upgrade: Tabulator, Plotly, Flexmonster and jsGantt all become the concern of whoever installs the component that carries them.
 
 **Trade accepted:** core alone composes a detail page but renders a record as a single-row table until `contrib.components.details_card` is installed. `details-card` was the strongest candidate to keep in core and was excluded to keep the rule absolute — one reference implementation, no exceptions.
 

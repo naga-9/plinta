@@ -210,13 +210,13 @@ def test_resolve_returns_none_for_an_uninstalled_component(block):
 
 def test_a_block_inherits_the_components_mode(block):
     b, _ = block
-    assert mode_of(b) is Mode.FETCH
+    assert mode_of(b) is Mode.INLINE
 
 
 def test_a_block_may_override_the_mode(block):
     b, _ = block
-    b.mode = "inline"
-    assert mode_of(b) is Mode.INLINE
+    b.mode = "fetch"
+    assert mode_of(b) is Mode.FETCH
 
 
 def test_an_uninstalled_component_has_no_mode(block):

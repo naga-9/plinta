@@ -73,8 +73,7 @@ def test_a_date_goes_through_django_format():
 
 
 def test_the_active_locale_decides():
-    """Django 6 localises unconditionally, so the locale's format wins over the
-    DATE_FORMAT setting. plinta does not second-guess that choice."""
+    """Django localises unconditionally, so the locale's format is the one."""
     with translation.override("de"):
         assert format_date(datetime.date(2026, 1, 9)) == "9. Januar 2026"
 
@@ -103,7 +102,6 @@ def test_a_plain_number_keeps_its_places():
 
 
 def test_an_unset_column_keeps_the_values_own_precision():
-    """Not zero places — that would round 5.49 to 5 and look entirely correct."""
     assert format_value(Decimal("1234.5"), Field()) == "1234.5"
     assert format_value(Decimal("1234"), Field()) == "1234"
 
@@ -134,8 +132,7 @@ def test_a_half_rounds_up():
 
 
 def test_a_number_too_large_to_round_is_still_shown():
-    """quantize raises past the context's 28 significant digits. A total that
-    big is still a number worth showing, not a 500."""
+    """quantize raises past the decimal context's 28 significant digits."""
     field = Field(decimals=4)
     assert format_value(Decimal("1e30"), field).startswith("1")
 
@@ -159,7 +156,6 @@ def test_a_column_draws_its_own_symbol():
 
 
 def test_two_currencies_on_one_screen():
-    """Which a setting could never express."""
     usd = Field(prefix="$", decimals=2)
     eur = Field(prefix="€", decimals=2)
     assert format_value(Decimal("5"), usd) == "$5.00"
@@ -167,8 +163,7 @@ def test_two_currencies_on_one_screen():
 
 
 def test_core_draws_no_symbol():
-    """Which symbol a column wants is a fact about the data. Core formats the
-    number and draws whatever the column declared — nothing more."""
+    """A column gets the symbol it declared and no other."""
     assert format_value(Decimal("5"), Field()) == "5"
 
 
@@ -177,9 +172,7 @@ def test_a_column_declaring_nothing_is_just_a_number():
 
 
 def test_nothing_is_rearranged_around_a_minus():
-    """Accounting writes (5.00), some styles -$5.00, others $-5.00. Any
-    convention core picked would be wrong for someone; a column wanting one
-    registers a field renderer (§7.8)."""
+    """An accounting style such as (5.00) is a field renderer's job (§7.8)."""
     field = Field(prefix="$", decimals=2)
     assert format_value(Decimal("-5"), field) == "$-5.00"
 
@@ -211,7 +204,7 @@ def test_an_affix_needs_no_format():
 
 
 def test_a_percentage_is_a_suffix_and_nothing_more():
-    """There is no percent format; the sign is drawn because it was declared."""
+    """The sign is drawn because the column declared it."""
     assert format_value(15, Field()) == "15"
     assert format_value(15, Field(suffix="%")) == "15%"
 
@@ -226,7 +219,6 @@ def test_an_empty_column_draws_nothing_extra():
 
 
 def test_an_affix_decorates_any_value_not_only_a_number():
-    """A suffix on a date column drawing nothing would be a silent no-op."""
     field = Field(suffix=" (est.)")
     assert format_value(datetime.date(2026, 1, 9), field) == "Jan. 9, 2026 (est.)"
 
@@ -236,7 +228,7 @@ def test_text_takes_an_affix_too():
 
 
 def test_an_empty_cell_gets_no_affix():
-    """Otherwise a blank currency column renders as a lone symbol."""
+    """A blank money column would otherwise render as a lone symbol."""
     assert format_value(None, Field(prefix="$")) == ""
     assert format_value("", Field(prefix="$")) == ""
 
@@ -244,9 +236,8 @@ def test_an_empty_cell_gets_no_affix():
 # --- percent ---------------------------------------------------------------
 
 
-def test_the_stored_value_is_the_percentage():
-    """15 renders as 15, not 1500. Multiplying here would change the meaning
-    of the data — a fraction declares an annotation, where it is visible."""
+def test_a_value_renders_as_it_is_stored():
+    """15 renders as 15, not 1500. Scaling belongs in an annotation."""
     assert format_value(15, Field(suffix="%")) == "15%"
 
 
@@ -254,7 +245,6 @@ def test_the_stored_value_is_the_percentage():
 
 
 def test_a_datetime_column_may_show_the_day_only():
-    """The one thing no knob can say, which is why the choice still exists."""
     value = datetime.datetime(2026, 1, 9, 14, 30)
     assert format_value(value, Field(format="date")) == "Jan. 9, 2026"
 
@@ -264,9 +254,8 @@ def test_a_datetime_shows_its_time_by_default():
     assert "2:30" in format_value(value, Field())
 
 
-def test_the_knobs_decide_numeric_treatment_not_a_format():
-    """A string from an annotation is formatted as a number because the column
-    asked for decimals, not because it declared format='number'."""
+def test_declaring_decimals_makes_a_string_numeric():
+    """Which is how a numeric string from an annotation renders like a number."""
     assert format_value("1234.5", Field(decimals=2)) == "1234.50"
     assert format_value("1234.5", Field()) == "1234.5"
 

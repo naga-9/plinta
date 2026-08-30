@@ -1,9 +1,8 @@
 """How a value looks, in every format.
 
-A date renders identically in HTML, in a spreadsheet and in an email because
-all three call these helpers. Precision and grouping are declared once on the
-``DataSourceField`` (§6.8) and honoured everywhere, rather than hardcoded per
-renderer as they were in v1.
+HTML, a spreadsheet and an email all call these helpers, so a value looks the
+same in each. What it looks like is declared on the ``DataSourceField``:
+``decimals``, ``thousands_separator``, ``prefix``, ``suffix`` and ``format``.
 """
 from __future__ import annotations
 
@@ -17,15 +16,15 @@ from django.utils import formats, timezone
 if TYPE_CHECKING:  # a model import at module scope would break §20.1
     from plinta.datasources.models import DataSourceField
 
-#: What a column shows when it has no value. Not "None", not "0".
+#: What a column shows when it has no value.
 EMPTY = ""
 
-def wants_number(field: DataSourceField | None) -> bool:
-    """Whether this column asks for numeric formatting of a non-numeric value.
 
-    The knobs say it: a column declaring decimals or grouping wants its value
-    treated as a number even when it arrives as a string. There is no
-    `format='number'` to say the same thing twice.
+def wants_number(field: DataSourceField | None) -> bool:
+    """Whether this column wants a non-numeric value formatted as a number.
+
+    True when it declares ``decimals`` or ``thousands_separator``, which is
+    what makes a numeric string from an annotation render like a number.
     """
     if field is None:
         return False
@@ -38,10 +37,8 @@ def wants_number(field: DataSourceField | None) -> bool:
 def decimals_for(field: DataSourceField | None) -> int | None:
     """How many decimal places this column asks for, or None for the value's own.
 
-    Unset means **leave the number alone** — 1234.5 shows as 1234.5. A default
-    of zero would instead round every number to an integer, so a price of 5.49
-    would render as 5 and look entirely correct. A ragged column asks to be
-    fixed; a wrong number does not.
+    None leaves the number alone: 1234.5 renders as 1234.5. Zero is an
+    instruction to round to an integer.
     """
     return getattr(field, "decimals", None) if field is not None else None
 
@@ -60,7 +57,6 @@ def format_value(value: Any, field: DataSourceField | None = None) -> str:
     if isinstance(value, bool):
         return affix(format_boolean(value), field)
     if isinstance(value, datetime.datetime):
-        # A datetime column showing the day only — the one thing no knob says.
         text = format_date(value) if fmt == "date" else format_datetime(value)
         return affix(text, field)
     if isinstance(value, datetime.date):
@@ -75,37 +71,31 @@ def format_value(value: Any, field: DataSourceField | None = None) -> str:
 
 
 def format_boolean(value: bool) -> str:
-    """A checkbox column reads as words, in every format.
-
-    Django's own ``BooleanField`` renders "True"/"False" through ``str``; a
-    spreadsheet cell and an email both want the same words a table shows.
-    """
+    """A boolean as words, so a spreadsheet cell reads like the table did."""
     return "Yes" if value else "No"
 
 
 def format_date(value: datetime.date) -> str:
-    """Through Django's ``DATE_FORMAT``, so the consumer's settings win."""
+    """Through Django's date machinery, so the active locale decides."""
     return formats.date_format(value, "DATE_FORMAT")
 
 
 def format_datetime(value: datetime.datetime) -> str:
-    """Localised to the active timezone first, or every row shows UTC."""
+    """Localised to the active timezone, so a row does not show UTC."""
     if settings.USE_TZ and timezone.is_aware(value):
         value = timezone.localtime(value)
     return formats.date_format(value, "DATETIME_FORMAT")
 
 
 def format_number(value: Any, field: DataSourceField | None = None) -> str:
-    """A number with the column's precision, grouping, symbol and sign.
+    """The bare number, at the column's precision and grouping.
 
-    The bare number. Whatever is drawn around it — a symbol, a unit, a sign —
-    is ``affix``'s.
+    The value is rendered as it is stored — a column holding 15 renders 15,
+    never 1500. Scaling belongs in an annotation, where the arithmetic is
+    visible. Anything drawn around the number is ``affix``'s.
 
-    ``percent`` treats the **stored value as the percentage**: 15 renders as
-    "15.0%". Multiplying by a hundred here would make a renderer change the
-    meaning of the data, and a column storing a 0–1 fraction is the rarer case
-    — it declares an annotation that multiplies, where the arithmetic is
-    visible.
+    A value that is not a number is returned unchanged, since configuration
+    can point a numeric column at a text field.
     """
     try:
         number = Decimal(str(value))
@@ -114,34 +104,27 @@ def format_number(value: Any, field: DataSourceField | None = None) -> str:
 
     places = decimals_for(field)
     if places is not None:
-        # Django's number_format *truncates* to decimal_pos, so 1.999 at two
-        # places would show as 1.99. Money must round.
-        #
-        # scaleb builds the exemplar quantize wants: Decimal(1).scaleb(-2) is
-        # Decimal("0.01"), whose exponent is the target. A value needing more
-        # significant digits than the context allows raises instead, and a
-        # number too large to round is still a number worth showing.
+        # number_format truncates to decimal_pos, so round first: 1.999 at
+        # two places is 2.00. quantize takes an exemplar whose exponent is the
+        # target — Decimal(1).scaleb(-2) is Decimal("0.01") — and raises past
+        # the context's significant digits, where the value is shown unrounded.
         try:
             number = number.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
         except InvalidOperation:
             places = None
-    text = formats.number_format(
+    return formats.number_format(
         number,
         decimal_pos=places,
         force_grouping=bool(getattr(field, "thousands_separator", False)),
     )
 
-    return text
-
 
 def affix(text: str, field: DataSourceField | None) -> str:
     """Put the column's prefix and suffix around a formatted value.
 
-    Exactly what the column declared, in the order it declared it. No format
-    contributes a sign of its own and nothing is rearranged around a minus:
-    accounting writes (5.00), some styles -$5.00 and others $-5.00, so any
-    convention core picked would be wrong for someone. A column wanting one
-    registers a field renderer (§7.8).
+    Exactly what the column declared, in that order. Nothing is added and
+    nothing is rearranged around a minus sign; a column needing an accounting
+    style such as (5.00) registers a field renderer (§7.8).
     """
     prefix = (getattr(field, "prefix", "") or "") if field is not None else ""
     suffix = (getattr(field, "suffix", "") or "") if field is not None else ""

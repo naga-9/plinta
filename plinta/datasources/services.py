@@ -47,9 +47,8 @@ def get_queryset(
     """The rows of ``datasource`` this user may view, with the joins they need.
 
     ``columns`` names what will be read. Left unset it means every column this
-    user may view, so the default is the optimised one — a caller cannot lose
-    the joins by forgetting to ask for them, which is how five of v1's nine
-    components ended up issuing a query per row.
+    user may view, so the default is the optimised one and a caller cannot lose
+    the joins by forgetting to ask for them.
 
     Pass an explicit list to narrow it, or ``[]`` for rows with no joins at all.
     """

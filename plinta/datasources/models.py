@@ -26,9 +26,8 @@ class HeaderFilter(models.TextChoices):
 class Format(models.TextChoices):
     """How a value is rendered when its Python type is not enough to say.
 
-    Money, percentages and counts are not members: they differ only in the
-    symbol and the precision a column declares, so `prefix`, `suffix` and
-    `decimals` say it directly. A format choice exists only where no knob can.
+    A symbol, a unit and a precision are declared with `prefix`, `suffix` and
+    `decimals` instead.
     """
 
     NONE = "", "None"
@@ -132,8 +131,7 @@ class DataSourceField(models.Model):
         max_length=8,
         blank=True,
         default="",
-        help_text="Drawn before the value, e.g. '$'. Replaces whatever the format "
-        "would have drawn.",
+        help_text="Drawn before the value, e.g. '$'.",
     )
     suffix = models.CharField(
         max_length=8,

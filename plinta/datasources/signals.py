@@ -24,9 +24,9 @@ def _model_of(field: DataSourceField):
 def remember_old_field_name(sender, instance, **kwargs):
     """Stash the stored name so ``post_save`` can tell a rename from an edit.
 
-    ``post_save`` sees only the new value — the row is already written — so
-    without this a rename is indistinguishable from a new column, and
-    minting one degrades to delete-and-recreate, dropping every grant.
+    ``post_save`` sees only the new value, the row being already written, so
+    without this a rename is indistinguishable from a new column and every
+    grant on it is dropped.
     """
     if not instance.pk:
         setattr(instance, OLD_NAME, None)

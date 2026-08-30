@@ -2079,7 +2079,26 @@ One base template, not two. Today `plinta/templates/plinta/base.html` and `plint
 
 It provides: the document head and asset loading, the topbar, the sidebar, the notification bell, the theme toggle, and the blocks `body` / `extra_css` / `extra_js` a page fills.
 
-**One base, and its regions in separate files.** `base.html` includes `topbar.html`, `sidebar.html` and `messages.html` rather than containing them, because a template is the unit someone overrides (§10.8). v1's single file meant changing the sidebar required forking the document head with it.
+**One base, and its regions in separate files**, because a template is the unit someone overrides (§10.8). v1's single file meant changing the sidebar required forking the document head with it.
+
+Namespaced under `plinta/`, so the path a consumer shadows is unambiguous:
+
+| Template | Is | Blocks it carries |
+|---|---|---|
+| `plinta/shell/base.html` | the document, the head, the three regions | `plinta_css`, `extra_css`, `topbar`, `sidebar`, `body`, `extra_js` |
+| `plinta/shell/topbar.html` | brand, theme toggle, user menu | `topbar_brand`, `topbar_actions` |
+| `plinta/shell/sidebar.html` | the menu tree and the fixed links (§10.2) | `sidebar_header`, `sidebar_menu`, `sidebar_footer` |
+| `plinta/shell/messages.html` | toasts | — |
+| `plinta/pages/page.html` | the grid wrapper and the filter-bar slot | `page_header`, `page_filters`, `page_body` |
+| `plinta/pages/block.html` | the card around one widget | `block_header`, `block_body` |
+| `plinta/pages/filter_bar.html` | the controls, chips and saved-set picker | `filter_controls` |
+| `plinta/auth/login.html` and four password-reset templates | Django's auth views with plinta chrome | `auth_header` |
+
+Nine files, so `base.html` is about forty lines of document and three includes rather than a monolith.
+
+**Dropping a region is a block, not a fork.** `{% block sidebar %}{% endblock %}` removes the sidebar without touching anything else; shadowing `plinta/shell/sidebar.html` replaces its markup; extending it and overriding `sidebar_footer` adds a link while the rest keeps updating.
+
+**This table is the contract.** The block names above and the context each template receives are public API (§18.16), and are the reason the file split is fixed here rather than left to taste.
 
 ### 10.2 The sidebar
 

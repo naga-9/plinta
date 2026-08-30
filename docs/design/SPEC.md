@@ -549,7 +549,13 @@ It exists to remove the coupling that is **behavioural** — "do something when 
 
 ### 4.1 The vocabulary
 
-Five signals. Core declares all five, including the two that contrib emits — a signal is a vocabulary, not a schema, and declaring `state_changed` requires no `Workflow` model.
+Five signals. **Core declares all five, including the two it never emits.**
+
+That looks wrong and is load-bearing. `audit` and `notifications` both listen to `state_changed`; if the signal lived in `contrib.workflow` they would import it from there — contrib importing contrib, needing a declared relationship, which is the coupling the bus exists to remove. A signal is a contract between two parties that must not know each other, so it belongs with neither of them.
+
+**The test for admitting a signal to core: its payload must need nothing core does not already have.** `state_changed` passes because states cross as string codes (§4.7), so core references no `Workflow` model. One carrying a `WorkflowState` instance would fail, and would stay private to the app that defined it.
+
+The same shape as a registry (§20.4): core owns the vocabulary, contrib owns the implementation.
 
 | Signal | Emitted by | Payload |
 |---|---|---|

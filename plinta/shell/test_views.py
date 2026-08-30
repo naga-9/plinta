@@ -254,7 +254,7 @@ def test_a_fixed_link_is_shown_to_a_holder(screen, client, shell_link_registry):
     register_shell_link(
         "blocks", "Blocks", url_name="plinta:login", permission="plinta_blocks.view_block"
     )
-    assert [link.name for link in visible_links(ada)] == ["blocks"]
+    assert [link.label for link in visible_links(ada)] == ["Blocks"]
 
 
 def test_a_fixed_link_is_hidden_from_everyone_else(screen, client, shell_link_registry):
@@ -451,3 +451,55 @@ def test_with_no_contrib_installed_there_are_no_sections(detail, client):
     page, book, _ = detail
     response = client.get(f"/pages/{page.pk}-catalog/{book.pk}/")
     assert response.context["capabilities"] == []
+
+
+def test_a_link_may_carry_a_count(screen, client, shell_link_registry):
+    """The one thing a link cannot say on its own, and the realistic want —
+    "Reports 3" — without opening the nav to arbitrary markup."""
+    page, _, ada = screen
+    register_shell_link(
+        "reports", "Reports", url_name="plinta:login",
+        permission="plinta_blocks.view_block", badge=lambda user: 3,
+    )
+    assert [link.badge for link in visible_links(ada)] == [3]
+
+
+def test_a_count_of_zero_draws_nothing(screen, client, shell_link_registry):
+    """A badge saying "0" is worse than no badge."""
+    page, _, ada = screen
+    register_shell_link(
+        "reports", "Reports", url_name="plinta:login",
+        permission="plinta_blocks.view_block", badge=lambda user: 0,
+    )
+    assert [link.badge for link in visible_links(ada)] == [None]
+
+
+def test_a_broken_count_does_not_take_down_the_menu(
+    screen, client, shell_link_registry, caplog
+):
+    page, _, ada = screen
+    register_shell_link(
+        "reports", "Reports", url_name="plinta:login",
+        permission="plinta_blocks.view_block", badge=lambda user: 1 / 0,
+    )
+    assert [link.badge for link in visible_links(ada)] == [None]
+    assert "badge for" in caplog.text
+
+
+def test_a_links_icon_is_drawn(screen, client, shell_link_registry):
+    """Core draws whatever class the installation's icon set uses, and names
+    no set of its own."""
+    page, _, ada = screen
+    register_shell_link(
+        "reports", "Reports", url_name="plinta:login",
+        permission="plinta_blocks.view_block", icon="bi bi-file-earmark",
+    )
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert 'class="bi bi-file-earmark"' in body
+
+
+def test_a_pages_menu_icon_is_drawn(screen, client):
+    page, _, _ = screen
+    Page.objects.filter(pk=page.pk).update(menu_icon="bi bi-book")
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert 'class="bi bi-book"' in body

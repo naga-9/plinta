@@ -223,7 +223,7 @@ def test_a_capability_probes_the_generic_relation(demo):
 def test_a_shell_link_is_gated(demo):
     from plinta.shell.links import visible_links
 
-    assert [link.name for link in visible_links(person("ada"))] == ["catalogue_admin"]
+    assert [link.label for link in visible_links(person("ada"))] == ["Catalogue admin"]
     assert visible_links(person("sam")) == []
 
 

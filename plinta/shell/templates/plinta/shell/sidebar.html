@@ -14,7 +14,12 @@
                         {% endif %}
                         {% for page_item in group.pages %}
                             <a class="pl-sidebar__link{% if page_item.pk == page.pk %} is-active{% endif %}"
-                               href="{{ page_item.get_absolute_url }}">{{ page_item.name }}</a>
+                               href="{{ page_item.get_absolute_url }}">
+                                {% if page_item.menu_icon %}
+                                    <i class="{{ page_item.menu_icon }}" aria-hidden="true"></i>
+                                {% endif %}
+                                <span>{{ page_item.name }}</span>
+                            </a>
                         {% endfor %}
                     </div>
                 {% endfor %}
@@ -25,7 +30,15 @@
             <div class="pl-sidebar__section">
                 <h2 class="pl-sidebar__heading">Manage</h2>
                 {% for link in shell_links %}
-                    <a class="pl-sidebar__link" href="{% url link.url_name %}">{{ link.label }}</a>
+                    <a class="pl-sidebar__link" href="{% url link.url_name %}">
+                        {% if link.icon %}
+                            <i class="{{ link.icon }}" aria-hidden="true"></i>
+                        {% endif %}
+                        <span>{{ link.label }}</span>
+                        {% if link.badge %}
+                            <span class="pl-chip pl-spacer">{{ link.badge }}</span>
+                        {% endif %}
+                    </a>
                 {% endfor %}
             </div>
         {% endif %}

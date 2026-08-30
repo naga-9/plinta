@@ -2174,6 +2174,23 @@ Fixed links are rendered by the shell, so they are permission-gated by the shell
 
 **Registered, not listed in the template.** A screen declares its own link — label, URL name, the permission it needs — so the shell does not name packages it does not own, and a link cannot outlive the app behind it. The gate is a plain `has_perm`: these screens are views rather than rows, so there is nothing for a policy to narrow.
 
+#### The sidebar takes links; the topbar takes templates
+
+Two registries, deliberately different shapes.
+
+| | shape | an app supplies |
+|---|---|---|
+| sidebar (§10.2) | **a link** | label, URL name, permission, icon, an optional count |
+| topbar (§10.1) | **a template** | a path core includes |
+
+**A nav where every entry looks the same is a feature.** Core owns the active state, the icon slot and the spacing, so one app cannot make the menu look broken. Arbitrary markup in the sidebar would give that away for a want nobody has.
+
+**A topbar item is a different widget each time** — a bell with a count, a search box, an environment badge — so constraining it to a link would make a bell impossible.
+
+**The one thing a link cannot say on its own is a number**, and "Reports 3" is the realistic want. A link may declare a `badge` callable, resolved per viewer before the template sees it, because a Django template cannot call a method with an argument. A count of zero draws nothing — a badge saying "0" is worse than no badge — and one that raises is logged and dropped, since a broken count must not take down the menu.
+
+**Icons are a class name, not an icon.** Core draws whatever the installation's set uses and names none of its own, so a consumer's own icons work unchanged.
+
 ### 10.3 Authentication
 
 The shell owns login, logout and the four password-reset views, mounted under its own namespace. They are Django's built-in auth views with plinta templates; plinta adds no authentication logic of its own and no user model (ADR 0002).

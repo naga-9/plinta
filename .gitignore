@@ -28,3 +28,6 @@ local_settings.py
 .DS_Store
 Thumbs.db
 site/
+
+# the demo's throwaway database
+example/demo.sqlite3

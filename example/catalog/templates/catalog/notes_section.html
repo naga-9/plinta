@@ -1,0 +1,9 @@
+{# The capability's section, shipped with the app that registers it. #}
+<section class="pl-stack">
+    <h3>Notes</h3>
+    {% for note in object.notes.all %}
+        <div class="pl-alert pl-alert--info">{{ note.body }}</div>
+    {% empty %}
+        <p class="pl-muted">No notes yet.</p>
+    {% endfor %}
+</section>

@@ -1,0 +1,33 @@
+{% load plinta_tags %}
+{# The controls a page exposes. Page furniture: always visible, driven by the
+   viewer, and submitted as a plain GET so a filtered page is a shareable URL. #}
+<form class="pl-filters" method="get">
+    {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
+
+    {% block filter_controls %}
+        {% for control in page.filters.all %}
+            <div class="pl-filters__control">
+                <div class="pl-field">
+                    <label class="pl-label" for="pl-filter-{{ forloop.counter }}">{{ control.label }}</label>
+                    {% if control.widget == "boolean" %}
+                        <select class="pl-select" id="pl-filter-{{ forloop.counter }}" name="{{ control.field_name }}">
+                            <option value="">Any</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    {% else %}
+                        <input class="pl-input" id="pl-filter-{{ forloop.counter }}"
+                               type="{% if control.widget == 'daterange' %}date{% else %}text{% endif %}"
+                               name="{{ control.field_name }}"
+                               value="{{ filter_values|get_item:control.field_name|default:'' }}">
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% endblock %}
+
+    <div class="pl-filters__actions">
+        <button type="submit" class="pl-btn pl-btn--primary pl-btn--sm">Apply</button>
+        <a class="pl-btn pl-btn--sm" href="?reset=1">Clear</a>
+    </div>
+</form>

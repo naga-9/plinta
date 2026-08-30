@@ -1,0 +1,9 @@
+{# Toasts. Django's messages framework when it is installed; the container is
+   here either way, because the client posts into it. #}
+<div class="pl-toasts" id="pl-toasts" aria-live="polite">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="pl-alert pl-alert--{{ message.tags|default:'info' }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+</div>

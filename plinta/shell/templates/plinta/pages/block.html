@@ -1,0 +1,22 @@
+{# The card around one widget. Thin on purpose: this is the template most
+   likely to be replaced (§10.1). #}
+<article class="pl-card">
+    {% block block_header %}
+        {% if slot.placement.title or slot.placement.block.name %}
+            <header class="pl-card__header">
+                <h2 class="pl-card__title">{{ slot.title }}</h2>
+                <div class="pl-card__actions">{% block block_actions %}{% endblock %}</div>
+            </header>
+        {% endif %}
+    {% endblock %}
+
+    {% block block_body %}
+        <div class="pl-card__body pl-card__body--flush">
+            {% if slot.error %}
+                <div class="pl-alert pl-alert--danger pl-slot--error">{{ slot.error }}</div>
+            {% else %}
+                {{ slot.html }}
+            {% endif %}
+        </div>
+    {% endblock %}
+</article>

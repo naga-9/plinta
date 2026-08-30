@@ -5,9 +5,15 @@ Mounted by the consuming project with ``path("", include("plinta.shell.urls"))``
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
+from plinta.shell import views
+
 app_name = "plinta"
 
 urlpatterns = [
+    # The id resolves the page; the slug is decorative and is not checked, so
+    # a rename does not break a link someone shared (§9.0).
+    path("pages/<int:pk>-<slug:slug>/", views.page_view, name="page"),
+    path("pages/<int:pk>/", views.page_view, name="page_by_id"),
     path("accounts/login/", auth_views.LoginView.as_view(
         template_name="plinta/auth/login.html"), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),

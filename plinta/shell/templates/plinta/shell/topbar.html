@@ -1,0 +1,22 @@
+{# Brand, page title, and the actions on the right. #}
+<a class="pl-topbar__brand" href="/">
+    {% block topbar_brand %}{{ site_name }}{% endblock %}
+</a>
+<header class="pl-topbar" {% if topbar_color %}style="background: {{ topbar_color }}"{% endif %}>
+    <button type="button" class="pl-btn pl-btn--ghost pl-btn--sm" data-plinta-sidebar-toggle
+            aria-label="Menu">≡</button>
+    <span class="pl-topbar__title">{% block topbar_title %}{{ page.name|default:"" }}{% endblock %}</span>
+    <div class="pl-topbar__actions">
+        {% block topbar_actions %}
+            <button type="button" class="pl-btn pl-btn--ghost pl-btn--sm"
+                    data-plinta-theme-toggle aria-label="Switch theme">◐</button>
+            {% if user.is_authenticated %}
+                <span class="pl-muted">{{ user.get_username }}</span>
+                <form method="post" action="{% url 'plinta:logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="pl-btn pl-btn--sm">Sign out</button>
+                </form>
+            {% endif %}
+        {% endblock %}
+    </div>
+</header>

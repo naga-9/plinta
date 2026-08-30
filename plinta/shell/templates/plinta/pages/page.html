@@ -1,0 +1,41 @@
+{% extends "plinta/shell/base.html" %}
+{# A dashboard: a filter bar, then blocks on the grid at their stored
+   positions. No layout JavaScript — the position is custom properties. #}
+
+{% block title %}{{ page.name }} · {{ site_name }}{% endblock %}
+{% block topbar_title %}{{ page.name }}{% endblock %}
+
+{% block body %}
+    {% block page_header %}
+        <div class="pl-page__header">
+            <h1>{{ page.name }}</h1>
+            {% if page.description %}
+                <p class="pl-page__description">{{ page.description }}</p>
+            {% endif %}
+        </div>
+    {% endblock %}
+
+    {% block page_filters %}
+        {% if page.filters.all %}{% include "plinta/pages/filter_bar.html" %}{% endif %}
+    {% endblock %}
+
+    {% if page.tabs %}
+        <div class="pl-row" role="tablist">
+            {% for item in page.tabs %}
+                <a class="pl-btn pl-btn--sm{% if item.key == tab %} is-active{% endif %}"
+                   href="?tab={{ item.key }}">{{ item.label|default:item.key }}</a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% block page_body %}
+        <div class="pl-grid">
+            {% for slot in placements %}
+                <div class="pl-grid__item{% if slot.is_empty %} pl-slot--empty{% endif %}"
+                     style="--col: {{ slot.column }}; --row: {{ slot.row }}; --w: {{ slot.width }}; --h: {{ slot.height }}">
+                    {% include "plinta/pages/block.html" %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endblock %}
+{% endblock %}

@@ -1,0 +1,35 @@
+{# The menu, assembled from the pages this viewer may open, plus the fixed
+   links to screens that are not pages (§10.2). #}
+<nav class="pl-sidebar" aria-label="Main">
+    {% block sidebar_header %}{% endblock %}
+
+    {% block sidebar_menu %}
+        {% for entry in menu_sections %}
+            <div class="pl-sidebar__section">
+                <h2 class="pl-sidebar__heading">{{ entry.section.name }}</h2>
+                {% for group in entry.groups %}
+                    <div class="pl-sidebar__group">
+                        {% if group.group.name %}
+                            <div class="pl-sidebar__group-name">{{ group.group.name }}</div>
+                        {% endif %}
+                        {% for page_item in group.pages %}
+                            <a class="pl-sidebar__link{% if page_item.pk == page.pk %} is-active{% endif %}"
+                               href="{{ page_item.get_absolute_url }}">{{ page_item.name }}</a>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+
+        {% if shell_links %}
+            <div class="pl-sidebar__section">
+                <h2 class="pl-sidebar__heading">Manage</h2>
+                {% for link in shell_links %}
+                    <a class="pl-sidebar__link" href="{% url link.url_name %}">{{ link.label }}</a>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endblock %}
+
+    {% block sidebar_footer %}{% endblock %}
+</nav>

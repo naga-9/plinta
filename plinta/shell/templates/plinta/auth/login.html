@@ -1,0 +1,21 @@
+{% extends "plinta/shell/auth_base.html" %}
+{% block auth_title %}Sign in{% endblock %}
+{% block auth_body %}
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="pl-alert pl-alert--danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+        {% for field in form %}
+            <div class="pl-field{% if field.errors %} is-invalid{% endif %}">
+                <label class="pl-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}<div class="pl-error">{{ error }}</div>{% endfor %}
+            </div>
+        {% endfor %}
+        <button type="submit" class="pl-btn pl-btn--primary" style="width: 100%">Sign in</button>
+    </form>
+    <p class="pl-muted" style="margin-top: var(--pl-space-4); text-align: center">
+        <a href="{% url 'plinta:password_reset' %}">Forgotten your password?</a>
+    </p>
+{% endblock %}

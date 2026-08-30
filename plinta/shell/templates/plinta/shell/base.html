@@ -1,0 +1,29 @@
+{% load static %}<!doctype html>
+{# The document every screen renders inside. Its regions are separate files
+   so one can be replaced without forking the head with it (§10.9). #}
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ site_name }}{% endblock %}</title>
+    {% block plinta_css %}
+        <link rel="stylesheet" href="{% static 'plinta/css/tokens.css' %}">
+        <link rel="stylesheet" href="{% static 'plinta/css/plinta.css' %}">
+    {% endblock %}
+    {% block extra_css %}{% endblock %}
+    <script type="module" src="{% static 'plinta/js/theme-toggle.js' %}"></script>
+</head>
+<body>
+<div class="pl-shell">
+    {% block topbar %}{% include "plinta/shell/topbar.html" %}{% endblock %}
+    {% block sidebar %}{% include "plinta/shell/sidebar.html" %}{% endblock %}
+    <main class="pl-main">
+        <div class="pl-main__inner">
+            {% block body %}{% endblock %}
+        </div>
+    </main>
+</div>
+{% include "plinta/shell/messages.html" %}
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,25 @@
+{% load static plinta_tags %}<!doctype html>
+{# The auth screens render outside the shell: there is no menu to draw for
+   someone who has not signed in. #}
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block auth_title %}{% endblock %} · {% site_name %}</title>
+    {% block plinta_css %}
+        <link rel="stylesheet" href="{% static 'plinta/css/tokens.css' %}">
+        <link rel="stylesheet" href="{% static 'plinta/css/plinta.css' %}">
+    {% endblock %}
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="pl-auth">
+    <div class="pl-auth__card">
+        {% block auth_header %}
+            <h1 class="pl-auth__title">{% site_name %}</h1>
+        {% endblock %}
+        {% block auth_body %}{% endblock %}
+    </div>
+</div>
+</body>
+</html>

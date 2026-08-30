@@ -2095,7 +2095,7 @@ It provides: the document head and asset loading, the topbar, the sidebar, the n
 
 **One base, and its regions in separate files**, because a template is the unit someone overrides (§10.9). v1's single file meant changing the sidebar required forking the document head with it.
 
-Namespaced under `plinta/`, so the path a consumer shadows is unambiguous:
+Shipped by the `shell` app — it is what renders them — and namespaced under `plinta/`, so the path a consumer shadows is unambiguous:
 
 | Template | Is | Blocks it carries |
 |---|---|---|
@@ -2106,9 +2106,10 @@ Namespaced under `plinta/`, so the path a consumer shadows is unambiguous:
 | `plinta/pages/page.html` | the grid wrapper and the filter-bar slot | `page_header`, `page_filters`, `page_body` |
 | `plinta/pages/block.html` | the card around one widget | `block_header`, `block_body` |
 | `plinta/pages/filter_bar.html` | the controls, chips and saved-set picker | `filter_controls` |
-| `plinta/auth/login.html` and four password-reset templates | Django's auth views with plinta chrome | `auth_header` |
+| `plinta/shell/auth_base.html` | the document for a viewer who has not signed in | `auth_title`, `auth_header`, `auth_body` |
+| `plinta/auth/login.html` and four password-reset templates | Django's auth views with plinta chrome | `auth_body` |
 
-Nine files, so `base.html` is about forty lines of document and three includes rather than a monolith.
+Ten files, so `base.html` is about thirty lines of document and three includes rather than a monolith. The auth screens render **outside** the shell: there is no menu to draw for someone who has not signed in, so they extend their own document rather than blanking three regions of `base.html`.
 
 **Dropping a region is a block, not a fork.** `{% block sidebar %}{% endblock %}` removes the sidebar without touching anything else; shadowing `plinta/shell/sidebar.html` replaces its markup; extending it and overriding `sidebar_footer` adds a link while the rest keeps updating.
 
@@ -2124,6 +2125,8 @@ Two sources, and both belong here:
 | Fixed links | the authoring screens — Blocks, Data Sources — which are not pages |
 
 Fixed links are rendered by the shell, so they are permission-gated by the shell rather than by a `Page` row. A viewer without `view_block` does not see the Blocks link.
+
+**Registered, not listed in the template.** A screen declares its own link — label, URL name, the permission it needs — so the shell does not name packages it does not own, and a link cannot outlive the app behind it. The gate is a plain `has_perm`: these screens are views rather than rows, so there is nothing for a policy to narrow.
 
 ### 10.3 Authentication
 

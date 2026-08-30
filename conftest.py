@@ -99,6 +99,18 @@ def modifier_registry():
 
 
 @pytest.fixture
+def shell_link_registry():
+    """Empty shell-link registry, restored afterwards."""
+    from plinta.shell import links
+
+    saved = dict(links._registry)
+    links._registry.clear()
+    yield links
+    links._registry.clear()
+    links._registry.update(saved)
+
+
+@pytest.fixture
 def capability_registry():
     """Empty capability registry, restored afterwards."""
     from plinta.blocks import capabilities

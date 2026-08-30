@@ -128,7 +128,7 @@ def test_a_named_view_may_be_applied(block):
 
 
 def test_someone_elses_default_is_not_applied(block):
-    """A default is per viewer; another user's is not applied behind their back."""
+    """Only the viewer's own and the unowned ones are considered."""
     b, ada = block
     b.config = {"page_size": 10}
     b.save()
@@ -172,15 +172,16 @@ def test_a_public_view_not_marked_default_is_not_applied(block):
     assert effective_config(b, ada)["page_size"] == 10
 
 
-def test_a_public_default_the_viewer_may_not_see_is_not_applied(block):
-    """The chain runs through `allowed`, so it cannot show what a policy hides."""
+def test_without_the_model_permission_no_view_applies(block):
+    """The lookup goes through `allowed`, so both permission tiers gate it."""
     b, ada = block
     b.config = {"page_size": 10}
     b.save()
-    bob = User.objects.create(username="bob")
     SavedView.objects.create(
-        block=b, name="bob's", owner=bob, config={"page_size": 5}, is_default=True
+        block=b, name="shared", owner=None, config={"page_size": 5}, is_default=True
     )
+    ada.user_permissions.remove(Permission.objects.get(codename="view_savedview"))
+    ada = User.objects.get(pk=ada.pk)
     assert effective_config(b, ada)["page_size"] == 10
 
 

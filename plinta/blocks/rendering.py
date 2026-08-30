@@ -20,12 +20,11 @@ EMPTY_SLOT = ""
 def default_view(block: Block, user) -> SavedView | None:
     """The saved view that applies when the viewer chose none.
 
-    Their own default first, then a public one. Both are deliberate marks
-    someone made; nothing is picked by accident. With neither, the block's own
-    config applies — the explicit, authored base, and what an admin edits to
-    change what everyone gets.
+    Their own default first, then a public one — a view with no owner. Both
+    are marks someone made deliberately; with neither, the block's own config
+    applies.
 
-    A public default is how someone with ``change_savedview`` but not
+    A public default is how someone holding ``change_savedview`` but not
     ``change_block`` curates a starting view.
     """
     from plinta.permissions import allowed

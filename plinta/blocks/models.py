@@ -41,13 +41,13 @@ class Block(models.Model):
     config = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Validated against the component's schema when saved.",
+        help_text="Checked against the component's schema by full_clean.",
     )
     base_filter = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Locked filter values, always applied and invisible to the "
-        "viewer. Placeholders resolve.",
+        help_text="Locked filter values, chosen by whoever built the screen "
+        "rather than by the viewer.",
     )
     queryset_modifier = models.CharField(
         max_length=50,
@@ -86,6 +86,28 @@ class Block(models.Model):
             ),
         ]
 
+    def clean(self) -> None:
+        """Check ``config`` against the component's schema.
+
+        Raises a `ValidationError` on a key the component does not declare,
+        which is what makes ``extra='forbid'`` a save-time answer rather than a
+        render-time surprise. A component that is not installed cannot say, so
+        the config is left as written — the same reason an uninstalled
+        component renders an empty slot instead of failing.
+        """
+        from django.core.exceptions import ValidationError
+
+        from plinta.components.base import ConfigError
+        from plinta.components.registry import find
+
+        component = find(self.component_type)
+        if component is None:
+            return
+        try:
+            component.validate(self.config)
+        except ConfigError as exc:
+            raise ValidationError({"config": str(exc)}) from exc
+
     def __str__(self) -> str:
         return self.name
 
@@ -114,7 +136,9 @@ class SavedView(models.Model):
         help_text="Null is public.",
     )
     is_default = models.BooleanField(
-        default=False, help_text="Applied when this viewer opens the block."
+        default=False,
+        help_text="Applied when a viewer has chosen no view. Their own default "
+        "wins over a public one.",
     )
 
     class Meta:

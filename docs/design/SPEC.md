@@ -3408,6 +3408,12 @@ Attaches a section to a model's detail page and a row to the capability matrix. 
 
 **Register both aspects from your own app.** Core does not enumerate them — that it currently does for seven packages is the defect §8.5 removes.
 
+### 18.12a Add a shell link — `shell` (§10.2)
+
+Puts a screen in the sidebar that is not a `Page`. Registered from the owning app with a label, a URL name and the permission it needs, so the shell names no package it does not own and a link cannot outlive the app behind it.
+
+**Prefer a `Page`.** A composition seeds one and appears in the menu already permission-filtered, shareable per row, and rearrangeable in the browser. A link is for a screen with no composition to record — a wizard, a console, a builder.
+
 ### 18.13 Ship a contrib package — (§14.0)
 
 Register from `AppConfig.ready()`, declare `requires` / `enhances` / `composes`, ship your own models, migrations, templates, assets, adapter and **skills**, and pass the import-boundary test.

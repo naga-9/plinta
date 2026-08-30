@@ -2711,19 +2711,27 @@ Page templates already guard their attachment sections on context variables that
 
 An immutable change log. **A pure listener** — the reference example of one.
 
-**Requires:** `events`, `permissions`, and — for `seed_audit_page` (§13.2) — `datasources`, `blocks`, `pages`.
+**Requires:** `events`, `permissions`. `seed_audit_page` (§13.2) adds `datasources`, `blocks` and `pages` when it lands.
 **Listens to:** `object_written`, `object_deleted`, `state_changed`.
 **Emits:** nothing.
 
 ##### Ships
 
-`AuditLog`: one row per changed field, attached to any model by content type. Carries actor, timestamp, field, before, after, source, and a `metadata` dict.
+`AuditEntry`: **one row per write**, attached to any model by content type. Carries the action, actor, timestamp, source, the target, a stored label for it, and the diff as `{field: [before, after]}`.
 
-Rows are never editable and never deletable, including through the admin.
+**Per write, not per changed field.** The event carries `changes` whole, and splitting it into a row each loses the fact that three fields moved in *one* action — which is usually the question being asked. Querying by field is a JSON key lookup, which every database plinta supports can do.
 
-##### Opting in
+**The label is stored beside the generic relation** because a deleted row leaves that relation dangling, and an entry that cannot say what it was about is not an audit trail. The label is what survives.
 
-A model opts in with an `audit_logs` generic relation. Models that do not are skipped silently; the listener checks the relation before writing.
+##### What is recorded
+
+**Everything, minus an excluded set** — the inverse of opting in. A trail somebody forgot to switch on is silent, and silence is the failure that matters here, so a consumer's model is recorded unless they say otherwise.
+
+The default exclusion is **plinta's own configuration**: `blocks`, `pages`, `datasources`. Somebody dragging a block or saving a view would otherwise bury the writes an audit exists to show. `PLINTA_AUDIT_EXCLUDE_APPS` replaces the list (§19.2).
+
+##### Sensitive fields are redacted, not dropped
+
+A field whose name suggests a secret is recorded as changed, with both values replaced. Dropped, the entry would say nothing changed; replaced, it says the field changed and declines to say to what — which is both true and useful.
 
 ##### Why this app is contrib
 
@@ -2733,7 +2741,11 @@ Previously it was welded into core's write path at seven call sites, because wri
 
 It needs neither now. `object_written` carries `changes` as `{field: (before, after)}`, computed by core because **core performed the write and already knew.** Audit persists what the event hands it.
 
-That this app reduced to a listener without widening the event vocabulary is the evidence the event model is correct. Had it needed a hook inside the pipeline, the model would have been wrong.
+That this app reduced to a listener without widening the event vocabulary is the evidence the event model is correct. Had it needed a hook inside the pipeline, the model would have been wrong. **Built, it needed nothing added** — three receivers, and no change to any core module.
+
+##### `object_writing` is deliberately not subscribed to
+
+A write that has not happened is not something that happened. Recording intentions would record the ones that then failed validation, and a trail containing writes that never occurred is worse than one missing writes that did.
 
 ##### Transitions
 
@@ -2741,11 +2753,17 @@ That this app reduced to a listener without widening the event vocabulary is the
 
 ##### Failure policy
 
-A failed audit write is logged and swallowed. Losing an audit row is bad; failing a user's save because of one is worse.
+A failed audit write is logged and swallowed. Losing an audit row is bad; failing a user's save because of one is worse. `send_robust` would swallow it in any case (§4.7), so the log is what makes a broken listener visible rather than silent.
+
+##### Subscriptions carry a `dispatch_uid`
+
+So connecting twice is harmless — `ready()` can run more than once — and so a bulk import can `disconnect()` rather than write a million entries.
+
+**A uid must be matched to remove it.** Django looks a uid-registered receiver up by uid alone, so `disconnect(the_function)` removes nothing and returns as though it worked. The package exposes `connect()` and `disconnect()` for that reason rather than leaving callers to pair them.
 
 ##### Degrades when absent
 
-No change history. Nothing else changes: no core behaviour, no other contrib app, depends on audit being installed.
+No change history. Nothing else changes: no core behaviour, and no other contrib app, depends on audit being installed.
 
 #### `checklist`
 
@@ -3571,6 +3589,7 @@ Every setting plinta reads. A consuming project sets none of them to get a worki
 | `ATTACHMENT_MAX_SIZE_MB` | `attachments` | per-file limit |
 | `ATTACHMENT_ALLOWED_EXTENSIONS` | `attachments` | allow-list; empty means all |
 | `ATTACHMENT_MAX_PER_INSTANCE` | `attachments` | default 50 |
+| `PLINTA_AUDIT_EXCLUDE_APPS` | `audit` | app labels not recorded; defaults to plinta's own configuration |
 | `FLEXMONSTER_LICENSE_KEY` | `components.pivot_flexmonster` | required by that package, which is not installed unless you want it |
 
 **A contrib setting is read only by its own package.** Core never reads `ATTACHMENT_MAX_SIZE_MB`, and the shell never reads a pivot vendor's — which is why that context processor moves (§10).

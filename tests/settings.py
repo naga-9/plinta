@@ -1,4 +1,10 @@
-"""Settings for plinta's own suite. A consuming project supplies its own."""
+"""Settings for core's own suite. A consuming project supplies its own.
+
+**No contrib app is installed here.** One that connected a receiver would
+change what a core test observes — `has_listeners` was the first to notice —
+and a core suite that depends on a contrib package being present is the
+coupling this architecture exists to prevent. Contrib has its own settings.
+"""
 SECRET_KEY = "test-only-not-a-secret"  # noqa: S105
 USE_TZ = True
 

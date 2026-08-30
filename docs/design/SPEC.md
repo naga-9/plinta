@@ -2913,9 +2913,9 @@ Vendored assets do not update themselves, which is the real cost of this choice.
 
 ## 18. Extension points
 
-Twelve extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
+Fourteen extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
 
-Eight are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
+Ten are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
 
 Every bundled package uses these and only these. A private path for bundled code would make the contract fiction, so there isn't one.
 
@@ -2929,7 +2929,25 @@ def current_quarter(ctx):
 
 Resolves a token inside filter-style values. Returns a **value**, never a field path or an operator, and the returned type must match the declared lookup.
 
-### 18.2 Listen to an event — `events` (§4)
+### 18.2 Add a date range — `dates` (§3.2)
+
+```python
+@register_range('current_fiscal_year', 'Current Fiscal Year')
+def current_fiscal_year(field, today):
+    return Q(**{f'{field}__gte': fy_start(today), f'{field}__lte': fy_end(today)})
+```
+
+Returns a `Q` over the **field it is given**, so one range serves every date column. The label is what a filter bar offers. Distinct from a placeholder, which returns a value rather than a query.
+
+### 18.3 Register a widget override — `forms` (§12.3)
+
+```python
+register_widget(ChartConfig, 'series', 'chart/series_editor.html')
+```
+
+Replaces the derived widget for one field of one config schema, where the annotation carries no shape — `list[dict[str, Any]]` and its kind. Keyed by the schema **class**, so a misspelled field raises at import instead of registering an override that never fires.
+
+### 18.4 Listen to an event — `events` (§4)
 
 ```python
 @receiver(object_written)
@@ -2941,7 +2959,7 @@ Never import the emitter. Handlers must be fast and must not raise — a raising
 
 Available: `object_writing`, `object_written`, `object_deleted`, `state_changed`, `comment_posted`.
 
-### 18.3 Add a policy — `permissions` (§5.3)
+### 18.5 Add a policy — `permissions` (§5.3)
 
 ```python
 # consumer's policies.py — autodiscovered
@@ -2957,7 +2975,7 @@ class DeskScopedPolicy(PermissionPolicy):
 
 Core's engine never imports a provider. `contrib.organization` is one provider, not the provider.
 
-### 18.4 Add a rule — `permissions` (§5.4)
+### 18.6 Add a rule — `permissions` (§5.4)
 
 Subclass `Rule` and supply both halves from one declaration:
 
@@ -2969,7 +2987,7 @@ class Owner(Rule):
 
 **The two must never disagree** — a row surviving `to_q` must pass `evaluate`. That invariant is the reason the pairing exists.
 
-### 18.5 Add a queryset modifier — `datasources` (§6.4)
+### 18.7 Add a queryset modifier — `datasources` (§6.4)
 
 ```python
 @register_queryset_modifier('overdue_only')
@@ -2979,7 +2997,7 @@ def overdue_only(qs, request, **kw):
 
 Registration is mandatory: configuration names a registered key, never a dotted import path, so a saved config cannot cause arbitrary code to be imported. May narrow; must not widen.
 
-### 18.6 Add a computed column — `datasources` (§6.9)
+### 18.8 Add a computed column — `datasources` (§6.9)
 
 ```python
 @register_annotation('order_total', output_field=DecimalField())
@@ -2989,7 +3007,7 @@ def order_total():
 
 Argument-free by design. A `DataSourceField` naming it gets a column that **sorts and filters in the database**, which a `@property` cannot. Read-only, and it gets its own field permission.
 
-### 18.7 Add a renderer — `renderers` (§7.1)
+### 18.9 Add a renderer — `renderers` (§7.1)
 
 ```python
 @register_renderer('csv')
@@ -2999,11 +3017,11 @@ class CsvRenderer(Renderer):
 
 Rows and fields arrive already filtered by row policy and field permission. **A renderer must never query** — that is what makes it structurally incapable of widening access.
 
-### 18.8 Add a field renderer — `renderers` (§7.8)
+### 18.10 Add a field renderer — `renderers` (§7.8)
 
 Declares how one value renders **and what it needs joined**, which is what lets prefetch derivation (§6.5) see relations no column names. Replaces the `serialize_for_table` / `table_select_related` duck-typing.
 
-### 18.9 Add a component — `components` (§7.2)
+### 18.11 Add a component — `components` (§7.2)
 
 ```python
 @register_component('heatmap', label='Heat map')
@@ -3017,17 +3035,17 @@ Register from your own `AppConfig.ready()`; ship the template, assets, adapter a
 
 A Block referencing an unregistered type renders an empty slot, so removing your package degrades pages rather than breaking them.
 
-### 18.10 Add a capability — `blocks` (§8.5)
+### 18.12 Add a capability — `blocks` (§8.5)
 
 Attaches a section to a model's detail page and a row to the capability matrix. A capability declares a probe and a template; the probe decides whether a model opts in, conventionally by checking for a generic relation.
 
 **Register both aspects from your own app.** Core does not enumerate them — that it currently does for seven packages is the defect §8.5 removes.
 
-### 18.11 Ship a contrib package — (§14.0)
+### 18.13 Ship a contrib package — (§14.0)
 
 Register from `AppConfig.ready()`, declare `requires` / `enhances` / `composes`, ship your own models, migrations, templates, assets, adapter and **skills**, and pass the import-boundary test.
 
-### 18.12 Build a consumer application — (§1.4)
+### 18.14 Build a consumer application — (§1.4)
 
 The widest door, and the one most people use. A consumer is an ordinary Django project that installs plinta:
 
@@ -3039,7 +3057,7 @@ The widest door, and the one most people use. A consumer is an ordinary Django p
 
 Nothing here is privileged. `example/catalog` is written against exactly this list, and a consumer that needs something not on it has found a gap in the public API, not a reason for a private path.
 
-### 18.13 Declaring relationships
+### 18.15 Declaring relationships
 
 ```python
 class MyAppConfig(AppConfig):
@@ -3051,7 +3069,7 @@ class MyAppConfig(AppConfig):
 
 The register of declared relationships is §2.5, and it is the only place they are listed.
 
-### 18.14 Stability
+### 18.16 Stability
 
 These six points, the six event signatures, and the `render` contracts are the public API. Everything else — module layout, internal helpers, template structure — may change without notice.
 
@@ -3875,7 +3893,9 @@ A skill is the **executable half of this document**. The spec says what a thing 
 
 | Extension point | Skill | Owning layer |
 |---|---|---|
-| `register_placeholder` | `add-placeholder` | dates (§3) |
+| `register_placeholder` | `add-placeholder` | utils (§3.6) |
+| `register_range` | `add-date-range` | dates (§3.2) |
+| `register_widget` | `add-widget-override` | forms (§3.3) |
 | event listener (`@receiver`) | `add-event-listener` | events (§4) |
 | `register_policy` | `add-policy` | permissions (§5) |
 | a rule | `add-rule` | permissions (§5) |
@@ -3888,7 +3908,7 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | a contrib package | `add-contrib-app` | contrib (§14) |
 | a consumer application | `start-consumer-app` | the whole surface (§1.4) |
 
-`add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
+Fourteen points, fourteen skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
 
 ### 25.2 A skill is written with its layer, never before
 

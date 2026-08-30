@@ -3,7 +3,7 @@ import pytest
 
 from plinta.dates import ranges
 from plinta.events import signals
-from plinta.permissions import policies
+from plinta.permissions import actions, policies
 from plinta.forms import overrides
 from plinta.utils import placeholders
 
@@ -75,3 +75,13 @@ def policy_registry():
     yield policies
     policies._registry.clear()
     policies._registry.update(saved)
+
+
+@pytest.fixture
+def action_registry():
+    """Empty action registry, restored afterwards."""
+    saved = dict(actions._registry)
+    actions._registry.clear()
+    yield actions
+    actions._registry.clear()
+    actions._registry.update(saved)

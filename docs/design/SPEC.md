@@ -818,9 +818,18 @@ Export is the clarifying example. It is **not** a row action: there is no set of
 
 **Adding one — three steps, no core change:**
 
-1. **Register the action** from the app that provides it. `contrib.export` registers `export`; a future import app registers `import`; `contrib.workflow` already registers `transition_<code>`.
-2. **Codenames are minted per registered DataSource** — `export_<model>` — by the same generator that mints field permissions.
-3. **Grant it** like any other permission, and check it with `can(user, 'export', model)`.
+```python
+# contrib.export, at ready()
+register_action("export", "export", filters_rows=False)
+```
+
+1. **Register the action** from the app that provides it. `contrib.export` registers `export`; a future import app registers `import`; `contrib.workflow` registers `transition_<code>`. Registering one of Django's own four is refused — it would shadow a permission Django already mints.
+2. **Mint it per model.** `mint_action(model, action)` creates `{action}_{model}`. Plinta cannot add `Meta.permissions` to a consumer's model (§1.2), so nothing else would create it. `datasources` calls this for each registered DataSource, the same split as field permissions (§5.7).
+3. **Grant it** like any other permission, and check it with `can(user, 'export', model)` — which takes any action string and needs no change to accept a new one.
+
+**Minting an unregistered action is refused**, or the console offers a permission nothing checks.
+
+`filters_rows` records which kind it is. A capability leaves it False and composes with another action's filter; a row action sets it True and a policy may narrow it.
 
 A capability with no policy rule is tier-1 only: the model permission decides. A policy may still narrow one — `export = HasPerm('…') & ~Public` — but rarely needs to.
 
@@ -1207,6 +1216,13 @@ would render as nothing with no indication why, since the queryset simply never
 gains the annotation.
 
 Both read rows, so both return nothing on a `DatabaseError` (§20.3).
+
+**This layer also owns two minting triggers**, for the same reason: `permissions` cannot enumerate DataSources.
+
+| On | Call |
+|---|---|
+| a `DataSourceField` saved, renamed or deleted | `sync_field` / `rename_field` / `remove_field` (§5.7) |
+| a DataSource registered, and any action registered later | `mint_for(model)` (§5.5) |
 
 ### 6.10 Computed columns
 

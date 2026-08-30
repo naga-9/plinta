@@ -2,6 +2,13 @@
 
 Everything in plinta calls ``can``, ``allowed`` and ``fields``.
 """
+from plinta.permissions.actions import (
+    Action,
+    ActionError,
+    mint_action,
+    mint_for,
+    register_action,
+)
 from plinta.permissions.engine import allowed, can, explain, fields
 from plinta.permissions.grants import (
     PermissionEscalation,
@@ -45,6 +52,8 @@ from plinta.permissions.rules import (
 
 __all__ = [
     "DENY",
+    "Action",
+    "ActionError",
     "FieldPermissionError",
     "PermissionEscalation",
     "PermissionPolicy",
@@ -58,8 +67,11 @@ __all__ = [
     "fields",
     "grant",
     "grantable",
+    "mint_action",
+    "mint_for",
     "minted_fields",
     "policy_for",
+    "register_action",
     "register_policy",
     "remove_field",
     "remove_from_group",

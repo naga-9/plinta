@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from django.db.models import CharField, Q, QuerySet, TextField
 
-from plinta.datasources import prefetch
+from plinta.datasources import annotations, prefetch
 from plinta.datasources.models import DataSource, DataSourceField
 from plinta.permissions import allowed, fields as permitted_fields
 
@@ -58,7 +58,7 @@ def get_queryset(
     rows = allowed(user, "view", model._default_manager.all())
     if columns is None:
         columns = [f.field_name for f in get_available_fields(datasource, user)]
-    return prefetch.apply(rows, columns)
+    return prefetch.apply(annotations.apply(rows, columns), columns)
 
 
 def get_available_fields(datasource: DataSource, user) -> list[DataSourceField]:

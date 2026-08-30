@@ -1282,6 +1282,8 @@ Because the annotation is SQL, the column **sorts and filters in the database**.
 
 Correctness of the expression is the consumer's; plinta does not police it.
 
+**Where it is applied.** `get_queryset` annotates whichever of its columns are registered, before deriving joins — so a computed column arrives sorted and filtered like any other, and a caller does nothing special. Prefetch derivation skips it: an annotation is not a relation path and there is nothing to join.
+
 **Documented gotcha.** Two join-based aggregates in one queryset multiply each other's rows — `Count('line_items')` beside `Count('shipments')` returns wrong numbers *and* breaks pagination, because the row count changes. Use `distinct=True` or `Subquery`-based aggregates. This is guidance, not validation, and it belongs beside the registration example: it looks like a plinta bug and costs a day to find.
 
 **Read-only, always.**

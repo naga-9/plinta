@@ -33,6 +33,22 @@ class Placement:
     height: int
     #: Set when the block could not be drawn. The card shows this instead.
     error: str = ""
+    #: How much room the card gives the component's markup (§7.2).
+    padding: str = "default"
+    #: The saved views the viewer may pick between, and the one in force.
+    views: list = field(default_factory=list)
+    view: Any = None
+    #: What the card's header offers to do with this block.
+    actions: list = field(default_factory=list)
+
+    @property
+    def param(self) -> str:
+        """This placement's query-string prefix — `b3_` for placement 3.
+
+        Two tables on one page sort, page and choose views independently, so
+        every parameter a block owns carries it.
+        """
+        return f"b{self.placement.pk}_"
 
     @property
     def title(self) -> str:
@@ -302,6 +318,16 @@ def filter_q(page: Page, values: dict[str, Any], user, record: Any = None) -> Q:
     return combined
 
 
+def _param(query: Any, name: str) -> str:
+    """One value from the request's query string, or empty."""
+    if query is None:
+        return ""
+    try:
+        return query.get(name, "") or ""
+    except AttributeError:
+        return ""
+
+
 def render_page(
     page: Page,
     user,
@@ -330,28 +356,49 @@ def render_page(
     values = default_filters(page, user) if filters is None else filters
     narrowing = filter_q(page, values, user, record)
 
+    from plinta.blocks.actions import actions_for
+    from plinta.blocks.rendering import chosen_view, views_for
+    from plinta.components.registry import find as find_component
+
+    slots = placements_for(page, user, tab=tab)
+    # One query for every block on the page, before the loop: asking inside it
+    # would make each extra block cost more than the last.
+    by_block = views_for([slot.block for slot in slots], user)
+
     drawn = []
-    for placement in placements_for(page, user, tab=tab):
+    for placement in slots:
         html, error = "", ""
+        prefix = f"b{placement.pk}_"
+        views = by_block.get(placement.block_id, [])
+        # The view the viewer picked, or the one that applies. Passed through,
+        # without which a non-default view is unreachable however it is
+        # offered.
+        view = chosen_view(views, user, _param(query, f"{prefix}view"))
         try:
             html = render_block(
                 placement.block,
                 user,
+                view=view,
                 extra_filters=narrowing
                 & Q(**resolve_filters(placement.context_filter, user, record)),
                 query=query,
-                param_prefix=f"b{placement.pk}_",
-                page=_page_number(query, f"b{placement.pk}_"),
-                sort=_sort_param(query, f"b{placement.pk}_"),
+                param_prefix=prefix,
+                page=_page_number(query, prefix),
+                sort=_sort_param(query, prefix),
             )
         except BlockRenderError as exc:
             # The block says so in its own slot; the other seven still draw.
             error = str(exc)
+        component = find_component(placement.block.component_type)
         drawn.append(
             Placement(
                 placement=placement,
                 html=html,
                 error=error,
+                padding=str(getattr(component, "padding", "default")),
+                views=views,
+                view=view,
+                actions=actions_for(placement.block, user, views=views),
                 column=placement.column,
                 row=placement.row,
                 width=placement.width,

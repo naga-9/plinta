@@ -28,6 +28,27 @@ class Mode(StrEnum):
     FETCH = "fetch"
 
 
+class Padding(StrEnum):
+    """How much room the card gives a component's own markup.
+
+    Declared rather than styled by the component, because the padding lives on
+    the card's body — the shell's element, which the component renders
+    *inside* and cannot reach. A component that wrapped itself in a padded div
+    would be a second box competing with the card's own scrolling.
+
+    A name from the scale rather than a length: a raw `13px` is the same
+    defect a raw `#f0f0f0` is.
+    """
+
+    #: Room to read. What most things want.
+    DEFAULT = "default"
+    #: None: the component's own markup goes edge to edge. A table's cells
+    #: already carry padding, and the card's would double it at the rim.
+    NONE = "none"
+    #: Half. For markup that is dense on purpose but not edge to edge.
+    TIGHT = "tight"
+
+
 class ComponentConfig(BaseModel):
     """Base for a component's configuration schema.
 
@@ -93,6 +114,10 @@ class Component:
     #: client adapter cannot be fetched; one that embeds a finished blob may
     #: have nothing to fetch. None means both.
     supported_modes: ClassVar[frozenset[Mode] | None] = None
+
+    #: How much room the card gives it. Most things want room to read; a
+    #: table draws to the edge because its cells are already padded.
+    padding: ClassVar[Padding] = Padding.DEFAULT
 
     #: Whether this component reads a model. False for a **content**
     #: component — text, an unconditional banner — whose config *is* its data.

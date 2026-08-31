@@ -58,7 +58,9 @@ DEFAULT: dict[str, str] = {
     # card
     "card": "pl-card",
     "card_header": "pl-card__header",
+    "card_heading": "pl-card__heading",
     "card_title": "pl-card__title",
+    "card_subtitle": "pl-card__subtitle",
     "card_actions": "pl-card__actions",
     "card_body": "pl-card__body",
     # table
@@ -88,6 +90,7 @@ DEFAULT: dict[str, str] = {
     "label": "pl-label",
     "input": "pl-input",
     "select": "pl-select",
+    "select_sm": "pl-select--sm",
     "textarea": "pl-textarea",
     "checkbox": "pl-checkbox",
     "help": "pl-help",

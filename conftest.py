@@ -1,6 +1,7 @@
 """Fixtures that isolate plinta's module-level registries between tests."""
 import pytest
 
+from plinta.blocks import actions as block_actions
 from plinta.dates import ranges
 from plinta.datasources import annotations, modifiers
 from plinta.events import signals
@@ -18,6 +19,16 @@ def placeholder_registry():
     yield placeholders
     placeholders._registry.clear()
     placeholders._registry.update(saved)
+
+
+@pytest.fixture
+def block_action_registry():
+    """Empty block-action registry, restored afterwards."""
+    saved = dict(block_actions._registry)
+    block_actions._registry.clear()
+    yield block_actions
+    block_actions._registry.clear()
+    block_actions._registry.update(saved)
 
 
 @pytest.fixture

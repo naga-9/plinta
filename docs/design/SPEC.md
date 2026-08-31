@@ -2304,6 +2304,31 @@ grid-template-areas: "topbar  topbar"
 
 **`pl-page__actions` is where a page's actions go**, and the saved-set picker is the first: a set applies to the whole page, so it belongs beside the title rather than among the controls it replaces. `{% block page_actions %}` is where a consumer adds theirs.
 
+#### 10.1b The component shell
+
+The card every component draws inside: a **header** saying what the block is and offering what you can do with it, and a **body** holding whatever the component drew.
+
+**No footer.** Nothing fills one — a table's pager belongs to the renderer, which is the only thing that knows there are more rows. The shell gains a region when something fills it, not before: five declared-but-unread things were created this way by doing the opposite.
+
+**Padding is the component's declaration, not its styling.**
+
+```python
+class TableComponent(Component):
+    padding = Padding.NONE      # cells carry their own; the card's would double it
+```
+
+The padding is on the card's body — the shell's element, which the component renders *inside* and cannot reach. A component that wrapped itself in a padded div would be a second box competing with the card's own scrolling. `DEFAULT`, `NONE` or `TIGHT`: a name from the scale rather than a length, because a raw `13px` is the same defect a raw `#f0f0f0` is. It was flush for everything, so a text or KPI block sat against the edge.
+
+**The header's actions are a registry** — `register_block_action`, the same shape as `register_topbar_item` with one thing a topbar never needed: **which components an action applies to**. A column chooser is a table's, an export is anything with rows. An action offered on a component that cannot honour it is a button that does nothing.
+
+`when` decides the rest, and **reads what the caller already knows** rather than looking anything up: one query per block per action is how a dashboard of eight becomes forty round trips. A `when` that raises hides its own action rather than taking the card down.
+
+**The saved-view picker is the first occupant.** `render_block(view=…)` existed and nothing ever passed one, so a viewer could only reach their *default* view — the `filter_sets` defect, one layer down. The parameter carries the placement's prefix, `b3_view`, so two blocks on one page choose independently, the same rule their sort and page numbers follow. It submits on change: choosing a view is one deliberate act, unlike the filter bar where several controls are set and then applied together.
+
+**Views are fetched once for the page**, not once per block, and the default is derived from what was fetched rather than queried again. The query-count guard caught both: per-block cost had gone from four to six.
+
+**`Block.description` is the card's subtitle.** It was read nowhere.
+
 ### 10.2 The sidebar
 
 Two sources, and both belong here:
@@ -3776,9 +3801,9 @@ Vendored assets do not update themselves, which is the real cost of this choice.
 
 ## 18. Extension points
 
-Twenty extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
+Twenty-one extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
 
-Sixteen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
+Seventeen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
 
 Contrib apps add their own on top — `register_channel` and `register_notification` in `contrib.notifications`, `register_guard` in `contrib.workflow` — each with a skill shipped inside the app that provides it (§25.4).
 
@@ -4882,6 +4907,7 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | `register_component` | `add-component` | components (§7) |
 | `register_capability` | `add-capability` | blocks (§8) |
 | `register_style_pack` | `add-style-pack` | utils (§10.10) |
+| `register_block_action` | `add-block-action` | blocks (§10.1b) |
 | `register_icon_set` | `add-icon-set` | utils (§10.9) |
 | `register_filter_widget` | `add-filter-widget` | pages (§9.4) |
 | `register_stylesheet` | `add-component` | utils (§10.10) |
@@ -4891,7 +4917,7 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | a contrib package | `add-contrib-app` | contrib (§14) |
 | a consumer application | `start-consumer-app` | the whole surface (§1.4) |
 
-Twenty points, twenty skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
+Twenty-one points, twenty-one skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
 
 ### 25.2 Examples use the demo domain
 

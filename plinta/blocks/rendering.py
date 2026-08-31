@@ -66,6 +66,54 @@ def default_view(block: Block, user) -> SavedView | None:
     return (mine or public or [None])[0]
 
 
+def views_for(blocks, user) -> dict[int, list[SavedView]]:
+    """The saved views this viewer may pick between, per block.
+
+    **One query for the page, not one per block.** A dashboard of eight blocks
+    asking separately is eight round trips for a control most of them will not
+    draw, and it would make each extra block cost more than the last.
+
+    Own views before shared ones, then by name: a person looks for theirs
+    first, and a list ordered by primary key is ordered by nothing.
+    """
+    from plinta.permissions import allowed
+
+    ids = [block.pk for block in blocks]
+    if not ids or user is None or not getattr(user, "is_authenticated", False):
+        return {}
+
+    found: dict[int, list[SavedView]] = {}
+    for view in allowed(user, "view", SavedView.objects.filter(block_id__in=ids)):
+        found.setdefault(view.block_id, []).append(view)
+
+    mine = getattr(user, "pk", None)
+    for views in found.values():
+        views.sort(key=lambda v: (v.owner_id != mine, v.name))
+    return found
+
+
+def chosen_view(views: list[SavedView], user, asked: str | None) -> SavedView | None:
+    """The view in force: the one asked for, else the one that applies.
+
+    Chosen from ``views`` rather than fetched, so it costs no query and a view
+    somebody else owns is simply not found — the id is guessable, and a
+    refusal would confirm it exists.
+
+    With nothing asked, their own default wins over a public one. Both are
+    marks somebody made deliberately; with neither, the block's own config
+    applies.
+    """
+    if asked:
+        for view in views:
+            if str(view.pk) == str(asked):
+                return view
+    mine = getattr(user, "pk", None)
+    defaults = [v for v in views if v.is_default]
+    own = [v for v in defaults if v.owner_id == mine]
+    public = [v for v in defaults if v.owner_id is None]
+    return (own or public or [None])[0]
+
+
 def merge(base: dict[str, Any], delta: dict[str, Any] | None) -> dict[str, Any]:
     """The block's config with a saved view's delta over it.
 

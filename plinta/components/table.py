@@ -14,7 +14,7 @@ from urllib.parse import urlencode
 from django.core.paginator import Page, Paginator
 from pydantic import Field
 
-from plinta.components.base import Component, ComponentConfig, Mode
+from plinta.components.base import Component, ComponentConfig, Mode, Padding
 from plinta.components.registry import register_component
 from plinta.renderers.registry import get as get_renderer
 
@@ -77,6 +77,9 @@ class TableComponent(Component):
     """
 
     config_schema = TableConfig
+    #: Edge to edge: a cell carries its own padding, and the card's would
+    #: double it at the rim while leaving the middle unchanged.
+    padding = Padding.NONE
     #: The rows are in the HTML, so there is nothing to fetch.
     mode = Mode.INLINE
     #: And nothing to fetch it with: there is no client adapter for a table

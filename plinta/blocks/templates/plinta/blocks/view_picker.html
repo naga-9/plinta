@@ -1,0 +1,24 @@
+{% comment %} Which saved view this block is drawn with.
+
+   Submits on change rather than behind a button: choosing a view is one
+   deliberate act, unlike the filter bar where several controls are set and
+   then applied together.
+
+   The parameter carries the placement's prefix, so two blocks on one page
+   choose independently — the same rule their sort and page numbers follow.
+   {% endcomment %}
+<form method="get" class="{{ cls.row }}">
+    {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
+    <label class="{{ cls.visually_hidden }}" for="{{ slot.param }}view">View</label>
+    <select class="{{ cls.select }} {{ cls.select_sm }}" id="{{ slot.param }}view"
+            name="{{ slot.param }}view" onchange="this.form.submit()">
+        <option value="">Default</option>
+        {% for saved in slot.views %}
+            <option value="{{ saved.pk }}"
+                    {% if slot.view.pk == saved.pk %}selected{% endif %}>
+                {{ saved.name }}{% if not saved.owner %} (shared){% endif %}
+            </option>
+        {% endfor %}
+    </select>
+    <noscript><button type="submit" class="{{ cls.btn }} {{ cls.btn_sm }}">Show</button></noscript>
+</form>

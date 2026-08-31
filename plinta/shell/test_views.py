@@ -968,3 +968,94 @@ def test_the_strip_is_a_list(tabbed, client):
     body = client.get(tabbed.get_absolute_url()).content.decode()
     strip = body[body.index("pl-tabs"):body.index("pl-grid")]
     assert strip.count('class="pl-tabs__item"') == 2
+
+
+# --- the card's own shell ----------------------------------------------------
+
+
+def test_a_component_declares_its_padding(screen, client):
+    """A table draws to the edge; the card's padding would double the cell's
+    at the rim while leaving the middle unchanged."""
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "pl-card__body--none" in body
+
+
+def test_the_blocks_description_is_shown(screen, client):
+    """It was read nowhere. A card saying what it shows is worth the line."""
+    page, block, _ = screen
+    Block.objects.filter(pk=block.pk).update(description="Every title we carry")
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "Every title we carry" in body
+
+
+def test_a_block_with_no_views_offers_no_picker(screen, client):
+    """A lone control showing one option is furniture."""
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "_view" not in body
+
+
+def test_a_saved_view_can_be_chosen(screen, client):
+    """`render_block(view=…)` existed and nothing passed one, so a non-default
+    view was unreachable however it was offered."""
+    page, block, ada = screen
+    SavedView.objects.create(
+        block=block, name="Titles only", owner=ada, config={"columns": ["title"]}
+    )
+    placement = page.placements.get()
+
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert f'name="b{placement.pk}_view"' in body
+
+    chosen = client.get(
+        page.get_absolute_url(), {f"b{placement.pk}_view": "999999"}
+    ).content.decode()
+    # A view nobody owns is not found rather than refused: the id is
+    # guessable, and a refusal would confirm it exists.
+    assert re.search(r"<th[ >]", chosen)
+
+
+def test_choosing_a_view_changes_what_is_drawn(screen, client):
+    page, block, ada = screen
+    # A second column, so narrowing to one has something to narrow.
+    DataSourceField.objects.create(
+        data_source=block.data_source, field_name="region__name", label="Region"
+    )
+    sync_model(Book, {"title": False, "region__name": False})
+    ct = ContentType.objects.get_for_model(Book)
+    perm, _ = Permission.objects.get_or_create(
+        codename="view_book_region__name", content_type=ct,
+        defaults={"name": "view_book_region__name"},
+    )
+    ada.user_permissions.add(perm)
+    client.force_login(User.objects.get(pk=ada.pk))
+
+    view = SavedView.objects.create(
+        block=block, name="Titles only", owner=ada, config={"columns": ["title"]}
+    )
+    placement = page.placements.get()
+
+    def headings(body):
+        # `<thead>` also starts with `<th`, so match the tag rather than the
+        # prefix.
+        return len(re.findall(r"<th[ >]", body))
+
+    both = client.get(page.get_absolute_url()).content.decode()
+    narrowed = client.get(
+        page.get_absolute_url(), {f"b{placement.pk}_view": view.pk}
+    ).content.decode()
+    assert headings(both) == 2
+    assert headings(narrowed) == 1
+
+
+def test_two_blocks_choose_views_independently(screen, client):
+    """The parameter carries the placement's prefix, the same rule sort and
+    page numbers follow."""
+    page, block, ada = screen
+    SavedView.objects.create(block=block, name="A", owner=ada, config={})
+    second = PageBlock.objects.create(page=page, block=block, order=1)
+    body = client.get(page.get_absolute_url()).content.decode()
+    first = page.placements.exclude(pk=second.pk).get()
+    assert f'name="b{first.pk}_view"' in body
+    assert f'name="b{second.pk}_view"' in body

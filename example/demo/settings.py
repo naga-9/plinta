@@ -31,6 +31,8 @@ INSTALLED_APPS = [
     "plinta.shell",
     # the consumer
     "catalog",
+    # The project itself, so its admin.py is autodiscovered like any other.
+    "demo",
 ]
 
 MIDDLEWARE = [

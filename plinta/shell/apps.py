@@ -12,3 +12,6 @@ class ShellConfig(AppConfig):
         from plinta.utils import checks as _dependency_checks  # noqa: F401
         # Imported for its side effect: registering the boot checks.
         from plinta.shell import checks  # noqa: F401
+        from plinta.utils import icons
+
+        icons.register_defaults()

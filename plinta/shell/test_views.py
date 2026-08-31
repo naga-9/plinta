@@ -530,22 +530,61 @@ def test_a_broken_count_does_not_take_down_the_menu(
 
 
 def test_a_links_icon_is_drawn(screen, client, shell_link_registry):
-    """Core draws whatever class the installation's icon set uses, and names
-    no set of its own."""
+    """Core's own set, inline. No font, no request, nothing to fail."""
     page, _, ada = screen
     register_shell_link(
         "reports", "Reports", url_name="plinta:login",
-        permission="plinta_blocks.view_block", icon="bi bi-file-earmark",
+        permission="plinta_blocks.view_block", icon="file",
     )
     body = client.get(page.get_absolute_url()).content.decode()
-    assert 'class="bi bi-file-earmark"' in body
+    assert '<svg class="pl-icon"' in body
+    assert "stroke=\"currentColor\"" in body
 
 
 def test_a_pages_menu_icon_is_drawn(screen, client):
     page, _, _ = screen
-    Page.objects.filter(pk=page.pk).update(menu_icon="bi bi-book")
+    Page.objects.filter(pk=page.pk).update(menu_icon="book")
     body = client.get(page.get_absolute_url()).content.decode()
-    assert 'class="bi bi-book"' in body
+    assert '<svg class="pl-icon"' in body
+
+
+def test_a_consumers_own_set_is_used_when_named(screen, client, icon_registry):
+    """`set:name`, so a project already loading a font keeps using it."""
+    from django.utils.html import format_html
+
+    from plinta.utils.icons import register_icon_set, register_defaults
+
+    register_defaults()
+    register_icon_set(
+        "bi", render=lambda name, **kw: format_html('<i class="bi bi-{}"></i>', name)
+    )
+    page, _, _ = screen
+    Page.objects.filter(pk=page.pk).update(menu_icon="bi:book")
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert '<i class="bi bi-book"></i>' in body
+
+
+def test_an_unknown_icon_leaves_a_gap_not_a_box(screen, client):
+    """It sits beside a label that already says what the thing is."""
+    page, _, _ = screen
+    Page.objects.filter(pk=page.pk).update(menu_icon="nonesuch")
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert page.name in body
+    assert "nonesuch" not in body
+
+
+def test_an_unregistered_set_draws_nothing(screen, client):
+    page, _, _ = screen
+    Page.objects.filter(pk=page.pk).update(menu_icon="fa:book")
+    assert "fa:book" not in client.get(page.get_absolute_url()).content.decode()
+
+
+def test_the_shells_own_glyphs_are_icons_too(screen, client):
+    """`≡` and `◐` were literal characters."""
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "≡" not in body and "◐" not in body
+    assert body.count('<svg class="pl-icon"') >= 2
 
 
 # --- saved filter sets -----------------------------------------------------

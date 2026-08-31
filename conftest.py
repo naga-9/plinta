@@ -7,7 +7,7 @@ from plinta.events import signals
 from plinta.pages import widgets
 from plinta.permissions import actions, policies
 from plinta.forms import overrides
-from plinta.utils import assets, placeholders, styles
+from plinta.utils import assets, icons, placeholders, styles
 
 
 @pytest.fixture
@@ -18,6 +18,16 @@ def placeholder_registry():
     yield placeholders
     placeholders._registry.clear()
     placeholders._registry.update(saved)
+
+
+@pytest.fixture
+def icon_registry():
+    """Empty icon-set registry, restored afterwards."""
+    saved = dict(icons._registry)
+    icons._registry.clear()
+    yield icons
+    icons._registry.clear()
+    icons._registry.update(saved)
 
 
 @pytest.fixture

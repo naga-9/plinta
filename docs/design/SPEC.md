@@ -2265,7 +2265,7 @@ register_topbar_item(
 
 An item naming a permission is drawn only for a holder, so an app's chrome disappears with its access rather than showing a control that refuses.
 
-**One base, and its regions in separate files**, because a template is the unit someone overrides (§10.9). v1's single file meant changing the sidebar required forking the document head with it.
+**One base, and its regions in separate files**, because a template is the unit someone overrides (§10.10). v1's single file meant changing the sidebar required forking the document head with it.
 
 Shipped by the `shell` app — it is what renders them — and namespaced under `plinta/`, so the path a consumer shadows is unambiguous:
 
@@ -2379,7 +2379,7 @@ The shell owns the theme, and the theme is generated rather than written.
 
 **Once the class names are ours, a framework earns nothing.** Core's markup would never say `card` or `btn`, so Bootstrap would contribute a reset and a variable scale that `tokens.json` already holds.
 
-**And a framework in core would break the cheapest override.** Retinting means redefining custom properties; with Bootstrap it means fighting its cascade or recompiling its Sass, which needs the build step §7.5 does not have. So a framework pushes consumers up the ladder (§10.9) to forking templates, where they stop receiving updates. Owning the CSS keeps most of them on the rung where they fork nothing.
+**And a framework in core would break the cheapest override.** Retinting means redefining custom properties; with Bootstrap it means fighting its cascade or recompiling its Sass, which needs the build step §7.5 does not have. So a framework pushes consumers up the ladder (§10.10) to forking templates, where they stop receiving updates. Owning the CSS keeps most of them on the rung where they fork nothing.
 
 **What it covers is bounded**, because it styles what plinta renders and nothing else — no utility classes, no layout system for arbitrary markup: shell chrome, the grid, the block card, table, form controls, buttons, modal, toast, filter bar, and the auth screens. Around ten components.
 
@@ -2402,7 +2402,23 @@ The shell owns the theme, and the theme is generated rather than written.
 
 **Contrib components read tokens, never colours.** A component wanting a series palette calls `tokens.read()`; it never ships a hex value.
 
-### 10.9 Style packs
+### 10.9 Icons
+
+`Page.menu_icon` and `ShellLink.icon` emitted `<i class="{{ icon }}">` and core shipped no icon set, so both were inert unless a consumer brought one — a field that could only ever be filled in by somebody else.
+
+**Core ships 33 icons as inline SVG**, path data from Tabler Icons (MIT, attributed in `design/LICENSE-tabler-icons`). Copied, not loaded: an icon font is a runtime dependency, a request that can fail, and a flash of invisible text before it arrives. Every icon shares one wrapper — `viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"` — so the data holds only inner markup and `currentColor` makes one icon work in both themes with no rule per icon. The whole set is under 5 KB.
+
+**A stored value is `set:name`**, and an unprefixed name is core's. A consumer already loading Font Awesome for their own pages registers `fa` and writes `fa:cart`; both sets work side by side, and rows written before any of this keep working.
+
+**Core's set registers through the same call a consumer uses.** A private path for the bundled one would make the door fiction — the argument that put `table_plinta` through `register_component`.
+
+**Anything unknown draws nothing.** An empty value, an unregistered set, a name that set does not have. An icon sits beside a label that already says what the thing is, so a gap beats a broken box — the same degradation an unregistered component makes.
+
+**The names are ours, not Tabler's.** `menu`, `theme`, `close`. A rename upstream must not rename a value stored in somebody's configuration.
+
+**The shell's own glyphs are icons too.** `≡` and `◐` were literal characters in the topbar.
+
+### 10.10 Style packs
 
 A **style pack** swaps the class names the markup carries, so a project already using Bootstrap or Tailwind gets screens that match the rest of its application without forking a template.
 
@@ -2454,7 +2470,7 @@ Core's own two sheets are **not** registered — `base.html` links them directly
 
 **Layer 1**, because everything that emits markup needs it: the HTML renderer (§7), components, and the shell's templates.
 
-### 10.10 Overriding, and what that costs
+### 10.11 Overriding, and what that costs
 
 Four rungs, and the ladder only has its cheap ones because core owns its class names.
 
@@ -2477,13 +2493,13 @@ A consumer wanting Bootstrap specifically loads it there and writes a bridge sty
 
 **Three things become public API**, with the same stability obligation as the Python (§18.19): the **class names**, the **context** each template receives, and the **block names**. Without that, "override the template" is a promise broken every release.
 
-### 10.11 Decisions
+### 10.12 Decisions
 
 | Item | Decision |
 |---|---|
 | Two base templates | **one**, under `shell/`, with its regions in separate files |
 | CSS framework | **none** — core styles its own screens against the tokens |
-| Somebody else's class names | a **style pack** — a mapping, plus the residue it cannot reach (§10.9) |
+| Somebody else's class names | a **style pack** — a mapping, plus the residue it cannot reach (§10.10) |
 | Markup shape | chosen for its **own semantics**; never to match a vendor, because no shape matches all of them |
 | Bootstrap | **not a dependency**, not even an optional one (§10.8) |
 | Theme attribute | `data-theme`, not `data-bs-theme` |
@@ -3685,7 +3701,7 @@ Since plinta is pip-installed, a build could only ever run at **release time in 
 
 | Vendor | Used by | Lands |
 |---|---|---|
-| Bootstrap Icons | core chrome | vendor — the icon set alone; core ships no CSS framework (§10.8) |
+| Tabler Icons | core chrome | **path data only**, inlined — no font, no stylesheet, no request (§10.9) |
 | htmx + `json-enc` | core transport | vendor |
 | Tabulator | `table_tabulator` (contrib) | vendor, with the component |
 | Tom Select | `filters_tomselect` (contrib) | vendor, with the widget — core's own multi-select carries none |
@@ -3719,9 +3735,9 @@ Vendored assets do not update themselves, which is the real cost of this choice.
 
 ## 18. Extension points
 
-Nineteen extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
+Twenty extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
 
-Fifteen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
+Sixteen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
 
 Contrib apps add their own on top — `register_channel` and `register_notification` in `contrib.notifications`, `register_guard` in `contrib.workflow` — each with a skill shipped inside the app that provides it (§25.4).
 
@@ -4824,7 +4840,8 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | `register_field_renderer` | `add-field-renderer` | renderers (§7) |
 | `register_component` | `add-component` | components (§7) |
 | `register_capability` | `add-capability` | blocks (§8) |
-| `register_style_pack` | `add-style-pack` | utils (§10.9) |
+| `register_style_pack` | `add-style-pack` | utils (§10.10) |
+| `register_icon_set` | `add-icon-set` | utils (§10.9) |
 | `register_filter_widget` | `add-filter-widget` | pages (§9.4) |
 | `register_stylesheet` | `add-component` | utils (§10.10) |
 | `register_shell_link` | `add-shell-link` | shell (§10) |
@@ -4833,7 +4850,7 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | a contrib package | `add-contrib-app` | contrib (§14) |
 | a consumer application | `start-consumer-app` | the whole surface (§1.4) |
 
-Nineteen points, nineteen skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
+Twenty points, twenty skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
 
 ### 25.2 Examples use the demo domain
 

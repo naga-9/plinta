@@ -838,3 +838,13 @@ hr {
 }
 
 .pl-tags__option:hover { background: var(--pl-hover-bg); }
+
+/* 13. icons ----------------------------------------------------------------- */
+
+/* Inline SVG, taking its colour from whatever it sits in — `currentColor` is
+ * what makes one icon work in both themes with no rule per icon. */
+.pl-icon {
+    flex: none;
+    vertical-align: -0.15em;
+    color: currentColor;
+}

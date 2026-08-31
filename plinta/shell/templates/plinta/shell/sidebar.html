@@ -1,4 +1,4 @@
-{% comment %} The menu, assembled from the pages this viewer may open, plus the fixed
+{% load plinta_tags %}{% comment %} The menu, assembled from the pages this viewer may open, plus the fixed
    links to screens that are not pages (§10.2).
 
    The links are a list, because that is what they are: a screen reader says
@@ -22,9 +22,7 @@
                                     <a class="{{ cls.menu_link }}{% if page_item.pk == page.pk %} {{ cls.menu_link_active }}{% endif %}"
                                        href="{{ page_item.get_absolute_url }}"
                                        {% if page_item.pk == page.pk %}aria-current="page"{% endif %}>
-                                        {% if page_item.menu_icon %}
-                                            <i class="{{ page_item.menu_icon }}" aria-hidden="true"></i>
-                                        {% endif %}
+                                        {% icon page_item.menu_icon %}
                                         <span>{{ page_item.name }}</span>
                                     </a>
                                 </li>
@@ -42,9 +40,7 @@
                     {% for link in shell_links %}
                         <li class="{{ cls.menu_item }}">
                             <a class="{{ cls.menu_link }}" href="{% url link.url_name %}">
-                                {% if link.icon %}
-                                    <i class="{{ link.icon }}" aria-hidden="true"></i>
-                                {% endif %}
+                                {% icon link.icon %}
                                 <span>{{ link.label }}</span>
                                 {% if link.badge %}
                                     <span class="{{ cls.chip }} {{ cls.spacer }}">{{ link.badge }}</span>

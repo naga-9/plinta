@@ -242,7 +242,8 @@ class Command(BaseCommand):
         # Catalogue --------------------------------------------------------
         pages["catalogue"], _ = Page.objects.update_or_create(
             slug="catalogue", owner=None,
-            defaults={"name": "Catalogue", "menu_group": trading, "menu_order": 1,
+            defaults={"name": "Catalogue", "menu_icon": "book",
+                      "menu_group": trading, "menu_order": 1,
                       "description": "Every title the chain carries."},
         )
         place(pages["catalogue"],
@@ -276,7 +277,7 @@ class Command(BaseCommand):
         # Sales ------------------------------------------------------------
         pages["sales"], _ = Page.objects.update_or_create(
             slug="sales", owner=None,
-            defaults={"name": "Sales", "menu_group": trading, "menu_order": 2,
+            defaults={"name": "Sales", "menu_icon": "cart", "menu_group": trading, "menu_order": 2,
                       "description": "What sold, and where."},
         )
         place(pages["sales"],
@@ -322,7 +323,7 @@ class Command(BaseCommand):
         # Purchasing --------------------------------------------------------
         pages["purchasing"], _ = Page.objects.update_or_create(
             slug="purchasing", owner=None,
-            defaults={"name": "Purchasing", "menu_group": buying, "menu_order": 1,
+            defaults={"name": "Purchasing", "menu_icon": "package", "menu_group": buying, "menu_order": 1,
                       "description": "Orders still outstanding."},
         )
         place(pages["purchasing"],
@@ -337,7 +338,7 @@ class Command(BaseCommand):
         # Promotions --------------------------------------------------------
         pages["promotions"], _ = Page.objects.update_or_create(
             slug="promotions", owner=None,
-            defaults={"name": "Promotions", "menu_group": trading, "menu_order": 3,
+            defaults={"name": "Promotions", "menu_icon": "tag", "menu_group": trading, "menu_order": 3,
                       "description": "Campaigns you own, and the public ones."},
         )
         place(pages["promotions"],

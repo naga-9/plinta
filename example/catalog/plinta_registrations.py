@@ -333,6 +333,7 @@ def register_links():
         "Catalogue admin",
         url_name="catalogue_admin",
         permission="catalog.change_book",
+        icon="settings",
         order=400,
     )
 

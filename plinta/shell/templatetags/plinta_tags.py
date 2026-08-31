@@ -86,3 +86,18 @@ def to_json(value: Any) -> str:
     if value is None:
         return ""
     return json.dumps(value).translate(SCRIPT_ESCAPES)
+
+
+@register.simple_tag
+def icon(stored, size=18, css_class="pl-icon"):
+    """Draw a stored icon name.
+
+        {% icon page.menu_icon %}
+        {% icon "chevron-down" size=14 %}
+
+    Empty, unregistered or unknown draws nothing: an icon sits beside a label
+    that already says what the thing is, so a gap beats a broken box.
+    """
+    from plinta.utils.icons import render
+
+    return render(stored, size=size, css_class=css_class)

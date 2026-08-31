@@ -1,67 +1,104 @@
 """What a filter control offers to choose from.
 
-**Scoped to the viewer.** v1's equivalent took no user and listed every row of
-the related table, so a store filter showed all store names to somebody who
-could see two stores' rows: the rows were protected and the option list was
-not. A dropdown that names rows you may not see is a leak whatever draws it.
+**The values actually present in the rows the viewer can see** — not every row
+of the related table. A filter offers what would match something, so a viewer
+with no sales is offered no stores, and one whose sales are all at Hale Street
+is offered Hale Street.
 
-Two sources, in order:
+The permission scoping comes with that rather than being added to it: the rows
+are already narrowed by both tiers, so a value can only appear if a row
+carrying it is visible. v1's equivalent took no user and queried the target
+table, listing every branch by name to somebody who could see two stores'
+rows.
 
-1. the model field's own `choices` — a finite, hand-written set
-2. an FK's target rows, narrowed by the viewer's policy on that model
-
-Anything else offers nothing, and its control falls back to a text input.
+**And each control is narrowed by the others.** Choosing a store leaves the
+book filter offering only books sold at it. A control never narrows *itself*,
+or picking one option would remove the alternatives from its own list and the
+choice could not be changed.
 """
 from __future__ import annotations
 
 from typing import Any
 
 #: More than this and a native `<select>` is the wrong control — the page
-#: carries every option. Not a refusal: the list is capped and the widget says
-#: so, and a widget that fetches its options (contrib) has no such limit.
+#: carries every option. Not a refusal: the list is capped, the widget says so,
+#: and a widget that fetches its options has no such limit.
 CAP = 500
 
 
-def options_for(control: Any, user, *, limit: int = CAP) -> list[tuple[str, str]]:
+def options_for(
+    control: Any, user, *, siblings: dict[str, Any] | None = None, limit: int = CAP
+) -> list[tuple[str, str]]:
     """``[(value, label)]`` for one control, as its widget should draw them.
 
-    Returns nothing when the control names no DataSource, when the path is not
-    a model field, or when the field is neither a choice list nor a relation.
+    Args:
+        control: the `PageFilter`.
+        user: the viewer. Their rows are what the options come from.
+        siblings: ORM keyword arguments from the *other* controls, already
+            resolved. This control's own selection must not be among them.
+        limit: how many to return.
+
+    Returns nothing when the control names no DataSource, or when its model is
+    not installed — and its widget then falls back to a text input.
     """
     source = getattr(control, "data_source", None)
     if source is None:
         return []
 
-    from plinta.datasources.services import resolve_path
-
     model = source.content_type.model_class()
     if model is None:
         return []
 
-    field = resolve_path(model, control.field_name)
-    if field is None:
-        return []
-
-    if getattr(field, "choices", None):
-        return [(str(value), str(label)) for value, label in field.choices]
-
-    related = getattr(field, "related_model", None)
-    if related is None:
-        return []
-    return _rows(related, user, limit)
-
-
-def _rows(model, user, limit: int) -> list[tuple[str, str]]:
-    """The related rows this viewer may see, as options.
-
-    `allowed` applies both tiers, so a viewer without the model permission
-    gets an empty list rather than every row — which reads as "nothing to
-    choose" and is the truth.
-    """
     from plinta.permissions import allowed
 
     rows = allowed(user, "view", model._default_manager.all())
-    return [(str(row.pk), str(row)) for row in rows[:limit]]
+    if siblings:
+        rows = rows.filter(**siblings)
+
+    path = control.field_name
+    values = list(
+        rows.exclude(**{f"{path}__isnull": True})
+        # `order_by()` clears any Meta ordering first. Left in place, its
+        # columns join the SELECT and DISTINCT then applies across them, so
+        # the same store comes back once per sale.
+        .order_by()
+        .values_list(path, flat=True)
+        .distinct()[:limit]
+    )
+    return label(model, path, values)
+
+
+def label(model, path: str, values: list) -> list[tuple[str, str]]:
+    """Pair each raw value with what a person should read.
+
+    Three cases, and none needs configuration:
+
+    - a field with `choices` shows its display, not its stored code
+    - a relation shows `str(obj)`, which is what Django's own model choice
+      field does
+    - anything else is its own label
+    """
+    from plinta.datasources.services import resolve_path
+
+    field = resolve_path(model, path)
+
+    if field is not None and getattr(field, "choices", None):
+        display = dict(field.choices)
+        pairs = [(str(v), str(display.get(v, v))) for v in values]
+    elif field is not None and getattr(field, "related_model", None) is not None:
+        # One bounded query for the labels. The rows carrying these values are
+        # already visible to the viewer, so the value is not new to them —
+        # only its display is.
+        related = field.related_model
+        by_pk = related._default_manager.in_bulk(values)
+        pairs = [(str(v), str(by_pk[v])) for v in values if v in by_pk]
+    else:
+        pairs = [(str(v), str(v)) for v in values]
+
+    # Sorted by what is read, not by what is stored: ordering foreign keys by
+    # primary key puts a list of names in insertion order, which reads as no
+    # order at all.
+    return sorted(pairs, key=lambda pair: pair[1].lower())
 
 
 def truncated(options: list, limit: int = CAP) -> bool:

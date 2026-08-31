@@ -2107,13 +2107,21 @@ A widget declares two things. **`multiple`** decides `getlist` over `get` — `G
 
 **And core has no opinion about how large an option set may be.** The list is capped for the native widget, which says so; a widget that fetches has no such limit. A save-time refusal would refuse a configuration that becomes valid the moment somebody installs the widget that handles it.
 
-### 9.5 A filter's options are scoped to the viewer
+### 9.5 A filter offers the values that are there
 
-`options_for(control, user)` returns a field's own `choices`, or an FK's target rows **narrowed by `allowed(user, "view", …)` on the target model**.
+`options_for(control, user)` returns the **distinct values present in the rows the viewer can see** — never the related table. A filter offers what would match something, so a viewer with no sales is offered no stores, and one whose sales are all at Hale Street is offered Hale Street.
 
-v1's equivalent took no `user` at all, so a store filter listed every branch by name to somebody who could see two stores' rows: the rows were protected and the option list was not. A dropdown that names rows you may not see is a leak whatever draws it.
+**The permission scoping comes with that rather than being added to it.** The rows are already narrowed by both tiers, so a value can only appear if a row carrying it is visible — no policy on the target model is needed, and none can widen it. v1's equivalent took no `user` and queried the target table, listing every branch by name to somebody who could see two stores' rows.
 
-**The list is only as narrow as the policy on the model it comes from.** Scoping `Sale` by store says nothing about `Store`, so a Store filter needs `StorePolicy` — the same lesson §5.6 teaches about children, arriving from the other direction. `example/catalog` demonstrates it: head office sees three branches, each manager sees one, and a viewer with neither sees none.
+**Labels need no configuration.** A field with `choices` shows its display; a relation shows `str(obj)`, which is what Django's own model choice field does; anything else is its own label. v1 needed a `filter_display_format` because it built labels from a format string. Sorted by what is read, since ordering foreign keys by primary key puts names in insertion order.
+
+#### 9.5a Each control is narrowed by the others
+
+Choosing a store leaves the title filter offering only what sold there, and choosing a title leaves the store filter offering only where it sold.
+
+**A control never narrows itself.** Its own selection is excluded from the sibling filters, or picking one option would remove the alternatives from its own list and the choice could not be changed. v1 spells the same rule as `skip_keys`.
+
+**The cost is one query per option-bearing control, per render.** `order_by()` clears any `Meta.ordering` before `distinct()`: left in place, its columns join the SELECT and the same store returns once per sale.
 
 **Which DataSource a control resolves against is stated, not guessed.** `PageFilter.data_source` is nullable and needed only by a widget that offers options. A page's blocks may read different models, and "the first block that has this field" is the kind of implicit rule that bites once a page has two.
 

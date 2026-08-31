@@ -176,14 +176,28 @@ def drawn_controls(page: Page, values: dict[str, Any], user) -> list[DrawnContro
     drawn = []
     for control in controls_of(page):
         widget = find(control.widget) or find(Widget.INPUT)
-        options = (
-            options_for(control, user) if widget and widget.needs_options else []
-        )
+        options = []
+        if widget and widget.needs_options:
+            # The cascade: every control's selection except this one's. A
+            # control that narrowed itself would drop the alternatives from
+            # its own list, and the choice could not then be changed.
+            siblings = {
+                name: value
+                for name, value in (values or {}).items()
+                if name != control.field_name
+            }
+            options = options_for(
+                control, user, siblings=filter_kwargs(page, siblings, user)
+            )
         value = values.get(control.field_name)
-        if widget and widget.multiple and not isinstance(value, list):
-            # So `{% if option_value in value %}` is a membership test rather
-            # than a substring one, which would tick "2" for a value of "12".
-            value = [value] if value else []
+        if widget and widget.multiple:
+            # A list of strings, because the options are strings: a stored
+            # default of `[3]` would otherwise never match option `"3"`, and
+            # `in` on a bare string is a substring test that ticks "2" for a
+            # value of "12".
+            value = [str(v) for v in value] if isinstance(value, list) else (
+                [str(value)] if value not in (None, "") else []
+            )
         drawn.append(
             DrawnControl(
                 control=control,

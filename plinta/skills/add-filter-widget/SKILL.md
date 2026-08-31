@@ -70,12 +70,19 @@ the query string and the viewer's default is reapplied — they cannot express
 "no filter". The hidden field keeps the key present; the empty value is
 stripped, and the control arrives as an empty list.
 
-## Options are scoped, and not yours to widen
+## Options are the values that are there, and not yours to widen
 
-`options_for` narrows an FK's rows with `allowed(user, "view", …)` on the
-target model. **Do not query the target yourself**: v1's equivalent did, took
-no user, and listed every store by name to somebody who could see two stores'
-rows.
+`options_for` returns the **distinct values present in the rows the viewer can
+see**, narrowed further by the other controls' selections. So a filter offers
+what would match something: a viewer with no sales is offered no stores.
+
+**Do not query the model yourself.** v1's equivalent did, took no user, and
+listed every store by name to somebody who could see two stores' rows. The
+scoping here comes with the rows rather than being added to them — a value
+cannot appear unless a row carrying it is visible.
+
+**`options` arrives already cascaded.** Your template renders what it is
+given; deciding what to offer is not the widget's job.
 
 If your widget fetches options as you type, the endpoint it calls has the same
 obligation. A search that returns rows the viewer may not see is the same leak

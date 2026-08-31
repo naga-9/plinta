@@ -52,13 +52,17 @@ def stores_of(user):
 
 
 class SalePolicy(PermissionPolicy):
-    """A manager sees their own stores' sales, and nobody else's.
+    """A manager sees their own stores' sales; head office sees every one.
 
     Structural scoping with no `contrib.organization` in sight: core supplies
     the shape, the consumer supplies what a store is and who manages one.
+
+    Reading is wider than writing on purpose. Head office is defined by
+    `change_store` — whoever may edit the branches may read across them — but
+    that grants no power to record or delete a sale at a shop they do not run.
     """
 
-    view = FieldInUserSet("store", user_set=stores_of)
+    view = HasPerm("catalog.change_store") | FieldInUserSet("store", user_set=stores_of)
     change = FieldInUserSet("store", user_set=stores_of)
     delete = FieldInUserSet("store", user_set=stores_of)
 

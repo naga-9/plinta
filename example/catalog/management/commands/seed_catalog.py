@@ -280,15 +280,28 @@ class Command(BaseCommand):
               block("recent-sales", "table_plinta", sources["sales"],
                     config={"title": "Recent sales", "page_size": 20}),
               col=3, row=0, w=9, h=6, order=1)
-        # A multi-select over the store relation: the options are scoped to
-        # the viewer, so mira sees Hale Street and noor sees Marsh Lane. The
-        # dropdown never names a store whose rows they may not see.
+        # Two multi-selects, to show both halves of the behaviour.
+        #
+        # The options are the values *present in the sales this viewer can
+        # see*: mira is offered Hale Street and noor Marsh Lane, and somebody
+        # with no sales is offered nothing rather than a list of branches
+        # whose rows they cannot reach.
+        #
+        # And each narrows the other. Choose a store and the book filter
+        # offers only what sold there; choose a book and the store filter
+        # offers only where it sold. Neither narrows itself, or the first
+        # choice could not be changed.
         PageFilter.objects.update_or_create(
             page=pages["sales"], field_name="store",
             defaults={"label": "Store", "widget": "multiselect_plinta", "lookup": "in",
                       "data_source": sources["sales"], "order": 0},
         )
-        only_filters(pages["sales"], "store")
+        PageFilter.objects.update_or_create(
+            page=pages["sales"], field_name="book",
+            defaults={"label": "Title", "widget": "multiselect_plinta", "lookup": "in",
+                      "data_source": sources["sales"], "order": 1},
+        )
+        only_filters(pages["sales"], "store", "book")
 
         # Purchasing --------------------------------------------------------
         pages["purchasing"], _ = Page.objects.update_or_create(

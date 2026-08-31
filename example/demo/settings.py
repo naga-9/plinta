@@ -56,6 +56,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "plinta.shell.context_processors.branding",
+                "plinta.shell.context_processors.styles",
                 "plinta.shell.context_processors.menu",
             ]
         },

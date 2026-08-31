@@ -2282,7 +2282,44 @@ The shell owns the theme, and the theme is generated rather than written.
 
 **Contrib components read tokens, never colours.** A component wanting a series palette calls `tokens.read()`; it never ships a hex value.
 
-### 10.9 Overriding, and what that costs
+### 10.9 Style packs
+
+A **style pack** swaps the class names the markup carries, so a project already using Bootstrap or Tailwind gets screens that match the rest of its application without forking a template.
+
+```python
+PLINTA_STYLE_PACK = "bootstrap5"
+```
+
+Called a pack rather than a theme because `data-theme` already means light or dark, and the two are unrelated — a Bootstrap pack still has both.
+
+**A pack is class names only, and that is not the whole story.** Frameworks disagree about *shape*, not just naming:
+
+| Framework | Pagination |
+|---|---|
+| Bootstrap 5 | `ul.pagination > li.page-item > a.page-link` |
+| Bulma | `nav.pagination > a.pagination-previous` **+** `ul.pagination-list > li > a` — prev and next are siblings of the list |
+| Fomantic | `div.ui.pagination.menu > a.item` — no list at all |
+| Tailwind | none; utilities on whatever markup exists |
+
+No single structure satisfies all four, so **plinta's markup is chosen for its own semantics and never to match a vendor**. A pager and a menu are lists of links because that is what they are — a screen reader announces how many and offers list navigation. That three of the four frameworks then need only a rename is a consequence, not the motive.
+
+What a rename cannot reach is **written down by the pack** and reported at boot, rather than silently producing markup the framework styles as nothing:
+
+```python
+RESIDUE = {
+    "plinta/shell/topbar.html": "Bootstrap's navbar wants .navbar > .container-fluid",
+}
+```
+
+**A pack ships no vendor stylesheet.** Where Bootstrap itself comes from — a CDN, npm, their own build — is the consumer's decision, and vendoring it would make that decision for them. The `plinta_css` block is where it goes.
+
+**An unknown class name is refused at registration**, and a pack named by the setting but never registered raises at first use rather than falling back. Both would otherwise present as "the pack is not installed" — our own class names against a stylesheet that does not define them, with nothing to explain it.
+
+**The vocabulary is the contract.** `utils.styles.DEFAULT` names every class the markup emits; a pack overrides the keys it cares about and inherits the rest, so restyling buttons is four lines. Adding a key is adding to public API (§18.19).
+
+**Layer 1**, because everything that emits markup needs it: the HTML renderer (§7), components, and the shell's templates.
+
+### 10.10 Overriding, and what that costs
 
 Four rungs, and the ladder only has its cheap ones because core owns its class names.
 
@@ -2305,12 +2342,14 @@ A consumer wanting Bootstrap specifically loads it there and writes a bridge sty
 
 **Three things become public API**, with the same stability obligation as the Python (§18.19): the **class names**, the **context** each template receives, and the **block names**. Without that, "override the template" is a promise broken every release.
 
-### 10.10 Decisions
+### 10.11 Decisions
 
 | Item | Decision |
 |---|---|
 | Two base templates | **one**, under `shell/`, with its regions in separate files |
 | CSS framework | **none** — core styles its own screens against the tokens |
+| Somebody else's class names | a **style pack** — a mapping, plus the residue it cannot reach (§10.9) |
+| Markup shape | chosen for its **own semantics**; never to match a vendor, because no shape matches all of them |
 | Bootstrap | **not a dependency**, not even an optional one (§10.8) |
 | Theme attribute | `data-theme`, not `data-bs-theme` |
 | Template granularity | split by override boundary; blocks for partial changes |
@@ -3545,9 +3584,9 @@ Vendored assets do not update themselves, which is the real cost of this choice.
 
 ## 18. Extension points
 
-Seventeen extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
+Eighteen extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
 
-Thirteen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
+Fourteen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
 
 Contrib apps add their own on top — `register_channel` and `register_notification` in `contrib.notifications`, `register_guard` in `contrib.workflow` — each with a skill shipped inside the app that provides it (§25.4).
 
@@ -4637,13 +4676,14 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | `register_field_renderer` | `add-field-renderer` | renderers (§7) |
 | `register_component` | `add-component` | components (§7) |
 | `register_capability` | `add-capability` | blocks (§8) |
+| `register_style_pack` | `add-style-pack` | utils (§10.9) |
 | `register_shell_link` | `add-shell-link` | shell (§10) |
 | `register_topbar_item` | `add-topbar-item` | shell (§10.1) |
 | `register_action` | `add-action` | permissions (§5.3) |
 | a contrib package | `add-contrib-app` | contrib (§14) |
 | a consumer application | `start-consumer-app` | the whole surface (§1.4) |
 
-Seventeen points, seventeen skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
+Eighteen points, eighteen skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
 
 ### 25.2 Examples use the demo domain
 

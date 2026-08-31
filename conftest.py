@@ -6,7 +6,7 @@ from plinta.datasources import annotations, modifiers
 from plinta.events import signals
 from plinta.permissions import actions, policies
 from plinta.forms import overrides
-from plinta.utils import placeholders
+from plinta.utils import placeholders, styles
 
 
 @pytest.fixture
@@ -17,6 +17,21 @@ def placeholder_registry():
     yield placeholders
     placeholders._registry.clear()
     placeholders._registry.update(saved)
+
+
+@pytest.fixture
+def style_registry():
+    """Style packs reset to plinta's own, restored afterwards.
+
+    Not emptied: `classes()` must always resolve, and the built-in pack is
+    what every default resolves to.
+    """
+    saved = dict(styles._registry)
+    styles._registry.clear()
+    styles._registry[styles.PLINTA] = dict(styles.DEFAULT)
+    yield styles
+    styles._registry.clear()
+    styles._registry.update(saved)
 
 
 @pytest.fixture

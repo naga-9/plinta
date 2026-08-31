@@ -13,5 +13,6 @@ INSTALLED_APPS = [  # noqa: F405
     "plinta.contrib.notifications",
     "plinta.contrib.comments",
     "plinta.contrib.workflow",
+    "plinta.contrib.styles_bootstrap5",
     "tests.contribapp",
 ]

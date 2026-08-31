@@ -163,7 +163,16 @@ hr {
     color: var(--pl-fg-muted);
 }
 
-.pl-sidebar__link {
+/* The menu is a list; strip the list chrome and keep the semantics. */
+.pl-menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.pl-menu__item { margin: 0; }
+
+.pl-menu__link {
     display: flex;
     align-items: center;
     gap: var(--pl-space-2);
@@ -173,12 +182,12 @@ hr {
     transition: background var(--pl-transition);
 }
 
-.pl-sidebar__link:hover {
+.pl-menu__link:hover {
     background: var(--pl-hover-bg);
     text-decoration: none;
 }
 
-.pl-sidebar__link.is-active {
+.pl-menu__link.is-active {
     background: var(--pl-active-bg);
     border-left-color: var(--pl-accent);
     color: var(--pl-accent);
@@ -329,7 +338,32 @@ hr {
     color: var(--pl-fg-muted);
 }
 
-.pl-pager__links { margin-left: auto; display: flex; gap: var(--pl-space-1); }
+.pl-pager__status { color: var(--pl-fg-muted); }
+
+/* The links are a list; strip the chrome, keep the semantics. */
+.pl-pager__list {
+    list-style: none;
+    margin: 0 0 0 auto;
+    padding: 0;
+    display: flex;
+    gap: var(--pl-space-1);
+}
+
+.pl-pager__link {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--pl-space-1) var(--pl-space-3);
+    border: 1px solid var(--pl-border);
+    border-radius: var(--pl-radius-sm);
+    color: var(--pl-fg);
+    text-decoration: none;
+    transition: background var(--pl-transition);
+}
+
+.pl-pager__link:hover {
+    background: var(--pl-hover-bg);
+    text-decoration: none;
+}
 
 /* 6. forms ----------------------------------------------------------------- */
 

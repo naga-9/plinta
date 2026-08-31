@@ -15,6 +15,7 @@ from django.utils.safestring import SafeString, mark_safe
 from plinta.renderers.base import Renderer
 from plinta.renderers.fields import render_field
 from plinta.renderers.registry import register_renderer
+from plinta.utils.styles import classes
 
 #: Formats whose value is already markup and is emitted unescaped.
 MARKUP_FORMATS = frozenset({"html"})
@@ -95,9 +96,12 @@ class HtmlRenderer(Renderer):
         )
         if not body:
             body = self.empty_row(fields, config.get("empty_text") or EMPTY_TEXT)
+        cls = classes()
         return format_html(
-            '<div class="pl-table-wrap"><table class="pl-table">'
+            '<div class="{}"><table class="{}">'
             "<thead><tr>{}</tr></thead><tbody>{}</tbody></table></div>{}",
+            cls["table_wrap"],
+            cls["table"],
             header,
             body,
             self.pager(context.get("page"), context.get("page_urls") or {}),
@@ -115,9 +119,11 @@ class HtmlRenderer(Renderer):
             return escape(field.label)
         direction = (context.get("sorted_by") or {}).get(field.field_name)
         arrow = ARROWS.get(direction, "")
+        cls = classes()
         return format_html(
-            '<a class="pl-table__sort{}" href="{}">{}{}</a>',
-            " is-active" if direction else "",
+            '<a class="{}{}" href="{}">{}{}</a>',
+            cls["table_sort"],
+            f" {cls['table_sort_active']}" if direction else "",
             url,
             field.label,
             format_html('<span aria-hidden="true"> {}</span>', arrow) if arrow else "",
@@ -130,7 +136,8 @@ class HtmlRenderer(Renderer):
         reads as a filter that matched nothing, which is what it usually is.
         """
         return format_html(
-            '<tr class="pl-table__empty"><td colspan="{}">{}</td></tr>',
+            '<tr class="{}"><td colspan="{}">{}</td></tr>',
+            classes()["table_empty"],
             max(len(fields), 1),
             text,
         )
@@ -140,6 +147,11 @@ class HtmlRenderer(Renderer):
 
         Absent when everything fits on one page: a pager offering nowhere to
         go is furniture.
+
+        A **list**, because a set of links is one — a screen reader announces
+        how many there are and offers list navigation. Three of the four
+        frameworks worth theming want the same shape, which is a consequence
+        of that rather than the reason for it.
         """
         if page is None or page.paginator.num_pages <= 1:
             return mark_safe("")
@@ -148,12 +160,19 @@ class HtmlRenderer(Renderer):
             links.append(("prev", urls["previous"], "Previous"))
         if page.has_next() and urls.get("next"):
             links.append(("next", urls["next"], "Next"))
+        cls = classes()
         return format_html(
-            '<nav class="pl-pager" aria-label="Pages"><span>{} of {}</span>'
-            '<span class="pl-pager__links">{}</span></nav>',
+            '<nav class="{}" aria-label="Pages"><span class="{}">{} of {}</span>'
+            '<ul class="{}">{}</ul></nav>',
+            cls["pager"],
+            cls["pager_status"],
             page.number,
             page.paginator.num_pages,
+            cls["pager_list"],
             format_html_join(
-                "", '<a class="pl-btn pl-btn--sm" rel="{}" href="{}">{}</a>', links
+                "",
+                '<li class="{}"><a class="{}" rel="{}" href="{}">{}</a></li>',
+                ((cls["pager_item"], cls["pager_link"], rel, url, label)
+                 for rel, url, label in links),
             ),
         )

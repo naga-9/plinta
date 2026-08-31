@@ -1,45 +1,58 @@
 {% comment %} The menu, assembled from the pages this viewer may open, plus the fixed
-   links to screens that are not pages (§10.2). {% endcomment %}
-<nav class="pl-sidebar" id="pl-sidebar" aria-label="Main">
+   links to screens that are not pages (§10.2).
+
+   The links are a list, because that is what they are: a screen reader says
+   how many there are and offers list navigation. Class names come from the
+   style pack so a pack can rename them without this file changing. {% endcomment %}
+<nav class="{{ cls.sidebar }}" id="pl-sidebar" aria-label="Main">
     {% block sidebar_header %}{% endblock %}
 
     {% block sidebar_menu %}
         {% for entry in menu_sections %}
-            <div class="pl-sidebar__section">
-                <h2 class="pl-sidebar__heading">{{ entry.section.name }}</h2>
+            <div class="{{ cls.menu_section }}">
+                <h2 class="{{ cls.menu_heading }}">{{ entry.section.name }}</h2>
                 {% for group in entry.groups %}
-                    <div class="pl-sidebar__group">
+                    <div class="{{ cls.menu_group }}">
                         {% if group.group.name %}
-                            <div class="pl-sidebar__group-name">{{ group.group.name }}</div>
+                            <div class="{{ cls.menu_group_name }}">{{ group.group.name }}</div>
                         {% endif %}
-                        {% for page_item in group.pages %}
-                            <a class="pl-sidebar__link{% if page_item.pk == page.pk %} is-active{% endif %}"
-                               href="{{ page_item.get_absolute_url }}">
-                                {% if page_item.menu_icon %}
-                                    <i class="{{ page_item.menu_icon }}" aria-hidden="true"></i>
-                                {% endif %}
-                                <span>{{ page_item.name }}</span>
-                            </a>
-                        {% endfor %}
+                        <ul class="{{ cls.menu }}">
+                            {% for page_item in group.pages %}
+                                <li class="{{ cls.menu_item }}">
+                                    <a class="{{ cls.menu_link }}{% if page_item.pk == page.pk %} {{ cls.menu_link_active }}{% endif %}"
+                                       href="{{ page_item.get_absolute_url }}"
+                                       {% if page_item.pk == page.pk %}aria-current="page"{% endif %}>
+                                        {% if page_item.menu_icon %}
+                                            <i class="{{ page_item.menu_icon }}" aria-hidden="true"></i>
+                                        {% endif %}
+                                        <span>{{ page_item.name }}</span>
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
                     </div>
                 {% endfor %}
             </div>
         {% endfor %}
 
         {% if shell_links %}
-            <div class="pl-sidebar__section">
-                <h2 class="pl-sidebar__heading">Manage</h2>
-                {% for link in shell_links %}
-                    <a class="pl-sidebar__link" href="{% url link.url_name %}">
-                        {% if link.icon %}
-                            <i class="{{ link.icon }}" aria-hidden="true"></i>
-                        {% endif %}
-                        <span>{{ link.label }}</span>
-                        {% if link.badge %}
-                            <span class="pl-chip pl-spacer">{{ link.badge }}</span>
-                        {% endif %}
-                    </a>
-                {% endfor %}
+            <div class="{{ cls.menu_section }}">
+                <h2 class="{{ cls.menu_heading }}">Manage</h2>
+                <ul class="{{ cls.menu }}">
+                    {% for link in shell_links %}
+                        <li class="{{ cls.menu_item }}">
+                            <a class="{{ cls.menu_link }}" href="{% url link.url_name %}">
+                                {% if link.icon %}
+                                    <i class="{{ link.icon }}" aria-hidden="true"></i>
+                                {% endif %}
+                                <span>{{ link.label }}</span>
+                                {% if link.badge %}
+                                    <span class="{{ cls.chip }} {{ cls.spacer }}">{{ link.badge }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
             </div>
         {% endif %}
     {% endblock %}

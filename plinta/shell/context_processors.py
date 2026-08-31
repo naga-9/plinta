@@ -38,3 +38,15 @@ def menu(request) -> dict[str, Any]:
         "shell_links": visible_links(user),
         "topbar_items": visible_items(user),
     }
+
+
+def styles(request) -> dict:
+    """The class names the templates draw with.
+
+    A dict rather than a template tag so a template reads `{{ cls.btn }}`
+    instead of a function call on every element — the indirection is only
+    worth having if it stays invisible.
+    """
+    from plinta.utils.styles import classes
+
+    return {"cls": classes()}

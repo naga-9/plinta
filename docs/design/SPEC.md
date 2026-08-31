@@ -2063,6 +2063,10 @@ Filter *values* are personalisation and live here as `FilterSet` and `PageFilter
 
 Filter values honour placeholders (§3.6), so `__CURRENT_QUARTER__` resolves at query time — and is **stored as written**, so a remembered filter keeps meaning the current quarter rather than freezing to the one it was saved in.
 
+**A saved set is chosen from the bar**, as `?filterset=<id>`, and applies its values. It is matched against the sets the viewer may see rather than fetched by id — the id is guessable, and refusing one would confirm it exists. Choosing a set **wins over the controls**, because choosing it is the more deliberate act and the controls were showing the previous state.
+
+The picker is its own form beside the controls, so applying a set and applying the controls are separate acts rather than one submission meaning two things. Absent when there are no sets: a control offering nothing to choose is furniture.
+
 **Which values apply when the viewer sent none:** their remembered state, then their own default `FilterSet`, then a public one, then each control's own `default_value`. The same chain shape as a block's saved view (§8.2), and for the same reason: every step is a mark someone made.
 
 **A value for a field the page does not declare is ignored.** The bar is what the page exposes; a query string is not, and honouring an undeclared key would let a URL filter on a column the page never offered.

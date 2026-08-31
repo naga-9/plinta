@@ -1,6 +1,32 @@
 {% load plinta_tags %}
 {# The controls a page exposes. Page furniture: always visible, driven by the
    viewer, and submitted as a plain GET so a filtered page is a shareable URL. #}
+{% if filter_sets %}
+    {# Its own form, so applying a set and applying the controls are separate
+       acts rather than one submission meaning two things. #}
+    <form class="pl-filters" method="get">
+        {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
+        <div class="pl-filters__control">
+            <div class="pl-field">
+                <label class="pl-label" for="pl-filterset">Saved filters</label>
+                <select class="pl-select" id="pl-filterset" name="filterset">
+                    <option value="">Choose…</option>
+                    {% for saved in filter_sets %}
+                        <option value="{{ saved.pk }}"
+                                {% if chosen_set.pk == saved.pk %}selected{% endif %}>
+                            {{ saved.name }}{% if not saved.owner %} (shared){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="pl-filters__actions">
+            <button type="submit" class="pl-btn pl-btn--sm">Apply set</button>
+        </div>
+    </form>
+{% endif %}
+
+{% if page.filters.all %}
 <form class="pl-filters" method="get">
     {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
 
@@ -31,3 +57,4 @@
         <a class="pl-btn pl-btn--sm" href="?reset=1">Clear</a>
     </div>
 </form>
+{% endif %}

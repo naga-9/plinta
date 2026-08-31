@@ -503,3 +503,108 @@ def test_a_pages_menu_icon_is_drawn(screen, client):
     Page.objects.filter(pk=page.pk).update(menu_icon="bi bi-book")
     body = client.get(page.get_absolute_url()).content.decode()
     assert 'class="bi bi-book"' in body
+
+
+# --- saved filter sets -----------------------------------------------------
+
+
+def test_the_picker_is_absent_when_there_are_none(screen, client):
+    """A control offering nothing to choose is furniture."""
+    page, _, _ = screen
+    PageFilter.objects.create(page=page, field_name="in_print", label="In print")
+    assert "pl-filterset" not in client.get(page.get_absolute_url()).content.decode()
+
+
+def test_the_sets_this_viewer_may_see_are_offered(screen, client):
+    page, _, ada = screen
+    bob = User.objects.create(username="bob")
+    FilterSet.objects.create(page=page, name="Mine", owner=ada, values={})
+    FilterSet.objects.create(page=page, name="Shared", owner=None, values={})
+    FilterSet.objects.create(page=page, name="Bob's", owner=bob, values={})
+
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "Mine" in body and "Shared" in body
+    assert "Bob&#x27;s" not in body and "Bob's" not in body
+
+
+def test_a_public_set_is_marked_as_shared(screen, client):
+    page, _, _ = screen
+    FilterSet.objects.create(page=page, name="Shared", owner=None, values={})
+    assert "(shared)" in client.get(page.get_absolute_url()).content.decode()
+
+
+def test_choosing_one_applies_its_values(screen, client):
+    page, _, ada = screen
+    PageFilter.objects.create(page=page, field_name="in_print", label="In print")
+    saved = FilterSet.objects.create(
+        page=page, name="In print", owner=ada, values={"in_print": "True"}
+    )
+    body = client.get(page.get_absolute_url(), {"filterset": saved.pk}).content.decode()
+    assert "Dune" in body and "Emma" not in body
+
+
+def test_the_chosen_one_stays_selected(screen, client):
+    page, _, ada = screen
+    saved = FilterSet.objects.create(page=page, name="Mine", owner=ada, values={})
+    response = client.get(page.get_absolute_url(), {"filterset": saved.pk})
+    assert response.context["chosen_set"] == saved
+    assert "selected" in response.content.decode()
+
+
+def test_somebody_elses_set_is_not_applied(screen, client):
+    """Matched against what they may see rather than fetched by id — the id is
+    guessable, and a refusal would confirm it exists."""
+    page, _, _ = screen
+    bob = User.objects.create(username="bob")
+    PageFilter.objects.create(page=page, field_name="in_print", label="In print")
+    saved = FilterSet.objects.create(
+        page=page, name="Bob's", owner=bob, values={"in_print": "True"}
+    )
+    body = client.get(page.get_absolute_url(), {"filterset": saved.pk}).content.decode()
+    assert "Emma" in body
+
+
+def test_choosing_one_is_remembered(screen, client):
+    page, _, ada = screen
+    PageFilter.objects.create(page=page, field_name="in_print", label="In print")
+    saved = FilterSet.objects.create(
+        page=page, name="In print", owner=ada, values={"in_print": "True"}
+    )
+    client.get(page.get_absolute_url(), {"filterset": saved.pk})
+    assert PageFilterPreference.objects.get(page=page, owner=ada).values == {
+        "in_print": "True"
+    }
+
+
+def test_a_set_wins_over_the_controls(screen, client):
+    """Choosing a set is the more deliberate act, so it wins over whatever the
+    controls were showing when it was chosen."""
+    page, _, ada = screen
+    PageFilter.objects.create(page=page, field_name="in_print", label="In print")
+    saved = FilterSet.objects.create(
+        page=page, name="In print", owner=ada, values={"in_print": "True"}
+    )
+    body = client.get(
+        page.get_absolute_url(), {"filterset": saved.pk, "in_print": "False"}
+    ).content.decode()
+    assert "Dune" in body and "Emma" not in body
+
+
+def test_a_sets_placeholders_resolve(screen, client, placeholder_registry):
+    page, _, ada = screen
+    placeholder_registry.register_placeholder("me", lambda ctx: ctx.user.pk)
+    PageFilter.objects.create(page=page, field_name="owner", label="Owner")
+    saved = FilterSet.objects.create(
+        page=page, name="Mine", owner=ada, values={"owner": "__ME__"}
+    )
+    assert client.get(
+        page.get_absolute_url(), {"filterset": saved.pk}
+    ).status_code == 200
+
+
+def test_filterset_is_not_treated_as_a_column(screen, client):
+    """It is the bar's own parameter, not a field the page declares."""
+    page, _, ada = screen
+    saved = FilterSet.objects.create(page=page, name="Mine", owner=ada, values={})
+    response = client.get(page.get_absolute_url(), {"filterset": saved.pk})
+    assert "filterset" not in response.context["filter_values"]

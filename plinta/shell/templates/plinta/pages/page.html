@@ -16,7 +16,9 @@
     {% endblock %}
 
     {% block page_filters %}
-        {% if page.filters.all %}{% include "plinta/pages/filter_bar.html" %}{% endif %}
+        {% if page.filters.all or filter_sets %}
+            {% include "plinta/pages/filter_bar.html" %}
+        {% endif %}
     {% endblock %}
 
     {% if page.tabs %}

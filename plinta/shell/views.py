@@ -21,7 +21,7 @@ from plinta.pages.rendering import (
 from plinta.permissions import can
 
 #: Query parameters the filter bar uses for itself.
-RESERVED = {"tab", "page", "sort", "reset", "view"}
+RESERVED = {"tab", "page", "sort", "reset", "view", "filterset"}
 
 
 def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None:
@@ -67,6 +67,19 @@ def bound_record(page: Page, request: HttpRequest, record_pk=None):
     return row
 
 
+def chosen_set(page: Page, request: HttpRequest, sets: list):
+    """The saved filter set the viewer picked, or None.
+
+    Matched against what they may see rather than fetched by id, so a set
+    somebody else owns is simply not found — the id is guessable, and a
+    refusal would confirm it exists.
+    """
+    asked = request.GET.get("filterset")
+    if not asked:
+        return None
+    return next((s for s in sets if str(s.pk) == asked), None)
+
+
 def page_view(
     request: HttpRequest, pk: int, slug: str = "", record: str | None = None
 ) -> HttpResponse:
@@ -95,7 +108,12 @@ def page_view(
         raise Http404("a detail page needs a record")
 
     tab = request.GET.get("tab", "")
-    submitted = submitted_filters(request, page)
+    sets = saved_filter_sets(page, request.user)
+    chosen = chosen_set(page, request, sets)
+
+    # Choosing a set is the more deliberate act, so it wins over whatever the
+    # controls were showing when it was chosen.
+    submitted = dict(chosen.values) if chosen else submitted_filters(request, page)
     if submitted is not None:
         remember_filters(page, request.user, submitted)
     values = submitted if submitted is not None else default_filters(page, request.user)
@@ -122,7 +140,8 @@ def page_view(
                 record=row,
             ),
             "filter_values": values,
-            "filter_sets": saved_filter_sets(page, request.user),
+            "filter_sets": sets,
+            "chosen_set": chosen,
         },
     )
 

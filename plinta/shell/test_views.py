@@ -1,4 +1,6 @@
 """A logged-in viewer reaching a page, through the whole stack."""
+import re
+
 import pytest
 from django.contrib.auth.models import Permission, User
 from django.contrib.contenttypes.models import ContentType
@@ -329,11 +331,50 @@ def test_a_filter_survives_a_sort(screen, client):
 
 
 def test_no_javascript_draws_the_table(screen, client):
-    """The whole claim: a viewer's page loads no vendor script at all."""
+    """The whole claim: a viewer's page loads no vendor script at all.
+
+    Counting scripts would only measure how many behaviours the shell has
+    grown. What must stay true is that every one of them is ours and none
+    comes from a CDN.
+    """
     page, _, _ = screen
     body = client.get(page.get_absolute_url()).content.decode()
+
     assert "tabulator" not in body.lower()
-    assert body.count("<script") == 1  # theme-toggle, and nothing else
+    sources = re.findall(r'<script[^>]*src="([^"]+)"', body)
+    assert sources, "the shell loads no script at all"
+    assert all(src.startswith("/static/plinta/js/") for src in sources), sources
+
+
+# --- the menu toggle --------------------------------------------------------
+
+
+def test_the_toggle_names_the_thing_it_controls(screen, client):
+    """`aria-controls` must point at an id that exists, or it points nowhere.
+
+    The button shipped before anything listened to it; this is the pair of
+    assertions that would have noticed.
+    """
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+
+    assert "data-plinta-sidebar-toggle" in body
+    assert 'aria-controls="pl-sidebar"' in body
+    assert 'id="pl-sidebar"' in body
+
+
+def test_the_collapse_is_stamped_before_paint(screen, client):
+    """`sidebar.js` must not be deferred.
+
+    A module or a `defer` runs after the document is parsed, so a remembered
+    collapse would draw the menu and then take it away.
+    """
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+
+    tag = next(line for line in body.splitlines() if "sidebar.js" in line)
+    assert "type=\"module\"" not in tag
+    assert "defer" not in tag
 
 
 # --- detail pages ----------------------------------------------------------

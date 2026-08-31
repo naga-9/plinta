@@ -11,6 +11,11 @@
         <link rel="stylesheet" href="{% static 'plinta/css/plinta.css' %}">
     {% endblock %}
     {% block extra_css %}{% endblock %}
+    {% comment %}
+    Not a module, and not deferred: a remembered collapse has to be stamped on
+    the document before the first paint, or the menu shows and then vanishes.
+    {% endcomment %}
+    <script src="{% static 'plinta/js/sidebar.js' %}"></script>
     <script type="module" src="{% static 'plinta/js/theme-toggle.js' %}"></script>
 </head>
 <body>

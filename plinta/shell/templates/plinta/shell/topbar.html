@@ -4,7 +4,7 @@
 </a>
 <header class="pl-topbar" {% if topbar_color %}style="background: {{ topbar_color }}"{% endif %}>
     <button type="button" class="pl-btn pl-btn--ghost pl-btn--sm" data-plinta-sidebar-toggle
-            aria-label="Menu">≡</button>
+            aria-label="Menu" aria-expanded="true" aria-controls="pl-sidebar">≡</button>
     <span class="pl-topbar__title">{% block topbar_title %}{{ page.name|default:"" }}{% endblock %}</span>
     <div class="pl-topbar__actions">
         {% block topbar_actions %}

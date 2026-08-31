@@ -84,6 +84,18 @@ hr {
     min-height: 100vh;
 }
 
+/* Collapsed: the sidebar leaves the grid and `main` spans both columns. The
+   brand keeps its own width rather than disappearing, so the site still says
+   what it is. */
+.pl-shell--collapsed {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+        "brand topbar"
+        "main  main";
+}
+
+.pl-shell--collapsed .pl-sidebar { display: none; }
+
 .pl-topbar {
     grid-area: topbar;
     display: flex;
@@ -598,7 +610,15 @@ hr {
         transition: transform var(--pl-transition);
     }
 
-    .pl-sidebar.is-open { transform: translateX(0); }
+    .pl-sidebar.is-open {
+        transform: translateX(0);
+        box-shadow: var(--pl-shadow-lg);
+    }
+
+    /* The collapse is a wide-screen preference; below the breakpoint the
+       drawer is already hidden, and honouring it would hide the drawer's
+       own open state. */
+    .pl-shell--collapsed .pl-sidebar { display: block; }
 
     .pl-grid {
         grid-auto-rows: auto;

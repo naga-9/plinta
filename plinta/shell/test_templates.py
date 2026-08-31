@@ -22,6 +22,7 @@ ASSETS = [
     "plinta/css/tokens.css",
     "plinta/css/plinta.css",
     "plinta/js/theme-toggle.js",
+    "plinta/js/sidebar.js",
 ]
 
 

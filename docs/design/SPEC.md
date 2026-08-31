@@ -215,6 +215,10 @@ Eleven packages, plus twelve component packages under `components.*`. None is re
 
 **Downward — contrib may depend on core.** Declared on the `AppConfig` as `requires`, validated by a `django.core.checks` function at startup. Missing requirement is an error, not a runtime surprise.
 
+**Four core layers are not applications.** `utils`, `dates`, `forms` and `events` ship as plain packages with no `AppConfig`: importable wherever plinta is, impossible to omit, and so nothing to declare. Naming one in `requires` is `plinta.apps.E002` rather than a no-op — a declaration that cannot fail is one a reader trusts for nothing, and every contrib package shipped `plinta.events` this way, which is what made the vocabulary look load-bearing while it was decorative.
+
+**`requires` may not name another contrib package** (`plinta.apps.E005`). That is `enhances`, which names a substitute, or `composes`, which is structural; `requires` would make a removable package un-removable without saying so.
+
 **Sideways — contrib may depend on contrib, but only by declaration.** An undeclared `plinta.contrib.x` importing `plinta.contrib.y` is a test failure. A declared one is ordinary.
 
 This follows `django.contrib`, which does exactly this and is the only large precedent worth copying:
@@ -3807,6 +3811,19 @@ class MyAppConfig(AppConfig):
     requires = ['plinta.datasources', 'plinta.blocks']   # core — error if missing
     enhances = ['plinta.contrib.labels']                 # optional — info only
 ```
+
+Checked by `plinta.utils.checks` at boot, over every installed app including a consumer's:
+
+| Id | Raised when |
+|---|---|
+| `plinta.apps.E001` | the declaration is not a list of strings — a bare string iterates as characters |
+| `plinta.apps.E002` | it names `utils`, `dates`, `forms` or `events`, which are not applications |
+| `plinta.apps.E003` | a `requires` entry is not in `INSTALLED_APPS` |
+| `plinta.apps.E004` | a `composes` entry is not in `INSTALLED_APPS` |
+| `plinta.apps.E005` | a contrib package `requires` another contrib package |
+| `plinta.apps.I001` | an `enhances` entry is absent — **information**, since that is a supported configuration |
+
+Either form matches: `plinta.blocks` (the path) or `plinta_blocks` (the label).
 
 `composes` exists for a **structural** dependency — a base class, a `ForeignKey`, a migration `dependencies` entry, the `flatpages` → `sites` shape. It is checked as a boot error because it cannot degrade. `enhances` covers everything else and must name a substitute with the same interface, never a guard that hides a feature. See §2.5.
 

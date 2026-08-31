@@ -8,7 +8,7 @@ class CommentsConfig(AppConfig):
     verbose_name = "plinta comments"
     default_auto_field = "django.db.models.BigAutoField"
 
-    requires = ["plinta.events", "plinta.permissions", "plinta.blocks"]
+    requires = ["plinta.permissions", "plinta.blocks"]
 
     def ready(self):
         from plinta.contrib.comments import capabilities, policies  # noqa: F401

@@ -60,14 +60,24 @@ def watch(name="book_written", event="created", **kwargs):
 
 
 def test_no_core_module_imports_it():
-    """In v1 comments, actions, the workflow mixin and the write pipeline all
-    called this app directly, which is what made it mandatory."""
+    """Nothing in core knows this app exists; it subscribes to core's signals.
+
+    Asserted from the **imports**, not from the text. A core module may name
+    the contrib namespace — `utils/checks.py` holds `"plinta.contrib."` to
+    enforce the very rule this tests — and a string is not a dependency.
+    """
+    from tests.test_import_boundary import _imported_plinta_modules
+
     core = pathlib.Path(__file__).resolve().parents[2]
     importers = [
         path.relative_to(core.parent)
         for path in core.rglob("*.py")
         if "contrib" not in path.parts
-        and "plinta.contrib" in path.read_text(encoding="utf-8")
+        and "migrations" not in path.parts
+        and any(
+            m.startswith("plinta.contrib")
+            for m in _imported_plinta_modules(path)
+        )
     ]
     assert importers == []
 

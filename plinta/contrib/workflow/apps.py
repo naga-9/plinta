@@ -10,7 +10,7 @@ class WorkflowConfig(AppConfig):
 
     #: The state machine needs these two. An admin screen would add more, and
     #: arrives as a seeder rather than as a dependency of the machine.
-    requires = ["plinta.events", "plinta.permissions", "plinta.blocks", "plinta.renderers"]
+    requires = ["plinta.permissions", "plinta.blocks", "plinta.renderers"]
 
     #: Reading where a row has been needs a recorded history. With audit
     #: absent, `history()` returns nothing and the panel says so — the state

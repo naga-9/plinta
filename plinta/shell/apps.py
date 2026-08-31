@@ -8,5 +8,7 @@ class ShellConfig(AppConfig):
     verbose_name = "plinta shell"
 
     def ready(self):
+        # The declared-dependency checks, registered wherever plinta is.
+        from plinta.utils import checks as _dependency_checks  # noqa: F401
         # Imported for its side effect: registering the boot checks.
         from plinta.shell import checks  # noqa: F401

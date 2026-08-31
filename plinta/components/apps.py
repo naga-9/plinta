@@ -8,5 +8,7 @@ class ComponentsConfig(AppConfig):
     verbose_name = "plinta components"
 
     def ready(self):
+        # The declared-dependency checks, registered wherever plinta is.
+        from plinta.utils import checks as _dependency_checks  # noqa: F401
         # Imported for its side effect: registering the table component.
         from plinta.components import table  # noqa: F401

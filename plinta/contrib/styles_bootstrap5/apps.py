@@ -7,8 +7,8 @@ class StylesBootstrap5Config(AppConfig):
     label = "plinta_styles_bootstrap5"
     verbose_name = "plinta styles: Bootstrap 5"
 
-    #: Class names only. Nothing here reads a model, a permission or an event.
-    requires = ["plinta.utils"]
+    #: Nothing. A mapping needs no application installed — `plinta.utils`,
+    #: which holds the registry, is a plain package that is always importable.
 
     def ready(self):
         from plinta.contrib.styles_bootstrap5 import pack

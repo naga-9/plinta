@@ -8,4 +8,6 @@ class PermissionsConfig(AppConfig):
     verbose_name = "plinta permissions"
 
     def ready(self):
+        # The declared-dependency checks, registered wherever plinta is.
+        from plinta.utils import checks as _dependency_checks  # noqa: F401
         from plinta.permissions import checks  # noqa: F401

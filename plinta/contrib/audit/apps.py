@@ -8,9 +8,10 @@ class AuditConfig(AppConfig):
     verbose_name = "plinta audit"
     default_auto_field = "django.db.models.BigAutoField"
 
-    #: The listener needs the first two; `seed_audit_page` needs the rest.
+    #: The listener needs permissions; `seed_audit_page` needs the rest. The
+    #: event bus is not listed: `plinta.events` is a plain package, always
+    #: importable and impossible to omit.
     requires = [
-        "plinta.events",
         "plinta.permissions",
         "plinta.datasources",
         "plinta.blocks",

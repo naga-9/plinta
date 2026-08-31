@@ -8,6 +8,8 @@ class RenderersConfig(AppConfig):
     verbose_name = "plinta renderers"
 
     def ready(self):
+        # The declared-dependency checks, registered wherever plinta is.
+        from plinta.utils import checks as _dependency_checks  # noqa: F401
         # Imported for their side effects: registering the HTML renderer and
         # the boot check.
         from plinta.renderers import checks, html  # noqa: F401

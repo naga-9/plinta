@@ -11,7 +11,7 @@ class NotificationsConfig(AppConfig):
     verbose_name = "plinta notifications"
     default_auto_field = "django.db.models.BigAutoField"
 
-    requires = ["plinta.events", "plinta.permissions", "plinta.shell"]
+    requires = ["plinta.permissions", "plinta.shell"]
 
     def ready(self):
         from plinta.contrib.notifications import (  # noqa: F401

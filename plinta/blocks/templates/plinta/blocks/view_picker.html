@@ -7,7 +7,9 @@
    The parameter carries the placement's prefix, so two blocks on one page
    choose independently — the same rule their sort and page numbers follow.
    {% endcomment %}
-<form method="get" class="{{ cls.row }}">
+{% comment %} `data-plinta-keep-scroll`: switching a card halfway down a
+   dashboard should not throw you back to the top. {% endcomment %}
+<form method="get" class="{{ cls.row }}" data-plinta-keep-scroll>
     {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
     <label class="{{ cls.visually_hidden }}" for="{{ slot.param }}view">View</label>
     <select class="{{ cls.select }} {{ cls.select_sm }}" id="{{ slot.param }}view"

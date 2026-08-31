@@ -92,20 +92,36 @@ def views_for(blocks, user) -> dict[int, list[SavedView]]:
     return found
 
 
-def chosen_view(views: list[SavedView], user, asked: str | None) -> SavedView | None:
-    """The view in force: the one asked for, else the one that applies.
+def chosen_view(
+    views: list[SavedView],
+    user,
+    asked: str | None,
+    placement_default: int | None = None,
+) -> SavedView | None:
+    """The view in force, in order of how deliberate the choice was.
+
+    1. what the viewer asked for, now
+    2. the **placement's** default — this card, on this page
+    3. the viewer's own default for the block
+    4. a public default
+    5. none, and the block's own config applies
+
+    Every step is a mark somebody made, and the later ones are older and less
+    specific. Step 2 is why two placements of one block act independently: a
+    view belongs to a block, but which one a card opens on belongs to the
+    card.
 
     Chosen from ``views`` rather than fetched, so it costs no query and a view
-    somebody else owns is simply not found — the id is guessable, and a
-    refusal would confirm it exists.
-
-    With nothing asked, their own default wins over a public one. Both are
-    marks somebody made deliberately; with neither, the block's own config
-    applies.
+    the viewer may not see is simply not found — including one a placement
+    names, which then falls through rather than leaking that it exists.
     """
     if asked:
         for view in views:
             if str(view.pk) == str(asked):
+                return view
+    if placement_default:
+        for view in views:
+            if view.pk == placement_default:
                 return view
     mine = getattr(user, "pk", None)
     defaults = [v for v in views if v.is_default]

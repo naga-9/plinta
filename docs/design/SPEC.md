@@ -2325,6 +2325,22 @@ The padding is on the card's body — the shell's element, which the component r
 
 **The saved-view picker is the first occupant.** `render_block(view=…)` existed and nothing ever passed one, so a viewer could only reach their *default* view — the `filter_sets` defect, one layer down. The parameter carries the placement's prefix, `b3_view`, so two blocks on one page choose independently, the same rule their sort and page numbers follow. It submits on change: choosing a view is one deliberate act, unlike the filter bar where several controls are set and then applied together.
 
+**Which view a card opens on**, in order of how deliberate the choice was:
+
+1. what the viewer asked for, now — `?b3_view=7`
+2. the **placement's** default — `PageBlock.default_view`
+3. the viewer's own default for the block
+4. a public default
+5. none, and the block's own config applies
+
+Step 2 is why **two placements of one block act independently**. A `SavedView` belongs to a *block*, because its config is shaped by that block's component; but which one a card opens on belongs to the *card*. Neither v1 nor v2 could express that before — v1's views keyed on `block_name` and its `PageBlock` carried no view, so the same block placed twice always started from the same default.
+
+A placement naming a view the viewer may not see **falls through** rather than refusing: the resolution reads the permission-filtered list, so an unreachable view is simply not found and the next step applies.
+
+`PageBlock.clean` refuses a view belonging to a different block. A view carries a config shaped by one component, and another's would merge keys that component does not declare — `extra='forbid'` would then refuse the block at render, far from the screen where the mistake was made.
+
+**Switching a view keeps your place.** A GET is a fresh navigation however little changed, so the browser scrolls to the top; a form marked `data-plinta-keep-scroll` stores the position and the next load restores it. Only forms that ask: a filter bar's Apply is a deliberate "show me something else", and starting at the top is right there. v1 did the same and additionally hid the document while retrying the scroll twenty times, which its AJAX blocks needed and ours do not.
+
 **Views are fetched once for the page**, not once per block, and the default is derived from what was fetched rather than queried again. The query-count guard caught both: per-block cost had gone from four to six.
 
 **`Block.description` is the card's subtitle.** It was read nowhere.

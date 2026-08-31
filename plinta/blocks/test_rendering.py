@@ -5,6 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from plinta.blocks.models import Block, SavedView
 from plinta.blocks.rendering import (
+    chosen_view,
     EMPTY_SLOT,
     default_view,
     effective_config,
@@ -315,3 +316,55 @@ def test_a_failure_is_logged_with_its_traceback(block, settings, caplog):
     with pytest.raises(BlockRenderError):
         render_block(b, ada)
     assert "books-table" in caplog.text
+
+
+# --- which view a card opens on ---------------------------------------------
+
+
+class View:
+    """A stand-in: what `chosen_view` reads and nothing more."""
+
+    def __init__(self, pk, owner_id=None, is_default=False):
+        self.pk = pk
+        self.owner_id = owner_id
+        self.is_default = is_default
+
+
+class Viewer:
+    pk = 7
+
+
+def test_the_viewers_choice_wins():
+    views = [View(1, is_default=True), View(2)]
+    assert chosen_view(views, Viewer(), "2", placement_default=1).pk == 2
+
+
+def test_the_placements_default_beats_the_blocks():
+    """Why two placements of one block act independently: a view belongs to a
+    block, but which one a card opens on belongs to the card."""
+    views = [View(1, is_default=True), View(2)]
+    assert chosen_view(views, Viewer(), None, placement_default=2).pk == 2
+
+
+def test_two_placements_can_differ():
+    views = [View(1), View(2)]
+    assert chosen_view(views, Viewer(), None, placement_default=1).pk == 1
+    assert chosen_view(views, Viewer(), None, placement_default=2).pk == 2
+
+
+def test_own_default_then_public():
+    views = [View(1, owner_id=None, is_default=True), View(2, owner_id=7, is_default=True)]
+    assert chosen_view(views, Viewer(), None).pk == 2
+    assert chosen_view([views[0]], Viewer(), None).pk == 1
+
+
+def test_nothing_at_all_leaves_the_blocks_own_config():
+    assert chosen_view([View(1), View(2)], Viewer(), None) is None
+
+
+def test_a_view_the_viewer_may_not_see_falls_through():
+    """`views` is already permission-filtered, so a placement naming one they
+    cannot see finds nothing — rather than leaking that it exists."""
+    views = [View(1, is_default=True)]
+    assert chosen_view(views, Viewer(), None, placement_default=999).pk == 1
+    assert chosen_view(views, Viewer(), "999").pk == 1

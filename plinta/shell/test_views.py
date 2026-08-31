@@ -1059,3 +1059,59 @@ def test_two_blocks_choose_views_independently(screen, client):
     first = page.placements.exclude(pk=second.pk).get()
     assert f'name="b{first.pk}_view"' in body
     assert f'name="b{second.pk}_view"' in body
+
+
+def test_two_placements_of_one_block_open_on_different_views(screen, client):
+    """The question this was built for: the same table twice, each starting
+    where its placement says."""
+    page, block, ada = screen
+    DataSourceField.objects.create(
+        data_source=block.data_source, field_name="region__name", label="Region"
+    )
+    sync_model(Book, {"title": False, "region__name": False})
+    ct = ContentType.objects.get_for_model(Book)
+    perm, _ = Permission.objects.get_or_create(
+        codename="view_book_region__name", content_type=ct,
+        defaults={"name": "view_book_region__name"},
+    )
+    ada.user_permissions.add(perm)
+    client.force_login(User.objects.get(pk=ada.pk))
+
+    narrow = SavedView.objects.create(
+        block=block, name="Titles", owner=None, config={"columns": ["title"]}
+    )
+    first = page.placements.get()
+    PageBlock.objects.filter(pk=first.pk).update(default_view=narrow)
+    second = PageBlock.objects.create(page=page, block=block, order=1)
+
+    body = client.get(page.get_absolute_url()).content.decode()
+    tables = body.split('<div class="pl-table-wrap">')[1:]
+    counts = [len(re.findall(r"<th[ >]", table)) for table in tables]
+    assert counts == [1, 2], "each placement opens on its own default"
+    assert second.default_view_id is None
+
+
+def test_a_placement_may_not_name_another_blocks_view(screen):
+    """A view carries a config shaped by one component; another block's would
+    merge keys that component does not declare."""
+    from django.core.exceptions import ValidationError
+
+    page, block, ada = screen
+    other = Block.objects.create(
+        name="other", component_type="table_plinta",
+        data_source=block.data_source, owner=ada,
+    )
+    theirs = SavedView.objects.create(block=other, name="Theirs", owner=None, config={})
+    placement = page.placements.get()
+    placement.default_view = theirs
+    with pytest.raises(ValidationError, match="different block"):
+        placement.full_clean()
+
+
+def test_the_view_picker_keeps_your_place(screen, client):
+    """Switching a card halfway down a dashboard should not throw you to the
+    top: a GET is a fresh navigation however little changed."""
+    page, block, ada = screen
+    SavedView.objects.create(block=block, name="A", owner=None, config={})
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "data-plinta-keep-scroll" in body

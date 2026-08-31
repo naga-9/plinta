@@ -373,7 +373,12 @@ def render_page(
         # The view the viewer picked, or the one that applies. Passed through,
         # without which a non-default view is unreachable however it is
         # offered.
-        view = chosen_view(views, user, _param(query, f"{prefix}view"))
+        view = chosen_view(
+            views,
+            user,
+            _param(query, f"{prefix}view"),
+            placement_default=placement.default_view_id,
+        )
         try:
             html = render_block(
                 placement.block,

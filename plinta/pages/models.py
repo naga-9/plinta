@@ -194,6 +194,20 @@ class PageBlock(models.Model):
         default=0, help_text="Tie-breaker, and the order on a page with no grid."
     )
     is_visible = models.BooleanField(default=True)
+    #: Which saved view this placement opens on. A `SavedView` belongs to a
+    #: *block*, because its config is shaped by that block's component — but
+    #: which one a placement starts from is a property of the placement. Two
+    #: placements of the same block can therefore differ, which neither this
+    #: nor v1 could express before.
+    default_view = models.ForeignKey(
+        "plinta_blocks.SavedView",
+        on_delete=models.SET_NULL,
+        related_name="placements",
+        null=True,
+        blank=True,
+        help_text="The view this placement opens on. Blank uses the viewer's "
+        "own default, then a public one.",
+    )
     context_filter = models.JSONField(
         default=dict,
         blank=True,
@@ -209,6 +223,25 @@ class PageBlock(models.Model):
 
     class Meta:
         ordering = ["order", "row", "column"]
+
+    def clean(self) -> None:
+        """A placement's default view belongs to its own block.
+
+        A view carries a config shaped by one component. Pointing at another
+        block's would merge keys that component does not declare, and
+        `extra='forbid'` would refuse the block at render — far from the
+        screen where the mistake was made.
+        """
+        from django.core.exceptions import ValidationError
+
+        if (
+            self.default_view_id
+            and self.block_id
+            and self.default_view.block_id != self.block_id
+        ):
+            raise ValidationError(
+                {"default_view": "that view belongs to a different block"}
+            )
 
     def __str__(self) -> str:
         return f"{self.page.name}: {self.block.name}"

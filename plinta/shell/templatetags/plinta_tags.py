@@ -93,7 +93,7 @@ def icon(stored, size=18, css_class="pl-icon"):
     """Draw a stored icon name.
 
         {% icon page.menu_icon %}
-        {% icon "chevron-down" size=14 %}
+        {% icon "plinta:chevron-down" size=14 %}
 
     Empty, unregistered or unknown draws nothing: an icon sits beside a label
     that already says what the thing is, so a gap beats a broken box.

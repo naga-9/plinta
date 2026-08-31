@@ -2406,9 +2406,11 @@ The shell owns the theme, and the theme is generated rather than written.
 
 `Page.menu_icon` and `ShellLink.icon` emitted `<i class="{{ icon }}">` and core shipped no icon set, so both were inert unless a consumer brought one — a field that could only ever be filled in by somebody else.
 
-**Core ships 33 icons as inline SVG**, path data from Tabler Icons (MIT, attributed in `design/LICENSE-tabler-icons`). Copied, not loaded: an icon font is a runtime dependency, a request that can fail, and a flash of invisible text before it arrives. Every icon shares one wrapper — `viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"` — so the data holds only inner markup and `currentColor` makes one icon work in both themes with no rule per icon. The whole set is under 5 KB.
+**Core ships 33 icons as inline SVG**, path data from Tabler Icons (MIT, attributed in `design/LICENSE-tabler-icons`). Copied, not loaded: an icon font is a runtime dependency, a request that can fail, and a flash of invisible text before it arrives. Every icon shares one wrapper — `viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"` — so the data holds only inner markup and `currentColor` makes one icon work in both themes with no rule per icon: a sidebar icon computes to navy-700 in light and blue-400 in dark, inherited from the link it sits in rather than set anywhere. The whole set is under 5 KB.
 
-**A stored value is `set:name`**, and an unprefixed name is core's. A consumer already loading Font Awesome for their own pages registers `fa` and writes `fa:cart`; both sets work side by side, and rows written before any of this keep working.
+**A stored value is `set:name`, and the prefix is written.** Everything plinta ships uses `plinta:book`, not `book`, so a value says which set it came from without the reader knowing what the default is — the same reason `table_plinta` names its implementation rather than assuming one. A consumer already loading Font Awesome registers `fa` and writes `fa:cart`; both sets work side by side.
+
+An unprefixed name still resolves to core's set. That is a **forgiving read** rather than a second spelling: `menu_icon="home"` is what somebody types, and drawing the icon beats drawing nothing while they work out that a prefix was required.
 
 **Core's set registers through the same call a consumer uses.** A private path for the bundled one would make the door fiction — the argument that put `table_plinta` through `register_component`.
 

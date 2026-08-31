@@ -26,9 +26,12 @@ def ready(self):
 Page.objects.filter(slug="sales").update(menu_icon="bi:cart")
 ```
 
-**`set:name`, and an unprefixed name is core's** — `"home"` is
-`"plinta:home"`. So a short name stays short, and configuration written before
-your set existed keeps working.
+**`set:name`. Write the prefix** — `"plinta:home"`, not `"home"`. Everything
+plinta ships does, so a stored value says which set it came from without the
+reader knowing what the default is.
+
+An unprefixed name still resolves to core's set. That is a forgiving read for
+what somebody types, not a second spelling to choose between.
 
 ## Try core's first
 

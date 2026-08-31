@@ -1,8 +1,14 @@
 """Which icon a stored name draws.
 
-A stored icon is `set:name` — `plinta:home`, `bi:house`, `fa:chart-line`. An
-unprefixed value means core's own set, so a short name stays short and rows
-written before this existed keep working.
+A stored icon is `set:name` — `plinta:home`, `bi:house`, `fa:chart-line`.
+**Write the prefix.** Everything plinta ships does, so a value says which set
+it came from without the reader having to know what the default is, and it
+matches `table_plinta` naming its implementation rather than assuming one.
+
+An unprefixed value still resolves to core's set, and that is deliberate
+rather than a second spelling to choose between: `menu_icon="home"` is what
+somebody types, and drawing the icon beats drawing nothing while they work out
+that a prefix was required. It is a forgiving read, not a supported style.
 
 Core's set is registered through the same call a consumer uses. A private path
 for the bundled one would make the door fiction, which is the argument that

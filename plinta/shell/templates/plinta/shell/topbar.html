@@ -4,13 +4,13 @@
 </a>
 <header class="pl-topbar" {% if topbar_color %}style="background: {{ topbar_color }}"{% endif %}>
     <button type="button" class="pl-btn pl-btn--ghost pl-btn--sm" data-plinta-sidebar-toggle
-            aria-label="Menu" aria-expanded="true" aria-controls="pl-sidebar">{% icon "menu" %}</button>
+            aria-label="Menu" aria-expanded="true" aria-controls="pl-sidebar">{% icon "plinta:menu" %}</button>
     <span class="pl-topbar__title">{% block topbar_title %}{{ page.name|default:"" }}{% endblock %}</span>
     <div class="pl-topbar__actions">
         {% block topbar_actions %}
             {% for item in topbar_items %}{% include item.template %}{% endfor %}
             <button type="button" class="pl-btn pl-btn--ghost pl-btn--sm"
-                    data-plinta-theme-toggle aria-label="Switch theme">{% icon "theme" %}</button>
+                    data-plinta-theme-toggle aria-label="Switch theme">{% icon "plinta:theme" %}</button>
             {% if user.is_authenticated %}
                 <span class="pl-muted">{{ user.get_username }}</span>
                 <form method="post" action="{% url 'plinta:logout' %}">

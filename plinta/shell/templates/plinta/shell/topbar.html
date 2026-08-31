@@ -1,21 +1,24 @@
-{% load plinta_tags %}{# Brand, page title, and the actions on the right. #}
-<a class="pl-topbar__brand" href="/">
-    {% block topbar_brand %}{{ site_name }}{% endblock %}
-</a>
-<header class="pl-topbar" {% if topbar_color %}style="background: {{ topbar_color }}"{% endif %}>
-    <button type="button" class="pl-btn pl-btn--ghost pl-btn--sm" data-plinta-sidebar-toggle
-            aria-label="Menu" aria-expanded="true" aria-controls="pl-sidebar">{% icon "plinta:menu" %}</button>
-    <span class="pl-topbar__title">{% block topbar_title %}{{ page.name|default:"" }}{% endblock %}</span>
-    <div class="pl-topbar__actions">
+{% load plinta_tags %}{% comment %} The site's own bar: what it is, who you are, and
+   what applies everywhere. Deliberately **not** the page's — a page owns its
+   title and its actions, in its own header, so this stays the same on every
+   screen and nothing here has to know which one is open. {% endcomment %}
+<header class="{{ cls.topbar }}" {% if topbar_color %}style="background: {{ topbar_color }}"{% endif %}>
+    <button type="button" class="{{ cls.btn }} {{ cls.btn_ghost }} {{ cls.btn_sm }}"
+            data-plinta-sidebar-toggle aria-label="Menu" aria-expanded="true"
+            aria-controls="pl-sidebar">{% icon "plinta:menu" %}</button>
+    <a class="{{ cls.topbar_brand }}" href="/">
+        {% block topbar_brand %}{{ site_name }}{% endblock %}
+    </a>
+    <div class="{{ cls.topbar_actions }}">
         {% block topbar_actions %}
             {% for item in topbar_items %}{% include item.template %}{% endfor %}
-            <button type="button" class="pl-btn pl-btn--ghost pl-btn--sm"
+            <button type="button" class="{{ cls.btn }} {{ cls.btn_ghost }} {{ cls.btn_sm }}"
                     data-plinta-theme-toggle aria-label="Switch theme">{% icon "plinta:theme" %}</button>
             {% if user.is_authenticated %}
-                <span class="pl-muted">{{ user.get_username }}</span>
+                <span class="{{ cls.muted }}">{{ user.get_username }}</span>
                 <form method="post" action="{% url 'plinta:logout' %}">
                     {% csrf_token %}
-                    <button type="submit" class="pl-btn pl-btn--sm">Sign out</button>
+                    <button type="submit" class="{{ cls.btn }} {{ cls.btn_sm }}">Sign out</button>
                 </form>
             {% endif %}
         {% endblock %}

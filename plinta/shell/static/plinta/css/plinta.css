@@ -74,30 +74,37 @@ hr {
 
 /* 2. layout ---------------------------------------------------------------- */
 
+/* One bar across the top, the sidebar beneath it. The brand lives *in* the
+ * bar rather than in a cell of its own, which is what put a seam between two
+ * header strips of different heights. */
 .pl-shell {
     display: grid;
     grid-template-columns: var(--pl-sidebar-width) minmax(0, 1fr);
     grid-template-rows: var(--pl-topbar-height) minmax(0, 1fr);
     grid-template-areas:
-        "brand topbar"
+        "topbar  topbar"
         "sidebar main";
     min-height: 100vh;
 }
 
-/* Collapsed: the sidebar leaves the grid and `main` spans both columns. The
-   brand keeps its own width rather than disappearing, so the site still says
-   what it is. */
+/* Collapsed: the sidebar leaves the grid and `main` takes the width. The bar
+   is unaffected — it spans the top either way, and the brand is inside it. */
 .pl-shell--collapsed {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-        "brand topbar"
-        "main  main";
+        "topbar"
+        "main";
 }
 
 .pl-shell--collapsed .pl-sidebar { display: none; }
 
 .pl-topbar {
     grid-area: topbar;
+    /* Sticky rather than fixed: the document still scrolls, so a phone's own
+       browser chrome behaves, and nothing needs padding to compensate. */
+    position: sticky;
+    top: 0;
+    z-index: 30;
     display: flex;
     align-items: center;
     gap: var(--pl-space-3);
@@ -107,17 +114,13 @@ hr {
 }
 
 .pl-topbar__brand {
-    grid-area: brand;
     display: flex;
     align-items: center;
     gap: var(--pl-space-2);
-    padding: 0 var(--pl-space-4);
+    margin-right: auto;
     font-weight: var(--pl-weight-bold);
     font-size: var(--pl-font-md);
     color: var(--pl-fg);
-    background: var(--pl-surface-raised);
-    border-bottom: 1px solid var(--pl-border);
-    border-right: 1px solid var(--pl-border);
     text-decoration: none;
 }
 
@@ -136,6 +139,11 @@ hr {
 
 .pl-sidebar {
     grid-area: sidebar;
+    /* Always there: it holds its own scroll below the bar rather than sliding
+       away with the page. */
+    position: sticky;
+    top: var(--pl-topbar-height);
+    height: calc(100vh - var(--pl-topbar-height));
     overflow-y: auto;
     padding: var(--pl-space-3) 0;
     background: var(--pl-surface-raised);
@@ -205,11 +213,30 @@ hr {
     margin: 0 auto;
 }
 
+/* The page's own header: what this screen is, and what you can do to it. The
+ * bar above is the site's and says the same thing on every screen. */
 .pl-page__header {
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
+    flex-wrap: wrap;
     gap: var(--pl-space-3);
     margin-bottom: var(--pl-space-4);
+}
+
+.pl-page__heading {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--pl-space-3);
+}
+
+.pl-page__heading h1 { margin: 0; }
+
+.pl-page__actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--pl-space-2);
 }
 
 .pl-page__description {
@@ -730,11 +757,10 @@ hr {
         grid-template-areas: "topbar" "main";
     }
 
-    .pl-topbar__brand { display: none; }
-
     .pl-sidebar {
         position: fixed;
         top: var(--pl-topbar-height);
+        height: auto;
         bottom: 0;
         left: 0;
         z-index: 50;

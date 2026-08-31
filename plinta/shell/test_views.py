@@ -885,3 +885,41 @@ def test_the_chosen_operator_is_remembered(picker, client, screen):
     client.get(picker.get_absolute_url(), {"title": "du", "title__op": "exact"})
     stored = PageFilterPreference.objects.get(page=picker, owner=ada).values
     assert stored["title"] == {"op": "exact", "value": "du"}
+
+
+# --- the bar is the site's, the header is the page's -------------------------
+
+
+def test_the_topbar_does_not_name_the_page(screen, client):
+    """It says the same thing on every screen, so nothing in it has to know
+    which one is open. The page's own header carries the title."""
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+    bar = body[body.index("pl-topbar"):body.index("pl-sidebar")]
+    assert page.name not in bar
+
+
+def test_the_page_header_carries_the_title(screen, client):
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert f"<h1>{page.name}</h1>" in body
+
+
+def test_the_brand_is_inside_the_bar(screen, client):
+    """One band across the top rather than two strips with a seam."""
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+    bar = body[body.index("<header"):body.index("</header>")]
+    assert "pl-topbar__brand" in bar
+
+
+def test_a_saved_set_is_a_page_action(screen, client, django_user_model):
+    """It applies to the whole page, so it belongs in the header rather than
+    among the controls it replaces."""
+    from plinta.pages.models import FilterSet
+
+    page, _, ada = screen
+    FilterSet.objects.create(page=page, name="Mine", owner=ada, values={})
+    body = client.get(page.get_absolute_url()).content.decode()
+    header = body[body.index("pl-page__header"):body.index("pl-grid")]
+    assert 'name="filterset"' in header

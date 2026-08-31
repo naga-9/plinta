@@ -3,15 +3,40 @@
    positions. No layout JavaScript — the position is custom properties. {% endcomment %}
 
 {% block title %}{{ page.name }} · {{ site_name }}{% endblock %}
-{% block topbar_title %}{{ page.name }}{% endblock %}
 
 {% block body %}
     {% block page_header %}
-        <div class="pl-page__header">
-            <h1>{{ page.name }}</h1>
-            {% if page.description %}
-                <p class="pl-page__description">{{ page.description }}</p>
-            {% endif %}
+        <div class="{{ cls.page_header }}">
+            <div class="{{ cls.page_heading }}">
+                <h1>{{ page.name }}</h1>
+                {% if page.description %}
+                    <p class="{{ cls.page_description }}">{{ page.description }}</p>
+                {% endif %}
+            </div>
+            <div class="{{ cls.page_actions }}">
+                {% block page_actions %}
+                    {% if filter_sets %}
+                        {% comment %} A saved set applies to the whole page, so it belongs
+                           here rather than among the controls it replaces. Its own form,
+                           so choosing a set and applying the controls stay separate
+                           acts. {% endcomment %}
+                        <form class="{{ cls.row }}" method="get">
+                            {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
+                            <label class="{{ cls.visually_hidden }}" for="pl-filterset">Saved filters</label>
+                            <select class="{{ cls.select }}" id="pl-filterset" name="filterset">
+                                <option value="">Saved filters…</option>
+                                {% for saved in filter_sets %}
+                                    <option value="{{ saved.pk }}"
+                                            {% if chosen_set.pk == saved.pk %}selected{% endif %}>
+                                        {{ saved.name }}{% if not saved.owner %} (shared){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="{{ cls.btn }} {{ cls.btn_sm }}">Apply</button>
+                        </form>
+                    {% endif %}
+                {% endblock %}
+            </div>
         </div>
     {% endblock %}
 

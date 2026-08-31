@@ -2287,6 +2287,23 @@ Ten files, so `base.html` is about thirty lines of document and three includes r
 
 **This table is the contract.** The block names above and the context each template receives are public API (§18.19), and are the reason the file split is fixed here rather than left to taste.
 
+#### 10.1a The bar is the site's; the header is the page's
+
+**The topbar says the same thing on every screen** — the brand, the viewer, the theme, and whatever an app contributes (§10.1). Nothing in it knows which page is open, so no screen has to fill it in.
+
+**A page carries its own title and its own actions**, in `pl-page__header`. The title was drawn twice — once in the bar and once as the heading — and the second is the one a reader means.
+
+**The brand sits inside the bar**, not in a grid cell of its own. Two header strips of different heights met at a visible seam; one band across the top has no seam to hide. The sidebar begins below it.
+
+```
+grid-template-areas: "topbar  topbar"
+                     "sidebar main";
+```
+
+**Both are sticky, not fixed.** The document still scrolls, so a phone's own browser chrome behaves and nothing needs padding to compensate. The sidebar holds its own scroll below the bar rather than sliding away with the page.
+
+**`pl-page__actions` is where a page's actions go**, and the saved-set picker is the first: a set applies to the whole page, so it belongs beside the title rather than among the controls it replaces. `{% block page_actions %}` is where a consumer adds theirs.
+
 ### 10.2 The sidebar
 
 Two sources, and both belong here:

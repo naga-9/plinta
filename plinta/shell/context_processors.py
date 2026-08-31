@@ -47,7 +47,11 @@ def styles(request) -> dict:
     instead of a function call on every element — the indirection is only
     worth having if it stays invisible.
     """
-    from plinta.utils.assets import stylesheets
+    from plinta.utils.assets import scripts, stylesheets
     from plinta.utils.styles import classes
 
-    return {"cls": classes(), "plinta_stylesheets": stylesheets()}
+    return {
+        "cls": classes(),
+        "plinta_stylesheets": stylesheets(),
+        "plinta_scripts": scripts(),
+    }

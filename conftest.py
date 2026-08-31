@@ -32,12 +32,15 @@ def widget_registry():
 
 @pytest.fixture
 def stylesheet_registry():
-    """Empty stylesheet registry, restored afterwards."""
-    saved = dict(assets._registry)
+    """Empty asset registries — stylesheets and scripts — restored after."""
+    saved, saved_scripts = dict(assets._registry), dict(assets._scripts)
     assets._registry.clear()
+    assets._scripts.clear()
     yield assets
     assets._registry.clear()
     assets._registry.update(saved)
+    assets._scripts.clear()
+    assets._scripts.update(saved_scripts)
 
 
 @pytest.fixture

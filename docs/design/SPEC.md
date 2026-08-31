@@ -2370,7 +2370,9 @@ register_stylesheet("plinta/heatmap/heatmap.css")
 
 Core's own two sheets are **not** registered — `base.html` links them directly, inside a block a consumer replaces wholesale. Registered sheets are drawn after them, so a package can rely on the tokens and the shared primitives being defined. Order decides the cascade, and ties break on path so it never depends on which app was imported first.
 
-**A static path, never a URL.** A remote stylesheet is refused: core loads nothing from a CDN, and a package registering one would make that decision for the consumer. Theirs goes in the `plinta_css` block, where they can see it.
+**A static path, never a URL.** A remote asset is refused: core loads nothing from a CDN, and a package registering one would make that decision for the consumer. Theirs goes in the `plinta_css` block, where they can see it.
+
+**`register_script` is the same, for JavaScript.** Deferred unless told otherwise — the exception is a script that must run before the first paint, where deferring shows a thing and then takes it away. Order decides load order and is not cosmetic: a package's glue must load after the vendor it calls into. Without this a component could ship a template and a stylesheet and no way to load its adapter, which is the same two-thirds-of-an-extension-point the stylesheet registry closed.
 
 **What core styles, and what a package styles.** Core styles what core's own markup emits — the chrome and the shared primitives. A component styles only what it alone draws: `pl-kanban__lane`, `pl-gantt__bar`. `pl-stat` is core's despite arriving with `kpi_plinta`, because a chart footer or a table total wants the same thing.
 
@@ -3616,7 +3618,7 @@ Since plinta is pip-installed, a build could only ever run at **release time in 
 | Bootstrap Icons | core chrome | vendor — the icon set alone; core ships no CSS framework (§10.8) |
 | htmx + `json-enc` | core transport | vendor |
 | Tabulator | `table_tabulator` (contrib) | vendor, with the component |
-| Tom Select | pickers (core) | vendor |
+| Tom Select | `filters_tomselect` (contrib) | vendor, with the widget — core's own multi-select carries none |
 | Luxon | date handling (core) | vendor |
 | GridStack | the page composer (core) | vendor — loaded in edit mode only |
 | Plotly | `contrib.components.chart` | vendor **with that package** |

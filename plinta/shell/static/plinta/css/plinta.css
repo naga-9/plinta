@@ -763,3 +763,78 @@ hr {
         min-height: calc(var(--h) * var(--pl-grid-cell));
     }
 }
+
+/* 12. tag select ------------------------------------------------------------ */
+
+/* Chips over a native `<select multiple>`. The select still submits; this is
+ * how it looks and how it is operated. */
+
+.pl-tags {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--pl-space-1);
+    min-height: 2rem;
+    padding: var(--pl-space-1) var(--pl-space-2);
+    background: var(--pl-surface);
+    border: 1px solid var(--pl-border);
+    border-radius: var(--pl-radius);
+}
+
+.pl-tags:focus-within {
+    border-color: var(--pl-accent);
+    box-shadow: 0 0 0 3px var(--pl-focus-ring);
+}
+
+.pl-tags__input {
+    flex: 1;
+    min-width: 6rem;
+    border: 0;
+    outline: 0;
+    padding: var(--pl-space-1) 0;
+    font: inherit;
+    color: inherit;
+    background: transparent;
+}
+
+.pl-tags__chip { display: inline-flex; align-items: center; }
+
+.pl-tags__remove {
+    margin-left: var(--pl-space-1);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.6;
+}
+
+.pl-tags__remove:hover { opacity: 1; }
+
+.pl-tags__menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    margin: var(--pl-space-1) 0 0;
+    padding: var(--pl-space-1);
+    max-height: 14rem;
+    overflow-y: auto;
+    list-style: none;
+    background: var(--pl-surface-raised);
+    border: 1px solid var(--pl-border);
+    border-radius: var(--pl-radius);
+    box-shadow: var(--pl-shadow-lg);
+}
+
+.pl-tags__option {
+    padding: var(--pl-space-1) var(--pl-space-2);
+    border-radius: var(--pl-radius-sm);
+    cursor: pointer;
+}
+
+.pl-tags__option:hover { background: var(--pl-hover-bg); }

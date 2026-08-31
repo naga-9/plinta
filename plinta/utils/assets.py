@@ -1,4 +1,4 @@
-"""Stylesheets a package contributes to every page.
+"""Stylesheets and scripts a package contributes to every page.
 
 A component that ships its own template needs somewhere to put the CSS that
 template depends on. Without this it has fields, a template and a config
@@ -75,3 +75,52 @@ def register_stylesheet(path: str, *, order: int = 100) -> Stylesheet:
 def stylesheets() -> list[Stylesheet]:
     """Every registered sheet, in the order they should be linked."""
     return sorted(_registry.values(), key=lambda s: (s.order, s.path))
+
+
+@dataclass(frozen=True)
+class Script:
+    """One registered script, and how it should be loaded."""
+
+    path: str
+    order: int = 100
+    #: `type="module"`. Modules are deferred by definition.
+    module: bool = False
+    #: Deferred, which is what nearly everything wants. The exception is a
+    #: script that must run before the first paint — a remembered collapse
+    #: applied after parsing shows the thing and then takes it away.
+    defer: bool = True
+
+
+_scripts: dict[str, Script] = {}
+
+
+def register_script(
+    path: str, *, order: int = 100, module: bool = False, defer: bool = True
+) -> Script:
+    """Add a script to every page.
+
+        register_script("plinta/tomselect/adapter.js")
+
+    Loaded after core's own, in `order` then `path`, so a package's glue can
+    rely on its vendor being defined.
+
+    Raises:
+        AssetError: the path is empty, remote, or already registered.
+    """
+    path = (path or "").strip()
+    if not path:
+        raise AssetError("a script needs a path")
+    if path.startswith(REMOTE):
+        raise AssetError(
+            f"{path!r} is remote. Vendor it into your package's static "
+            "directory: an install must work offline and under a strict CSP."
+        )
+    if path in _scripts:
+        raise AssetError(f"{path!r} is already registered")
+    _scripts[path] = Script(path=path, order=order, module=module, defer=defer)
+    return _scripts[path]
+
+
+def scripts() -> list[Script]:
+    """Every registered script, in the order they should be loaded."""
+    return sorted(_scripts.values(), key=lambda s: (s.order, s.path))

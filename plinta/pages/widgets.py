@@ -108,28 +108,28 @@ def get(name: str) -> FilterWidget:
 def register_defaults() -> None:
     """The five core draws. Called from `AppConfig.ready()`.
 
-    `input` is the fallback for anything unregistered, so it is registered
-    first and its template is the one a broken name lands on.
+    Named `capability_implementation` like components, so `multiselect_plinta`
+    leaves the plain name free for whoever implements it next.
     """
     register_filter_widget(
-        "input", template="plinta/filters/input.html", label="Text input"
+        "input_plinta", template="plinta/filters/input.html", label="Text input"
     )
     register_filter_widget(
-        "boolean", template="plinta/filters/boolean.html", label="Yes / no"
+        "boolean_plinta", template="plinta/filters/boolean.html", label="Yes / no"
     )
     register_filter_widget(
-        "select",
+        "select_plinta",
         template="plinta/filters/select.html",
         label="Select",
         needs_options=True,
     )
     register_filter_widget(
-        "multiselect",
+        "multiselect_plinta",
         template="plinta/filters/multiselect.html",
         label="Multi-select",
         multiple=True,
         needs_options=True,
     )
     register_filter_widget(
-        "daterange", template="plinta/filters/daterange.html", label="Date range"
+        "daterange_plinta", template="plinta/filters/daterange.html", label="Date range"
     )

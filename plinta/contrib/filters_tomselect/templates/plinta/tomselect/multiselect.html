@@ -1,0 +1,19 @@
+{% comment %} The same native select core draws, with a different enhancer asked
+   for. Tom Select replaces it in place, so with JavaScript off the viewer gets
+   the working native control — the vendor is polish, not the mechanism.
+
+   The hidden field keeps the key in the query string when nothing is chosen,
+   without which clearing the control reapplies the viewer's default. {% endcomment %}
+<input type="hidden" name="{{ control.field_name }}" value="">
+<select class="{{ cls.select }}" id="{{ control_id }}" multiple
+        name="{{ control.field_name }}"
+        data-plinta-tomselect
+        data-placeholder="Choose…">
+    {% for option_value, option_label in options %}
+        <option value="{{ option_value }}"
+                {% if option_value in value %}selected{% endif %}>{{ option_label }}</option>
+    {% endfor %}
+</select>
+{% if truncated %}
+    <span class="{{ cls.help }}">Showing the first {{ options|length }}.</span>
+{% endif %}

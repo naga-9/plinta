@@ -37,6 +37,18 @@ from catalog.models import (
 TODAY = datetime.date.today()
 
 
+def only_filters(page, *field_names):
+    """Remove any control on ``page`` this seeder no longer defines.
+
+    A seeder that only ever adds leaves yesterday's configuration behind: the
+    Store filter moved from `store__name` to `store` and both then drew, one
+    of them dead. Safe here because a demo is recreated rather than synced —
+    a live install keeps its screens in the database, where people arrange
+    them.
+    """
+    page.filters.exclude(field_name__in=field_names).delete()
+
+
 def column(source, name, label, order, **options):
     """One DataSourceField. Saving it mints the column's permissions (§6.9)."""
     field, _ = DataSourceField.objects.update_or_create(
@@ -249,8 +261,9 @@ class Command(BaseCommand):
         )
         PageFilter.objects.update_or_create(
             page=pages["catalogue"], field_name="in_print",
-            defaults={"label": "In print", "widget": "boolean", "order": 1},
+            defaults={"label": "In print", "widget": "boolean_plinta", "order": 1},
         )
+        only_filters(pages["catalogue"], "title", "in_print")
 
         # Sales ------------------------------------------------------------
         pages["sales"], _ = Page.objects.update_or_create(
@@ -272,9 +285,10 @@ class Command(BaseCommand):
         # dropdown never names a store whose rows they may not see.
         PageFilter.objects.update_or_create(
             page=pages["sales"], field_name="store",
-            defaults={"label": "Store", "widget": "multiselect", "lookup": "in",
+            defaults={"label": "Store", "widget": "multiselect_plinta", "lookup": "in",
                       "data_source": sources["sales"], "order": 0},
         )
+        only_filters(pages["sales"], "store")
 
         # Purchasing --------------------------------------------------------
         pages["purchasing"], _ = Page.objects.update_or_create(

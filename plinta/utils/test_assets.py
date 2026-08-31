@@ -56,3 +56,46 @@ def test_nothing_is_registered_by_default(stylesheet_registry):
     """Core's own two sheets are linked directly, not registered — they live
     in a block a consumer replaces wholesale."""
     assert stylesheets() == []
+
+
+# --- scripts ----------------------------------------------------------------
+
+
+def test_a_script_is_registered(stylesheet_registry):
+    from plinta.utils.assets import register_script, scripts
+
+    register_script("plinta/tomselect/adapter.js")
+    assert [s.path for s in scripts()] == ["plinta/tomselect/adapter.js"]
+
+
+def test_order_decides_load_order(stylesheet_registry):
+    """A package's glue must load after its vendor, so this is not cosmetic."""
+    from plinta.utils.assets import register_script, scripts
+
+    register_script("glue.js", order=210)
+    register_script("vendor.js", order=200)
+    assert [s.path for s in scripts()] == ["vendor.js", "glue.js"]
+
+
+def test_a_script_defers_by_default(stylesheet_registry):
+    """The exception is one that must run before the first paint."""
+    from plinta.utils.assets import register_script
+
+    assert register_script("a.js").defer is True
+    assert register_script("b.js", defer=False).defer is False
+
+
+def test_a_remote_script_is_refused(stylesheet_registry):
+    """An install must work offline and under a strict CSP (§17.1)."""
+    from plinta.utils.assets import AssetError, register_script
+
+    with pytest.raises(AssetError, match="Vendor it"):
+        register_script("https://cdn.example.com/tom-select.js")
+
+
+def test_a_script_is_registered_once(stylesheet_registry):
+    from plinta.utils.assets import AssetError, register_script
+
+    register_script("one.js")
+    with pytest.raises(AssetError, match="already registered"):
+        register_script("one.js")

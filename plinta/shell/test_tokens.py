@@ -211,3 +211,16 @@ def test_a_python_file_is_not_scanned(tmp_path):
     """The linter guards what is served, not what generates it."""
     (tmp_path / "thing.py").write_text('COLOUR = "#ff0000"', encoding="utf-8")
     assert offenders(tmp_path) == []
+
+
+def test_a_vendored_stylesheet_is_not_linted():
+    """A vendor's CSS is full of raw colours and is not ours to fix. The rule
+    is that *plinta* names no colour outside the tokens."""
+    import pathlib
+
+    from plinta.shell.management.commands.lint_hex_colors import vendored
+
+    assert vendored(pathlib.Path("static/plinta/tomselect/tom-select.min.css"))
+    assert vendored(pathlib.Path("static/x/lib.min.js"))
+    assert not vendored(pathlib.Path("static/plinta/css/plinta.css"))
+    assert not vendored(pathlib.Path("static/plinta/js/tag-select.js"))

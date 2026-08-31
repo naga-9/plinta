@@ -23,6 +23,7 @@ ASSETS = [
     "plinta/css/plinta.css",
     "plinta/js/theme-toggle.js",
     "plinta/js/sidebar.js",
+    "plinta/js/tag-select.js",
 ]
 
 

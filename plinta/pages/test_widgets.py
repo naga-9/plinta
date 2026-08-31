@@ -12,23 +12,23 @@ from plinta.pages.widgets import (
 
 def test_core_registers_its_five():
     assert set(registered()) >= {
-        "input", "boolean", "select", "multiselect", "daterange"
+        "input_plinta", "boolean_plinta", "select_plinta", "multiselect_plinta", "daterange_plinta"
     }
 
 
 def test_only_multiselect_takes_several_values():
-    assert get("multiselect").multiple is True
-    assert get("select").multiple is False
-    assert get("input").multiple is False
+    assert get("multiselect_plinta").multiple is True
+    assert get("select_plinta").multiple is False
+    assert get("input_plinta").multiple is False
 
 
 def test_only_the_choosers_want_options():
     """Calling `options_for` for a text input would query for a list nothing
     draws."""
-    assert get("select").needs_options is True
-    assert get("multiselect").needs_options is True
-    assert get("input").needs_options is False
-    assert get("daterange").needs_options is False
+    assert get("select_plinta").needs_options is True
+    assert get("multiselect_plinta").needs_options is True
+    assert get("input_plinta").needs_options is False
+    assert get("daterange_plinta").needs_options is False
 
 
 def test_a_third_party_can_add_one(widget_registry):
@@ -49,7 +49,7 @@ def test_an_unknown_name_finds_nothing_rather_than_raising(widget_registry):
 
 
 def test_asking_for_one_by_name_raises_and_says_what_exists(widget_registry):
-    register_filter_widget("input", template="x.html")
+    register_filter_widget("input_plinta", template="x.html")
     with pytest.raises(WidgetError, match="registered: input"):
         get("nope")
 

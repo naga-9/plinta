@@ -203,13 +203,18 @@ class PageBlock(models.Model):
 #: The names core registers. Kept as constants because the code refers to
 #: them; the set of *valid* names is the registry, not this (`pages.widgets`).
 class Widget:
-    """Core's own filter widgets, by name."""
+    """Core's own filter widgets, by name.
 
-    INPUT = "input"
-    SELECT = "select"
-    MULTISELECT = "multiselect"
-    DATERANGE = "daterange"
-    BOOLEAN = "boolean"
+    `capability_implementation`, like every component: `multiselect_plinta`
+    beside a future `multiselect_tomselect`, so core's is no more privileged
+    in the registry than it is in the code.
+    """
+
+    INPUT = "input_plinta"
+    SELECT = "select_plinta"
+    MULTISELECT = "multiselect_plinta"
+    DATERANGE = "daterange_plinta"
+    BOOLEAN = "boolean_plinta"
 
 
 class Lookup(models.TextChoices):
@@ -233,7 +238,7 @@ class PageFilter(models.Model):
     label = models.CharField(max_length=200)
     widget = models.CharField(
         max_length=50,
-        default="input",
+        default="input_plinta",
         help_text="A registered filter widget. An unregistered one draws as "
         "a text input.",
     )

@@ -2,8 +2,12 @@
    when nothing is selected, so clearing the control clears the filter instead
    of falling back to its default. {% endcomment %}
 <input type="hidden" name="{{ control.field_name }}" value="">
+{% comment %} `data-plinta-tags` asks tag-select.js to draw this as chips. The
+   select is still what submits, so with the script absent the native control
+   is what the viewer gets — working, and plain. {% endcomment %}
 <select class="{{ cls.select }}" id="{{ control_id }}" multiple
-        name="{{ control.field_name }}" size="4">
+        name="{{ control.field_name }}" size="4"
+        data-plinta-tags data-chip-class="{{ cls.chip }}">
     {% for option_value, option_label in options %}
         <option value="{{ option_value }}"
                 {% if option_value in value %}selected{% endif %}>{{ option_label }}</option>

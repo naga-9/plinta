@@ -24,6 +24,17 @@ HEX = re.compile(r"#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?(?:[0-9a-fA-F]{2})?\b")
 FUNCTION = re.compile(r"\b(?:rgba?|hsla?|oklch|oklab|lab|lch|color)\([^)]*\)")
 
 
+def vendored(path: pathlib.Path) -> bool:
+    """Whether this file is somebody else's, shipped as they published it.
+
+    A vendor's stylesheet is full of raw colours and is not ours to fix: the
+    rule is that *plinta* names no colour outside the tokens. Minification is
+    the marker because nothing here is minified — plinta ships its CSS as it
+    is written, so a `.min.css` in the tree arrived from outside it.
+    """
+    return path.name.endswith((".min.css", ".min.js"))
+
+
 def offenders(root: pathlib.Path) -> list[str]:
     """Every raw colour outside the token file, as ``path:line: text``.
 
@@ -33,6 +44,8 @@ def offenders(root: pathlib.Path) -> list[str]:
     found = []
     for path in sorted(root.rglob("*")):
         if path.suffix not in SUFFIXES or path.name in ALLOWED:
+            continue
+        if vendored(path):
             continue
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             for match in HEX.finditer(line):

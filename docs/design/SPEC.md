@@ -2458,6 +2458,18 @@ Plinta ships the screens that configure plinta. They are the reason a non-develo
 
 All four are ordinary permission-gated screens: `view_block`, `change_datasourcefield` and their kin decide who sees them, with no separate admin concept.
 
+### 12.0 Django's admin is the floor, not the ceiling
+
+**Every app that ships models ships an `admin.py`**, the way `django.contrib`'s own apps do. `datasources`, `blocks`, `pages` and each contrib package register theirs.
+
+The authoring screens are a **convenience layer** over configuration that is, and stays, ordinary rows. They are worth building because typing a grid position is not arranging a page and a JSON textarea is not a config form — but they are not the only door, and treating them as one would leave every consumer writing the same `admin.py` themselves.
+
+**It costs an install nothing.** `admin.py` is imported only by admin autodiscovery, which runs only when `django.contrib.admin` is in `INSTALLED_APPS`. A consumer without it never imports the module.
+
+**What the admin cannot do, and the screens can:** derive a real form from a component's pydantic schema (§12.3), and drag a block rather than typing four integers (§12.4).
+
+**What it does that they do not:** answer only to `is_staff` and the model permission. It knows nothing of policies, so it shows every owner's `SavedView` and `FilterSet` — which is true of the admin for every Django app, and is why the plinta screens exist.
+
 ### 12.1 The Data Sources screen
 
 Registers a model and manages its columns. One screen, two levels: a list of DataSources, and per DataSource its `DataSourceField` rows with their thirteen options (§6.2).
@@ -2501,6 +2513,7 @@ It also edits page settings: name, menu placement, type, filters.
 | Item | Decision |
 |---|---|
 | Authoring screens | **ship with plinta** — they are the product, not tooling |
+| Django admin | **every app registers its models**; the screens are a convenience layer over rows, not the only door (§12.0) |
 | Gating | ordinary model and instance permissions; no admin concept |
 | Form derivation | from the component's pydantic schema (§8.9) |
 | Untyped config fields (`list[dict[str, Any]]`) | **typed sub-models**, so the engine can derive a repeating sub-form and validation is real |
@@ -2586,6 +2599,7 @@ Optional. Never imported by core. Installed by listing it in `INSTALLED_APPS`, a
 - registers itself from its own `AppConfig.ready()` — components, renderers, capabilities, policies, event listeners, placeholders
 - declares `requires` (core layers, checked at boot), and where applicable `enhances` or `composes` (§2)
 - ships its own models, migrations, templates, static assets, front-end adapter and vendor
+- registers its models in Django's admin, in its own `admin.py` (§12.0)
 - ships the **skills** for whatever extension points it provides, in its own `skills/` directory (§25.4)
 - passes the import-boundary test: it may import any core layer, and another contrib package only where it declares `enhances` or `composes` (§2.5)
 

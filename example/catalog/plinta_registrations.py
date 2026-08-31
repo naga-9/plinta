@@ -8,6 +8,7 @@ needs a private path, that is a gap in the API rather than a licence to reach
 inside — which is the whole reason this app exists (§1.4).
 """
 from decimal import Decimal
+from types import SimpleNamespace
 
 from django.db.models import DecimalField, F
 from django.utils.html import format_html, format_html_join
@@ -28,6 +29,7 @@ from plinta.permissions.rules import (
     Public,
 )
 from plinta.renderers.fields import register_field_renderer
+from plinta.renderers.format import format_number
 from plinta.shell.links import register_shell_link
 from plinta.utils.placeholders import register_placeholder
 from plinta.utils.styles import classes
@@ -222,6 +224,10 @@ class StatConfig(ComponentConfig):
     total_field: str = ""
     prefix: str = ""
     suffix: str = ""
+    #: How many places the figure shows. A sum over an annotation carries
+    #: whatever precision the arithmetic produced — £253.42000000000000 is
+    #: arithmetic showing through, not a number anybody wrote.
+    decimals: int | None = None
 
 
 @register_component("stat_catalog", label="Statistic")
@@ -252,7 +258,12 @@ class StatComponent(Component):
             '<div class="pl-stat"><div class="pl-stat__value">{}{}{}</div>'
             '<div class="pl-stat__label">{}</div></div>',
             config.prefix,
-            total,
+            # Core's own formatter, reached the way any consumer reaches it:
+            # a component that formats its own numbers is a second answer to a
+            # question `renderers` already answers, and drifts from the table
+            # beside it.
+            format_number(total, SimpleNamespace(decimals=config.decimals,
+                                                 thousands_separator=True)),
             config.suffix,
             config.label,
         )

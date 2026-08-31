@@ -85,6 +85,18 @@ cannot appear unless a row carrying it is visible.
 **`options` arrives already cascaded.** Your template renders what it is
 given; deciding what to offer is not the widget's job.
 
+**If your widget caches those options, listen for `plinta:options`.** The bar
+refreshes the other controls as soon as one is chosen — it rewrites the native
+`<select>` and fires that event on it. A widget that keeps its own copy, as
+Tom Select does, must resync there and drop any selection no longer offered:
+
+```js
+select.addEventListener('plinta:options', () => resync(select));
+```
+
+Without it your control shows yesterday's list while the page filters on
+today's.
+
 If your widget fetches options as you type, the endpoint it calls has the same
 obligation. A search that returns rows the viewer may not see is the same leak
 arriving over XHR.

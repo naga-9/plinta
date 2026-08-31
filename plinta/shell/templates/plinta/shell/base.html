@@ -25,6 +25,7 @@
     <script src="{% static 'plinta/js/sidebar.js' %}"></script>
     <script type="module" src="{% static 'plinta/js/theme-toggle.js' %}"></script>
     <script defer src="{% static 'plinta/js/tag-select.js' %}"></script>
+    <script defer src="{% static 'plinta/js/filter-cascade.js' %}"></script>
     {% for script in plinta_scripts %}
         <script {% if script.module %}type="module"{% elif script.defer %}defer{% endif %}
                 src="{% static script.path %}"></script>

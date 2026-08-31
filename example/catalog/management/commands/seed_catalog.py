@@ -274,7 +274,7 @@ class Command(BaseCommand):
         place(pages["sales"],
               block("revenue", "stat_catalog", sources["sales"],
                     config={"label": "Revenue", "total_field": "sale_total",
-                            "prefix": "£"}),
+                            "prefix": "£", "decimals": 2}),
               col=0, row=0, w=3, h=2, order=0)
         place(pages["sales"],
               block("recent-sales", "table_plinta", sources["sales"],

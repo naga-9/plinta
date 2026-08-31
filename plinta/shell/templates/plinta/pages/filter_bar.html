@@ -27,7 +27,11 @@
 {% endif %}
 
 {% if page.filters.all %}
-<form class="pl-filters" method="get">
+{% comment %} `data-options-url` turns on the live cascade. Absent, or with the
+   script absent, the bar still narrows on Apply — the server does the same
+   work either way. {% endcomment %}
+<form class="pl-filters" method="get"
+      data-options-url="{% url 'plinta:filter_options' page.pk %}">
     {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
 
     {% block filter_controls %}

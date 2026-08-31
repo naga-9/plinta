@@ -135,6 +135,15 @@
             paint(box, select, input);
             open();
         });
+
+        // The cascade replaced our options. Redraw from whatever is there now
+        // rather than from what we remember — it may have gone.
+        select.addEventListener('plinta:options', function () {
+            paint(box, select, input);
+            if (document.activeElement === input) {
+                open();
+            }
+        });
         input.addEventListener('input', open);
         input.addEventListener('focus', open);
         input.addEventListener('blur', close);

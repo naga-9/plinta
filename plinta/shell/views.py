@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from django.http import Http404, HttpRequest, HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 
 from plinta.pages.models import Page, PageType
@@ -95,10 +96,8 @@ def chosen_set(page: Page, request: HttpRequest, sets: list):
     return next((s for s in sets if str(s.pk) == asked), None)
 
 
-def page_view(
-    request: HttpRequest, pk: int, slug: str = "", record: str | None = None
-) -> HttpResponse:
-    """Draw one page for this viewer.
+def visible_page(request: HttpRequest, pk: int) -> Page:
+    """The page, or a 404.
 
     A page the viewer may not see is a 404 rather than a 403: telling someone
     a page exists but is not theirs is itself a disclosure.
@@ -107,9 +106,40 @@ def page_view(
         page = Page.objects.select_related("primary_data_source").get(pk=pk)
     except Page.DoesNotExist as exc:
         raise Http404("no such page") from exc
-
     if not page.is_active or not can(request.user, "view", page):
         raise Http404("no such page")
+    return page
+
+
+@login_required
+def filter_options(request: HttpRequest, pk: int) -> JsonResponse:
+    """The options every control should offer, given what is chosen now.
+
+    So the cascade can happen while somebody is choosing rather than only
+    after they apply: pick a title, see which shops sold it, then pick one.
+    Applying first to find out what to apply is the wrong order.
+
+    Private UI transport (§15.4) — a plain view, not part of the public API,
+    and free to change with the interface it serves. It computes nothing of
+    its own: `drawn_controls` is what the page render already calls, so the
+    scoping and the cascade cannot drift from what a reload would show.
+    """
+    page = visible_page(request, pk)
+    values = submitted_filters(request, page) or {}
+    return JsonResponse(
+        {
+            drawn.control.field_name: drawn.options
+            for drawn in drawn_controls(page, values, request.user)
+            if drawn.options
+        }
+    )
+
+
+def page_view(
+    request: HttpRequest, pk: int, slug: str = "", record: str | None = None
+) -> HttpResponse:
+    """Draw one page for this viewer."""
+    page = visible_page(request, pk)
 
     if "reset" in request.GET:
         remember_filters(page, request.user, {})

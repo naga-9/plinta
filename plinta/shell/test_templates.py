@@ -24,6 +24,7 @@ ASSETS = [
     "plinta/js/theme-toggle.js",
     "plinta/js/sidebar.js",
     "plinta/js/tag-select.js",
+    "plinta/js/filter-cascade.js",
 ]
 
 

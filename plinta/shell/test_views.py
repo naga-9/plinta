@@ -728,3 +728,62 @@ def test_the_bar_draws_the_widget_s_own_template(multi, client):
     assert "<select" in body and "multiple" in body
     # The hidden companion, without which clearing is impossible.
     assert '<input type="hidden" name="region" value="">' in body
+
+
+# --- the live cascade --------------------------------------------------------
+
+
+def test_the_options_endpoint_answers_with_every_control(multi, client):
+    """So the bar can narrow while somebody is choosing, rather than only
+    after they apply. Applying first to find out what to apply is the wrong
+    order."""
+    import json
+
+    response = client.get(f"/pages/{multi.pk}/filter-options/")
+    assert response.status_code == 200
+    assert "region" in json.loads(response.content)
+
+
+def test_it_narrows_by_the_other_controls(multi, client, screen):
+    """The same narrowing a reload does, at the moment of choosing."""
+    import json
+
+    page, block, _ = screen
+    body = json.loads(
+        client.get(f"/pages/{multi.pk}/filter-options/", {"title": "Dune"}).content
+    )
+    assert [label for _, label in body.get("region", [])] == ["North"]
+
+
+def test_a_control_is_not_narrowed_by_itself(multi, client, screen):
+    """Its own selection is excluded, or the first choice could not be
+    changed."""
+    import json
+
+    body = json.loads(
+        client.get(f"/pages/{multi.pk}/filter-options/", {"region": ["1"]}).content
+    )
+    assert len(body.get("region", [])) >= 1
+
+
+def test_a_page_the_viewer_may_not_see_is_a_404(multi, client, django_user_model):
+    """The endpoint answers with values from rows; the gate must be the page's
+    own, not merely being signed in."""
+    other = django_user_model.objects.create_user("intruder", password="x")  # noqa: S106
+    client.force_login(other)
+    assert client.get(f"/pages/{multi.pk}/filter-options/").status_code == 404
+
+
+def test_anonymous_is_redirected_not_answered(multi):
+    """`@login_required` on a plain view redirects, which is what a browser
+    wants — the reason fragments left ninja (§15.4)."""
+    from django.test import Client
+
+    response = Client().get(f"/pages/{multi.pk}/filter-options/")
+    assert response.status_code == 302
+    assert "/accounts/login/" in response["Location"]
+
+
+def test_the_bar_carries_the_endpoint(multi, client):
+    body = client.get(multi.get_absolute_url()).content.decode()
+    assert f'data-options-url="/pages/{multi.pk}/filter-options/"' in body

@@ -14,6 +14,10 @@ urlpatterns = [
     # a rename does not break a link someone shared (§9.0).
     path("pages/<int:pk>-<slug:slug>/", views.page_view, name="page"),
     path("pages/<int:pk>/", views.page_view, name="page_by_id"),
+    # Private UI transport (§15.4): what each control should offer given the
+    # others' current selections, so the cascade happens while choosing.
+    path("pages/<int:pk>/filter-options/", views.filter_options,
+         name="filter_options"),
     # A detail page: the record in the path, so the URL is shareable and the
     # page is what somebody sends a colleague.
     path("pages/<int:pk>-<slug:slug>/<str:record>/", views.page_view, name="record"),

@@ -2121,6 +2121,14 @@ Choosing a store leaves the title filter offering only what sold there, and choo
 
 **A control never narrows itself.** Its own selection is excluded from the sibling filters, or picking one option would remove the alternatives from its own list and the choice could not be changed. v1 spells the same rule as `skip_keys`.
 
+**The narrowing happens while somebody is choosing, not only after they apply.** Choosing a title should show which shops sold it *before* the choice is made; applying first in order to find out what to apply is the wrong order. A plain view — `pages/<pk>/filter-options/`, private UI transport (§15.4), `@login_required`, gated by the page's own permission — answers with what each control should offer given the rest, and the bar's script repopulates the others.
+
+It computes nothing of its own: `drawn_controls` is what the page render already calls, so the live answer and the reloaded one cannot drift. **With the script absent the cascade still happens on Apply**, which is the enhancement pattern the shell uses throughout.
+
+**A value no longer on offer is dropped from the selection**, not kept. It now matches nothing, and leaving it would filter the page to nothing while looking like a live choice.
+
+**The script never touches an enhanced control directly.** It rewrites the native `<select>` and dispatches `plinta:options`; whichever enhancer owns that select redraws itself. The cascade does not know what a chip or a Tom Select is, and a widget that caches its options — as Tom Select does — resyncs in its own adapter.
+
 **The cost is one query per option-bearing control, per render.** `order_by()` clears any `Meta.ordering` before `distinct()`: left in place, its columns join the SELECT and the same store returns once per sale.
 
 **Which DataSource a control resolves against is stated, not guessed.** `PageFilter.data_source` is nullable and needed only by a widget that offers options. A page's blocks may read different models, and "the first block that has this field" is the kind of implicit rule that bites once a page has two.

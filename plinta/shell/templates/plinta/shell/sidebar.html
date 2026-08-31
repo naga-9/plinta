@@ -1,20 +1,32 @@
-{% load plinta_tags %}{% comment %} The menu, assembled from the pages this viewer may open, plus the fixed
-   links to screens that are not pages (§10.2).
+{% load plinta_tags %}{% comment %} The menu: pages and fixed links together, both
+   permission-filtered before they reach here (§10.2).
+
+   A section is a quiet divider and is optional — groups with none sit at the
+   top, so a small install has two levels rather than a heading it did not
+   ask for. A group is the thing you collapse.
 
    The links are a list, because that is what they are: a screen reader says
-   how many there are and offers list navigation. Class names come from the
-   style pack so a pack can rename them without this file changing. {% endcomment %}
+   how many there are and offers list navigation. {% endcomment %}
 <nav class="{{ cls.sidebar }}" id="pl-sidebar" aria-label="Main">
     {% block sidebar_header %}{% endblock %}
 
     {% block sidebar_menu %}
-        {% for entry in menu_sections %}
+        {% for section in menu %}
             <div class="{{ cls.menu_section }}">
-                <h2 class="{{ cls.menu_heading }}">{{ entry.section.name }}</h2>
-                {% for group in entry.groups %}
-                    <div class="{{ cls.menu_group }}">
-                        {% if group.group.name %}
-                            <div class="{{ cls.menu_group_name }}">{{ group.group.name }}</div>
+                {% if not section.is_top %}
+                    <h2 class="{{ cls.menu_heading }}">{{ section.name }}</h2>
+                {% endif %}
+                {% for group in section.groups %}
+                    <div class="{{ cls.menu_group }}" data-plinta-group="{{ section.name }}/{{ group.name }}">
+                        {% if group.name %}
+                            {% comment %} A button, not a heading with a click handler:
+                               it is operated, so it is focusable and announces whether
+                               what it controls is open. {% endcomment %}
+                            <button type="button" class="{{ cls.menu_group_name }}"
+                                    data-plinta-group-toggle aria-expanded="true">
+                                {% icon "plinta:chevron-down" size=14 %}
+                                <span>{{ group.name }}</span>
+                            </button>
                         {% endif %}
                         <ul class="{{ cls.menu }}">
                             {% for page_item in group.pages %}
@@ -27,30 +39,22 @@
                                     </a>
                                 </li>
                             {% endfor %}
+                            {% for link in group.links %}
+                                <li class="{{ cls.menu_item }}">
+                                    <a class="{{ cls.menu_link }}" href="{% url link.url_name %}">
+                                        {% icon link.icon %}
+                                        <span>{{ link.label }}</span>
+                                        {% if link.badge %}
+                                            <span class="{{ cls.chip }} {{ cls.spacer }}">{{ link.badge }}</span>
+                                        {% endif %}
+                                    </a>
+                                </li>
+                            {% endfor %}
                         </ul>
                     </div>
                 {% endfor %}
             </div>
         {% endfor %}
-
-        {% if shell_links %}
-            <div class="{{ cls.menu_section }}">
-                <h2 class="{{ cls.menu_heading }}">Manage</h2>
-                <ul class="{{ cls.menu }}">
-                    {% for link in shell_links %}
-                        <li class="{{ cls.menu_item }}">
-                            <a class="{{ cls.menu_link }}" href="{% url link.url_name %}">
-                                {% icon link.icon %}
-                                <span>{{ link.label }}</span>
-                                {% if link.badge %}
-                                    <span class="{{ cls.chip }} {{ cls.spacer }}">{{ link.badge }}</span>
-                                {% endif %}
-                            </a>
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        {% endif %}
     {% endblock %}
 
     {% block sidebar_footer %}{% endblock %}

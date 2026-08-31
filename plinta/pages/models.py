@@ -36,8 +36,15 @@ class MenuSection(models.Model):
 class MenuGroup(models.Model):
     """A group of pages within a section."""
 
+    #: Optional. A group with no section sits at the top of the menu, so a
+    #: small install has two levels and does not configure a heading it does
+    #: not need. A large one keeps the third for separating broad areas.
     section = models.ForeignKey(
-        MenuSection, on_delete=models.CASCADE, related_name="groups"
+        MenuSection,
+        on_delete=models.CASCADE,
+        related_name="groups",
+        null=True,
+        blank=True,
     )
     name = models.CharField(max_length=100)
     icon = models.CharField(max_length=50, blank=True, default="")
@@ -48,11 +55,18 @@ class MenuGroup(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["section", "name"], name="unique_group_per_section"
-            )
+            ),
+            # A NULL never equals a NULL, so the constraint above does not
+            # catch two sectionless groups sharing a name.
+            models.UniqueConstraint(
+                fields=["name"],
+                condition=models.Q(section__isnull=True),
+                name="unique_group_without_section",
+            ),
         ]
 
     def __str__(self) -> str:
-        return f"{self.section.name} / {self.name}"
+        return f"{self.section.name} / {self.name}" if self.section else self.name
 
 
 class Page(models.Model):

@@ -21,6 +21,8 @@ class ReportsConfig(AppConfig):
             "Report Builder",
             url_name="reports:builder",
             permission="reports.add_reportdefinition",
+            section="Reports",
+            group="Tools",
             order=300,
         )
 ```
@@ -28,6 +30,29 @@ class ReportsConfig(AppConfig):
 The link draws only for a holder of that permission, and disappears entirely
 when your package is uninstalled — no guard anywhere in the shell, and no dead
 entry pointing at a URL that no longer resolves.
+
+## Say where it goes
+
+`section` and `group` name a place in the menu, using the same names a
+`MenuGroup` uses. A link naming a group that already holds pages **joins it**;
+one naming a group nothing else uses **creates it**, so an app shipping only a
+view needs no `MenuGroup` row. Naming neither puts it at the top.
+
+Without this a link had nowhere to say where it belonged and landed under a
+hard-coded heading — so an app shipping a *page* chose its place and one
+shipping a *view* did not.
+
+**`order` is the only coordination between apps that never see each other**,
+so keep to the convention:
+
+| Range | Whose |
+|---|---|
+| 0–99 | the consumer's own screens |
+| 100–899 | contrib |
+| 900+ | administration |
+
+**A section is optional.** A group with none sits at the top of the menu, so a
+small installation is two levels rather than three.
 
 ## Prefer a Page
 

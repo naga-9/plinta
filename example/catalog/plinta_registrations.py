@@ -334,7 +334,11 @@ def register_links():
         url_name="catalogue_admin",
         permission="catalog.change_book",
         icon="plinta:settings",
-        order=400,
+        # Consumer screens 0-99, contrib 100-899, administration 900+ — `order`
+        # is the only coordination between apps that never see each other.
+        section="Bookshop",
+        group="Manage",
+        order=50,
     )
 
 

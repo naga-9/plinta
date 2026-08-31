@@ -2334,6 +2334,20 @@ Two registries, deliberately different shapes.
 
 **Icons are a class name, not an icon.** Core draws whatever the installation's set uses and names none of its own, so a consumer's own icons work unchanged.
 
+#### 10.2a Both kinds of screen say where they go
+
+A page names a `MenuGroup`; a link now names a section and a group by the same names. A link joining a group that holds pages sits beside them; one naming a group nothing else uses creates it, so an app shipping only a view needs no `MenuGroup` row. Before this a link had nowhere to say where it belonged and landed under a hard-coded "Manage" — an app shipping a *page* chose its place and one shipping a *view* did not.
+
+The merge is by **name** and it lives in the shell, because `pages` is below `links` and may not import it. That layering is why the two were drawn separately in the first place.
+
+**A section is optional.** `MenuGroup.section` is nullable, and a group with none sits at the top: a small installation is two levels rather than a heading it did not ask for, and a large one keeps the third for separating broad areas. Sectionless groups sort first explicitly — a plain ascending sort puts NULL last on PostgreSQL and first on SQLite, an order that would change with the database.
+
+**A group is what collapses**, remembered per group. **The group holding the current page always opens**, whatever was remembered, and is dropped from the memory: collapsing a group and then following a link into it would otherwise hide where you are, which reads as the menu losing your place.
+
+**`order` is the only coordination between apps that never see each other.** Consumer screens 0–99, contrib 100–899, administration 900+.
+
+**Placement is data, so it is the installation's to change.** An app seeds a sensible section and group; whoever runs the site moves them. The tension §13.3 records for pages applies here — a seeder using `get_or_create` by name will recreate a section somebody renamed, beside the renamed one.
+
 ### 10.3 Authentication
 
 The shell owns login, logout and the four password-reset views, mounted under its own namespace. They are Django's built-in auth views with plinta templates; plinta adds no authentication logic of its own and no user model (ADR 0002).

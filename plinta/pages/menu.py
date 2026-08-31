@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from django.db.models import F
+
 from plinta.pages.models import MenuGroup, MenuSection, Page
 
 
@@ -22,7 +24,9 @@ class GroupEntry:
 
 @dataclass(frozen=True)
 class SectionEntry:
-    section: MenuSection
+    #: None for groups placed at the top of the menu. A small install then has
+    #: two levels rather than a heading it did not ask for.
+    section: MenuSection | None
     groups: list[GroupEntry]
 
     @property
@@ -63,11 +67,19 @@ def build(user) -> list[SectionEntry]:
     groups = (
         MenuGroup.objects.filter(pk__in=by_group)
         .select_related("section")
-        .order_by("section__order", "section__name", "order", "name")
+        # Sectionless first: they are the top of the menu, and `F` is needed
+        # because a plain ascending sort puts NULL last on PostgreSQL and
+        # first on SQLite — an order that changed with the database.
+        .order_by(
+            F("section__order").asc(nulls_first=True),
+            "section__name",
+            "order",
+            "name",
+        )
     )
 
-    sections: dict[int, list[GroupEntry]] = {}
-    section_of: dict[int, MenuSection] = {}
+    sections: dict[int | None, list[GroupEntry]] = {}
+    section_of: dict[int | None, MenuSection | None] = {}
     for group in groups:
         section_of[group.section_id] = group.section
         sections.setdefault(group.section_id, []).append(

@@ -161,16 +161,16 @@ def test_the_menu_is_the_viewers():
     group = MenuGroup.objects.create(section=section, name="Catalog")
     Page.objects.create(name="Books", slug="books", owner=ada, menu_group=group)
 
-    sections = menu(Request(ada))["menu_sections"]
-    assert [s.section.name for s in sections] == ["Reference"]
+    sections = menu(Request(ada))["menu"]
+    assert [s.name for s in sections] == ["Reference"]
 
 
 @pytest.mark.django_db
 def test_an_anonymous_viewer_gets_no_menu():
     """It is built per request, so this saves the queries rather than the
     permission check — which would have refused it anyway."""
-    assert menu(Request(AnonymousUser()))["menu_sections"] == []
+    assert menu(Request(AnonymousUser()))["menu"] == []
 
 
 def test_no_user_at_all_gets_no_menu():
-    assert menu(Request())["menu_sections"] == []
+    assert menu(Request())["menu"] == []

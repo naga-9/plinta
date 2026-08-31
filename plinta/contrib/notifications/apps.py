@@ -35,5 +35,7 @@ class NotificationsConfig(AppConfig):
             "Notifications",
             url_name="notifications:preferences",
             permission="plinta_notifications.view_notification",
+            section="Administration",
+            group="Me",
             order=500,
         )

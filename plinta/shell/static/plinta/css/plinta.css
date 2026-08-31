@@ -164,7 +164,19 @@ hr {
 
 .pl-sidebar__group { margin-bottom: var(--pl-space-2); }
 
+/* Collapsed: the list goes, the button that reopens it stays. */
+.pl-sidebar__group.is-collapsed .pl-menu { display: none; }
+
 .pl-sidebar__group-name {
+    display: flex;
+    align-items: center;
+    gap: var(--pl-space-1);
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
     padding: var(--pl-space-1) var(--pl-space-4);
     font-size: var(--pl-font-sm);
     font-weight: var(--pl-weight-medium);
@@ -864,6 +876,12 @@ hr {
 }
 
 .pl-tags__option:hover { background: var(--pl-hover-bg); }
+
+/* The chevron points at what it does: down when open, right when shut. */
+.pl-sidebar__group-name .pl-icon { transition: transform var(--pl-transition); }
+.pl-sidebar__group.is-collapsed .pl-sidebar__group-name .pl-icon {
+    transform: rotate(-90deg);
+}
 
 /* 13. icons ----------------------------------------------------------------- */
 

@@ -35,6 +35,13 @@ class ShellLink:
     #: thing a link cannot say on its own. None or zero draws nothing, since a
     #: badge saying "0" is worse than no badge.
     badge: Callable[..., object] | None = None
+    #: Where in the menu it sits, by the same names a `MenuGroup` uses — so a
+    #: screen that is a view lands beside one that is a page, instead of in a
+    #: bucket of its own. Blank group means the top of the menu.
+    section: str = ""
+    group: str = ""
+    #: Consumer screens 0-99, contrib 100-899, administration 900+. `order` is
+    #: the only coordination between apps that never see each other.
     order: int = 100
 
     def badge_for(self, user):
@@ -68,6 +75,8 @@ def register_shell_link(
     permission: str,
     icon: str = "",
     badge: Callable[..., object] | None = None,
+    section: str = "",
+    group: str = "",
     order: int = 100,
 ) -> ShellLink:
     """Add a fixed link to the sidebar.
@@ -75,6 +84,7 @@ def register_shell_link(
         register_shell_link(
             "blocks", "Blocks",
             url_name="plinta:block_list", permission="plinta_blocks.view_block",
+            section="Administration", group="Authoring", order=900,
         )
 
     Raises:
@@ -89,6 +99,8 @@ def register_shell_link(
         permission=permission,
         icon=icon,
         badge=badge,
+        section=section,
+        group=group,
         order=order,
     )
     _registry[name] = link
@@ -113,6 +125,10 @@ class DrawnLink:
     url_name: str
     icon: str
     badge: object | None
+    section: str = ""
+    group: str = ""
+    #: Carried through so a group holding only links still has an order.
+    order: int = 100
 
 
 def visible_links(user) -> list[DrawnLink]:
@@ -129,6 +145,9 @@ def visible_links(user) -> list[DrawnLink]:
             url_name=link.url_name,
             icon=link.icon,
             badge=link.badge_for(user),
+            section=link.section,
+            group=link.group,
+            order=link.order,
         )
         for link in registered()
         if user.has_perm(link.permission)

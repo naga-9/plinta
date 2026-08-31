@@ -25,17 +25,14 @@ def menu(request) -> dict[str, Any]:
     Built per request rather than cached: it depends on the viewer's
     permissions, and a cache keyed by user is a cache invalidated by a grant.
     """
-    from plinta.pages.menu import build
-
-    from plinta.shell.links import visible_links
+    from plinta.shell.menu import build
     from plinta.shell.topbar import visible_items
 
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return {"menu_sections": [], "shell_links": [], "topbar_items": []}
+        return {"menu": [], "topbar_items": []}
     return {
-        "menu_sections": build(user),
-        "shell_links": visible_links(user),
+        "menu": build(user),
         "topbar_items": visible_items(user),
     }
 

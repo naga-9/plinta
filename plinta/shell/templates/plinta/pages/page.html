@@ -47,12 +47,24 @@
     {% endblock %}
 
     {% if page.tabs %}
-        <div class="pl-row" role="tablist">
-            {% for item in page.tabs %}
-                <a class="pl-btn pl-btn--sm{% if item.key == tab %} is-active{% endif %}"
-                   href="?tab={{ item.key }}">{{ item.label|default:item.key }}</a>
-            {% endfor %}
-        </div>
+        {% comment %} Links, not an ARIA tablist. Choosing one loads a new document,
+           and the tab pattern promises the opposite — that the panel is already
+           here and switching is instant. A screen reader announcing "tab 2 of 3"
+           for something that navigates is a worse lie than no announcement.
+
+           `aria-current` is what marks where you are, the same as the menu.
+           {% endcomment %}
+        <nav class="{{ cls.tabs }}" aria-label="Sections of this page">
+            <ul class="{{ cls.tabs_list }}">
+                {% for item in page.tabs %}
+                    <li class="{{ cls.tabs_item }}">
+                        <a class="{{ cls.tabs_link }}{% if item.key == tab %} {{ cls.tabs_link_active }}{% endif %}"
+                           href="?tab={{ item.key }}"
+                           {% if item.key == tab %}aria-current="page"{% endif %}>{{ item.label|default:item.key }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </nav>
     {% endif %}
 
     {% block page_body %}

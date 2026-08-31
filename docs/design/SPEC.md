@@ -2348,6 +2348,14 @@ The merge is by **name** and it lives in the shell, because `pages` is below `li
 
 **Placement is data, so it is the installation's to change.** An app seeds a sensible section and group; whoever runs the site moves them. The tension §13.3 records for pages applies here — a seeder using `get_or_create` by name will recreate a section somebody renamed, beside the renamed one.
 
+#### 10.2b Tabs are links, not an ARIA tablist
+
+A page's tabs are `<a href="?tab=…">` and choosing one loads a new document. The tab pattern promises the opposite — that the panel is already in the page and switching is instant — so a screen reader announcing "tab 2 of 3" for something that navigates is a worse lie than no announcement.
+
+They are a `<nav>` holding a list of links, with `aria-current="page"` marking where you are, the same as the menu. The strip had `role="tablist"` on a `<div>` of plain anchors with no `role="tab"`, which announced a tab list containing no tabs.
+
+**And the current tab was not visible either**: it carried `.pl-btn.is-active`, a class nothing styled, so every tab looked the same.
+
 ### 10.3 Authentication
 
 The shell owns login, logout and the four password-reset views, mounted under its own namespace. They are Django's built-in auth views with plinta templates; plinta adds no authentication logic of its own and no user model (ADR 0002).

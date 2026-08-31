@@ -923,3 +923,48 @@ def test_a_saved_set_is_a_page_action(screen, client, django_user_model):
     body = client.get(page.get_absolute_url()).content.decode()
     header = body[body.index("pl-page__header"):body.index("pl-grid")]
     assert 'name="filterset"' in header
+
+
+# --- tabs --------------------------------------------------------------------
+
+
+@pytest.fixture
+def tabbed(screen):
+    page, _, _ = screen
+    Page.objects.filter(pk=page.pk).update(
+        tabs=[{"key": "sales", "label": "Sales"}, {"key": "stock", "label": "Stock"}]
+    )
+    return Page.objects.get(pk=page.pk)
+
+
+def test_tabs_are_links_not_an_aria_tablist(tabbed, client):
+    """Choosing one loads a new document, and the tab pattern promises the
+    opposite — that the panel is already here and switching is instant."""
+    body = client.get(tabbed.get_absolute_url()).content.decode()
+    assert 'role="tablist"' not in body
+    assert 'role="tab"' not in body
+    assert 'aria-label="Sections of this page"' in body
+
+
+def test_the_current_tab_is_marked(tabbed, client):
+    """It looked identical to the others: `.pl-btn.is-active` was a class
+    nothing styled."""
+    import re
+
+    body = client.get(tabbed.get_absolute_url(), {"tab": "stock"}).content.decode()
+    strip = body[body.index("pl-tabs"):body.index("pl-grid")]
+    marked = re.findall(r'href="\?tab=(\w+)"[^>]*aria-current="page"', strip, re.S)
+    assert marked == ["stock"]
+
+
+def test_no_tab_chosen_marks_none(tabbed, client):
+    body = client.get(tabbed.get_absolute_url()).content.decode()
+    strip = body[body.index("pl-tabs"):body.index("pl-grid")]
+    assert 'aria-current="page"' not in strip
+
+
+def test_the_strip_is_a_list(tabbed, client):
+    """Two links are two items; a screen reader says how many there are."""
+    body = client.get(tabbed.get_absolute_url()).content.decode()
+    strip = body[body.index("pl-tabs"):body.index("pl-grid")]
+    assert strip.count('class="pl-tabs__item"') == 2

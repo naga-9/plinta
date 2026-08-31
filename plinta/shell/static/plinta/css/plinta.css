@@ -892,3 +892,43 @@ hr {
     vertical-align: -0.15em;
     color: currentColor;
 }
+
+/* 14. tabs ------------------------------------------------------------------ */
+
+/* Links that load a page, drawn as a strip. Not an ARIA tablist: that pattern
+ * promises the panel is already here and switching is instant. */
+.pl-tabs { margin-bottom: var(--pl-space-4); }
+
+.pl-tabs__list {
+    display: flex;
+    gap: var(--pl-space-1);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid var(--pl-border);
+}
+
+.pl-tabs__item { display: flex; }
+
+.pl-tabs__link {
+    display: inline-block;
+    padding: var(--pl-space-2) var(--pl-space-3);
+    color: var(--pl-fg-muted);
+    text-decoration: none;
+    /* Transparent rather than absent, so the row does not shift by 2px when
+     * one of them becomes current. */
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.pl-tabs__link:hover {
+    color: var(--pl-fg);
+    text-decoration: none;
+    border-bottom-color: var(--pl-border-strong);
+}
+
+.pl-tabs__link.is-active {
+    color: var(--pl-accent);
+    border-bottom-color: var(--pl-accent);
+    font-weight: var(--pl-weight-medium);
+}

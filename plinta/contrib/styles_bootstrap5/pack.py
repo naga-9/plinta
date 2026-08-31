@@ -46,6 +46,11 @@ CLASSES = {
     "menu_group_name": "text-secondary small px-3",
     "topbar_actions": "d-flex align-items-center gap-2 ms-auto",
     # card
+    # Bootstrap's own nav-tabs are markup-compatible: nav > nav-item > nav-link.
+    "tabs_list": "nav nav-tabs",
+    "tabs_item": "nav-item",
+    "tabs_link": "nav-link",
+    "tabs_link_active": "active",
     "card": "card",
     "card_header": "card-header d-flex align-items-center",
     "card_title": "h6 mb-0",

@@ -150,9 +150,16 @@ def my_stores(context):
 
 @register_field_renderer("stock_badge")
 def stock_badge(value, *, obj, field, user):
-    """In print, or not. Markup, so it goes through `format_html`."""
+    """In print, or not. Markup, so it goes through `format_html`.
+
+    A status is the one place colour carries meaning rather than decoration,
+    so the two states use different chips. Rendered identically they read as a
+    label nobody needs to scan.
+    """
     return format_html(
-        '<span class="pl-chip">{}</span>', "In print" if obj.in_print else "Out of print"
+        '<span class="pl-chip pl-chip--{}">{}</span>',
+        "success" if obj.in_print else "neutral",
+        "In print" if obj.in_print else "Out of print",
     )
 
 
@@ -172,7 +179,7 @@ def note_count(value, *, obj, field, user):
     notes = list(obj.notes.all())
     if not notes:
         return format_html("<span class='pl-muted'>—</span>")
-    return format_html_join(" ", "<span class='pl-chip'>{}</span>",
+    return format_html_join(" ", "<span class='pl-chip pl-chip--info'>{}</span>",
                             ((f"{len(notes)} notes",),))
 
 

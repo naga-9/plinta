@@ -258,8 +258,11 @@ hr {
 
 .pl-card__title {
     margin: 0;
-    font-size: var(--pl-font-base);
+    /* One step above the body it heads. Bold at the same size reads as
+     * emphasis rather than as a heading. */
+    font-size: var(--pl-font-md);
     font-weight: var(--pl-weight-bold);
+    line-height: 1.3;
 }
 
 .pl-card__actions { margin-left: auto; display: flex; gap: var(--pl-space-1); }
@@ -276,6 +279,35 @@ hr {
 /* An empty slot: a block the viewer may not see, or a component that is not
  * installed. Present so the grid keeps its shape, and silent by design. */
 .pl-slot--empty { visibility: hidden; }
+
+/* A single figure a block exists to show — a KPI, a total, a count. Core's
+ * rather than any one component's: a chart footer and a table total want the
+ * same shape. */
+.pl-stat {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pl-space-1);
+    justify-content: center;
+    height: 100%;
+}
+
+.pl-stat__value {
+    font-size: var(--pl-font-2xl);
+    font-weight: var(--pl-weight-bold);
+    line-height: 1.1;
+    /* Digits of equal width, so a figure that updates does not jitter. */
+    font-variant-numeric: tabular-nums;
+}
+
+.pl-stat__label {
+    font-size: var(--pl-font-sm);
+    color: var(--pl-fg-muted);
+}
+
+/* Beside the figure: "+12% on last month". */
+.pl-stat__delta { font-size: var(--pl-font-sm); font-weight: var(--pl-weight-medium); }
+.pl-stat__delta--up { color: var(--pl-success); }
+.pl-stat__delta--down { color: var(--pl-danger); }
 
 /* 5. table ----------------------------------------------------------------- */
 
@@ -348,6 +380,8 @@ hr {
     display: flex;
     gap: var(--pl-space-1);
 }
+
+.pl-pager__item { display: flex; }
 
 .pl-pager__link {
     display: inline-flex;
@@ -505,9 +539,40 @@ hr {
     gap: var(--pl-space-1);
     padding: var(--pl-space-1) var(--pl-space-2);
     font-size: var(--pl-font-sm);
+    line-height: 1.4;
     color: var(--pl-accent);
     background: var(--pl-accent-subtle);
     border-radius: var(--pl-radius-lg);
+    white-space: nowrap;
+}
+
+/* A status column is the one place colour carries meaning rather than
+ * decoration, so the four status tokens get a chip each. Tinted from the same
+ * token as the text, so the pair can never drift apart. */
+.pl-chip--success {
+    color: var(--pl-success);
+    background: color-mix(in srgb, var(--pl-success) 12%, transparent);
+}
+
+.pl-chip--warning {
+    color: var(--pl-warning);
+    background: color-mix(in srgb, var(--pl-warning) 14%, transparent);
+}
+
+.pl-chip--danger {
+    color: var(--pl-danger);
+    background: color-mix(in srgb, var(--pl-danger) 12%, transparent);
+}
+
+.pl-chip--info {
+    color: var(--pl-info);
+    background: color-mix(in srgb, var(--pl-info) 12%, transparent);
+}
+
+/* No opinion at all: for a value that is a label rather than a state. */
+.pl-chip--neutral {
+    color: var(--pl-fg-muted);
+    background: var(--pl-surface-sunken);
 }
 
 /* 9. overlays -------------------------------------------------------------- */

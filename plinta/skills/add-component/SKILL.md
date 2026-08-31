@@ -154,6 +154,33 @@ changes every screen that uses it, including ones your component is not on.
 **A static path, never a URL.** A remote stylesheet is refused; loading a
 vendor from a CDN is the consumer's decision, in the `plinta_css` block.
 
+## How much room the card gives you
+
+```python
+class HeatmapComponent(Component):
+    padding = Padding.NONE       # DEFAULT, TIGHT or NONE
+```
+
+The card pads its body, and most components want that. Declare `NONE` when
+your markup should run to the edge — a table does, because its cells already
+carry padding and the card's would double it at the rim while leaving the
+middle unchanged.
+
+**Declared rather than styled.** The padding is on the card's body, the
+shell's element, which you render *inside* and cannot reach. Wrapping yourself
+in a padded div would be a second box competing with the card's own scrolling.
+
+**A name, never a length.** `Padding.TIGHT`, not `padding = "13px"` — a raw
+length is the same defect a raw `#f0f0f0` is, and the scale is what keeps one
+screen looking like the next.
+
+## A control in your card's header
+
+Anything you want *done to* a block — an export menu, a column chooser, a link
+to your own settings screen — is a **block action**, registered separately and
+drawn in the card header. See `add-block-action`. Your component does not draw
+its own header; the shell does.
+
 ## Components that read nothing
 
 A **content** component — text, a static banner — carries its content in its

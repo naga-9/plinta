@@ -649,3 +649,19 @@ def test_filterset_is_not_treated_as_a_column(screen, client):
     saved = FilterSet.objects.create(page=page, name="Mine", owner=ada, values={})
     response = client.get(page.get_absolute_url(), {"filterset": saved.pk})
     assert "filterset" not in response.context["filter_values"]
+
+
+def test_a_registered_stylesheet_reaches_the_page(screen, client, stylesheet_registry):
+    """The whole point: a component that ships a template can ship its CSS.
+
+    Drawn after core's own, so it can rely on the tokens and the shared
+    primitives already being defined.
+    """
+    from plinta.utils.assets import register_stylesheet
+
+    register_stylesheet("plinta/heatmap/heatmap.css")
+    page, _, _ = screen
+    body = client.get(page.get_absolute_url()).content.decode()
+
+    assert "/static/plinta/heatmap/heatmap.css" in body
+    assert body.index("plinta.css") < body.index("heatmap.css")

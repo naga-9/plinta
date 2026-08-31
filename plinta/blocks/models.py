@@ -36,7 +36,10 @@ class Block(models.Model):
         "plinta_datasources.DataSource",
         on_delete=models.PROTECT,
         related_name="blocks",
-        help_text="A block cannot exist without the model it reads.",
+        null=True,
+        blank=True,
+        help_text="Required by a component that reads a model. A content "
+        "component such as text carries its own content in config.",
     )
     config = models.JSONField(
         default=dict,
@@ -87,7 +90,7 @@ class Block(models.Model):
         ]
 
     def clean(self) -> None:
-        """Check ``config`` and ``mode`` against the component.
+        """Check ``config``, ``mode`` and ``data_source`` against the component.
 
         Raises a `ValidationError` on a key the component does not declare,
         which is what makes ``extra='forbid'`` a save-time answer rather than a
@@ -115,6 +118,24 @@ class Block(models.Model):
         if self.mode and not component.supports(self.mode):
             raise ValidationError(
                 {"mode": f"{self.component_type!r} cannot render in {self.mode!r} mode."}
+            )
+
+        # Both directions. A content block carrying a DataSource is as wrong as
+        # a table without one — it would read as configured when nothing reads
+        # it, and a later change of component would inherit a silent lie.
+        if component.needs_data and self.data_source_id is None:
+            raise ValidationError(
+                {
+                    "data_source": f"{self.component_type!r} reads a model and "
+                    "needs a DataSource."
+                }
+            )
+        if not component.needs_data and self.data_source_id is not None:
+            raise ValidationError(
+                {
+                    "data_source": f"{self.component_type!r} carries its own "
+                    "content; a DataSource would never be read."
+                }
             )
 
     def __str__(self) -> str:

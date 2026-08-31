@@ -6,7 +6,7 @@ from plinta.datasources import annotations, modifiers
 from plinta.events import signals
 from plinta.permissions import actions, policies
 from plinta.forms import overrides
-from plinta.utils import placeholders, styles
+from plinta.utils import assets, placeholders, styles
 
 
 @pytest.fixture
@@ -17,6 +17,16 @@ def placeholder_registry():
     yield placeholders
     placeholders._registry.clear()
     placeholders._registry.update(saved)
+
+
+@pytest.fixture
+def stylesheet_registry():
+    """Empty stylesheet registry, restored afterwards."""
+    saved = dict(assets._registry)
+    assets._registry.clear()
+    yield assets
+    assets._registry.clear()
+    assets._registry.update(saved)
 
 
 @pytest.fixture

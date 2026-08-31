@@ -41,12 +41,13 @@ def menu(request) -> dict[str, Any]:
 
 
 def styles(request) -> dict:
-    """The class names the templates draw with.
+    """The class names the templates draw with, and the sheets that define them.
 
     A dict rather than a template tag so a template reads `{{ cls.btn }}`
     instead of a function call on every element — the indirection is only
     worth having if it stays invisible.
     """
+    from plinta.utils.assets import stylesheets
     from plinta.utils.styles import classes
 
-    return {"cls": classes()}
+    return {"cls": classes(), "plinta_stylesheets": stylesheets()}

@@ -10,6 +10,13 @@
         <link rel="stylesheet" href="{% static 'plinta/css/tokens.css' %}">
         <link rel="stylesheet" href="{% static 'plinta/css/plinta.css' %}">
     {% endblock %}
+    {% comment %}
+    What packages contribute, after core's own so they can rely on the tokens
+    and the shared primitives being defined (§10.10).
+    {% endcomment %}
+    {% for sheet in plinta_stylesheets %}
+        <link rel="stylesheet" href="{% static sheet.path %}">
+    {% endfor %}
     {% block extra_css %}{% endblock %}
     {% comment %}
     Not a module, and not deferred: a remembered collapse has to be stamped on

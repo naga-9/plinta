@@ -89,6 +89,13 @@ class Component:
     #: have nothing to fetch. None means both.
     supported_modes: ClassVar[frozenset[Mode] | None] = None
 
+    #: Whether this component reads a model. False for a **content**
+    #: component — text, an unconditional banner — whose config *is* its data.
+    #: Declared here rather than listed in core, so a third party's own text
+    #: component can say so too; a set of names in core would leave them
+    #: demanding a DataSource with no way to refuse.
+    needs_data: ClassVar[bool] = True
+
     def supports(self, mode: Mode) -> bool:
         """Whether this component can draw in ``mode``."""
         return self.supported_modes is None or mode in self.supported_modes

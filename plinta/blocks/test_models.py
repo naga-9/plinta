@@ -81,3 +81,58 @@ def test_a_mode_the_component_cannot_draw_is_refused(ds):
 
 def test_an_uninstalled_component_cannot_judge_the_mode(ds):
     block(ds, component_type="heatmap", mode="fetch").full_clean()
+
+
+# --- content components: a block that reads nothing --------------------------
+
+
+@pytest.fixture
+def content_component(component_registry):
+    """A component whose config is its data — text, a static banner."""
+    from plinta.components.base import Component, ComponentConfig, Mode
+    from plinta.components.registry import register_component
+
+    class NoteConfig(ComponentConfig):
+        body: str = ""
+
+    @register_component("note", label="Note")
+    class NoteComponent(Component):
+        config_schema = NoteConfig
+        supported_modes = frozenset({Mode.INLINE})
+        needs_data = False
+
+        def render(self, config, user, **context) -> str:
+            return config.body
+
+    return NoteComponent
+
+
+def test_a_content_block_needs_no_data_source(db, content_component):
+    """The whole change: a heading and a paragraph on the grid."""
+    block = Block(name="intro", component_type="note", config={"body": "Hello"})
+    block.full_clean()
+    block.save()
+    assert block.data_source is None
+
+
+def test_a_content_block_may_not_carry_one(db, content_component, ds):
+    """As wrong as a table without one. It would read as configured while
+    nothing reads it, and a later change of component inherits the lie."""
+    block = Block(name="intro", component_type="note", data_source=ds)
+    with pytest.raises(ValidationError, match="never be read"):
+        block.full_clean()
+
+
+def test_a_data_block_still_requires_one(db):
+    block = Block(name="rows", component_type="table_plinta")
+    with pytest.raises(ValidationError, match="needs a DataSource"):
+        block.full_clean()
+
+
+def test_components_read_a_model_by_default():
+    """The default is True, so every component that existed is unaffected."""
+    from plinta.components.base import Component
+    from plinta.components.table import TableComponent
+
+    assert Component.needs_data is True
+    assert TableComponent.needs_data is True

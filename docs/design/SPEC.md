@@ -1426,6 +1426,19 @@ Every component implements `get_data()`. The mode decides *when* it is called:
 
 **The component declares a default; a block may override it.** The default follows from the widget's interaction model and is right nearly always; the override covers genuine exceptions — a five-row related grid on a detail page, or a chart with 50,000 points that should not bloat the page.
 
+**Not every component reads a model.** A **content component** — text, an unconditional banner — carries its content in its config, so `Block.data_source` is nullable and the component declares which it is:
+
+```python
+class TextComponent(Component):
+    needs_data = False
+```
+
+Checked in `Block.clean()`, **both directions**: a content block carrying a DataSource is as wrong as a table without one, because it reads as configured while nothing reads it, and a later change of component inherits a silent lie.
+
+v1 had the nullable column and put the knowledge in `CONTENT_COMPONENT_TYPES = {'alert', 'text'}`, a literal set inside one authoring endpoint. That names components by string, so a third party's own text component could not declare itself and would demand a DataSource with no way to refuse — and the rule held only for blocks created through that one form. A class attribute is the same shape as `supported_modes` and holds wherever a block is saved.
+
+**A heading and a paragraph on the grid is a text block**, not a new mechanism. It gets its card, its title and its position from `PageBlock`; only the body is config. A separate registry for content would rebuild placement, permissions, config and rendering to avoid one nullable column, and would serve one component — `alert` filters on data and `repeater` repeats over rows.
+
 **Within what the component can draw.** A component also declares `supported_modes`, and a block asking for one outside it is refused when it is saved. Core's `table_plinta` supports `inline` only: it is server-rendered and has no client adapter, so a `fetch` block would render nothing and say nothing about why. `table_tabulator` supports both — `inline` is Tabulator's `paginationMode: 'local'`, which is what a five-row grid wants.
 
 **Changing how a table behaves is changing the component, not the mode.** Installing `contrib.components.table_tabulator` does not make `table_plinta` interactive; a block's `component_type` moves from one to the other, and the new component's default mode comes with it. Mode says *when the data arrives*, not *which widget draws it* — and since the two components declare different config schemas, the switch is validated at save like any other config change.
@@ -2314,6 +2327,19 @@ RESIDUE = {
     "plinta/shell/topbar.html": "Bootstrap's navbar wants .navbar > .container-fluid",
 }
 ```
+
+**A package contributes its own stylesheet.** A component that ships a template needs somewhere for that template's CSS to live; without it an extension point has fields, a template and a config editor and no way to be styled.
+
+```python
+# in the package's AppConfig.ready()
+register_stylesheet("plinta/heatmap/heatmap.css")
+```
+
+Core's own two sheets are **not** registered — `base.html` links them directly, inside a block a consumer replaces wholesale. Registered sheets are drawn after them, so a package can rely on the tokens and the shared primitives being defined. Order decides the cascade, and ties break on path so it never depends on which app was imported first.
+
+**A static path, never a URL.** A remote stylesheet is refused: core loads nothing from a CDN, and a package registering one would make that decision for the consumer. Theirs goes in the `plinta_css` block, where they can see it.
+
+**What core styles, and what a package styles.** Core styles what core's own markup emits — the chrome and the shared primitives. A component styles only what it alone draws: `pl-kanban__lane`, `pl-gantt__bar`. `pl-stat` is core's despite arriving with `kpi_plinta`, because a chart footer or a table total wants the same thing.
 
 **A pack ships no vendor stylesheet.** Where Bootstrap itself comes from — a CDN, npm, their own build — is the consumer's decision, and vendoring it would make that decision for them. The `plinta_css` block is where it goes.
 
@@ -4694,6 +4720,7 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | `register_component` | `add-component` | components (§7) |
 | `register_capability` | `add-capability` | blocks (§8) |
 | `register_style_pack` | `add-style-pack` | utils (§10.9) |
+| `register_stylesheet` | `add-component` | utils (§10.10) |
 | `register_shell_link` | `add-shell-link` | shell (§10) |
 | `register_topbar_item` | `add-topbar-item` | shell (§10.1) |
 | `register_action` | `add-action` | permissions (§5.3) |

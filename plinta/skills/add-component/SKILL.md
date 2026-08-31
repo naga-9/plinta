@@ -108,6 +108,61 @@ return f"<div>{config.title}</div>"
 return format_html("<div>{}</div>", config.title)
 ```
 
+## Shipping a template and a stylesheet
+
+`render` returns a string; nothing requires `format_html`. Core's table uses it
+because it is a hot row loop, not because it is the contract.
+
+```
+plinta/contrib/components/heatmap_plinta/
+    templates/plinta/heatmap/heatmap.html     namespaced, or someone else's wins
+    static/plinta/heatmap/heatmap.css
+```
+
+```python
+def render(self, config, user, **context) -> str:
+    return render_to_string("plinta/heatmap/heatmap.html", {...})
+```
+
+The template is found by Django's app-dirs loader because your app is
+installed. The stylesheet is not — register it:
+
+```python
+# apps.py
+def ready(self):
+    from plinta.contrib.components.heatmap_plinta import component  # noqa: F401
+    from plinta.utils.assets import register_stylesheet
+
+    register_stylesheet("plinta/heatmap/heatmap.css")
+```
+
+**Style only what you draw.** Core owns the chrome and the shared primitives —
+`pl-card`, `pl-btn`, `pl-table`, `pl-chip`, `pl-stat`. Your sheet is for
+`pl-heatmap__cell` and its kind. Redefining a shared class from a component
+changes every screen that uses it, including ones your component is not on.
+
+**A static path, never a URL.** A remote stylesheet is refused; loading a
+vendor from a CDN is the consumer's decision, in the `plinta_css` block.
+
+## Components that read nothing
+
+A **content** component — text, a static banner — carries its content in its
+config and needs no DataSource:
+
+```python
+class NoteComponent(Component):
+    config_schema = NoteConfig
+    needs_data = False
+```
+
+`Block.clean()` then requires that the block have **no** DataSource, as firmly
+as it requires a table to have one. Both directions, because a content block
+carrying one reads as configured while nothing reads it.
+
+Most components are not this. If yours filters, aggregates or repeats over
+rows — an alert with a condition, a repeater — it reads a model and the
+default is right.
+
 ## Rules
 
 **Name it `capability_implementation`.** `heatmap_d3`, not `heatmap` — the

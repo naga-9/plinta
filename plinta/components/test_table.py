@@ -46,15 +46,22 @@ def test_a_wrong_type_is_rejected():
 def test_the_kept_options_are_accepted():
     config = TableComponent().validate(
         {
-            "title": "Books",
             "page_size": 25,
             "sort": [{"field": "title", "direction": "desc"}],
             "height": "400px",
             "row_link_field": "title",
         }
     )
-    assert config.title == "Books"
+    assert config.page_size == 25
     assert config.sort[0].direction == "desc"
+
+
+def test_a_title_is_the_placements_not_the_components():
+    """`PageBlock.title` is what `block.html` draws in the card header. A
+    component carrying its own would put two titles in one card, free to
+    disagree — and this one was read by nothing."""
+    with pytest.raises(ConfigError, match="title"):
+        TableComponent().validate({"title": "Books"})
 
 
 def test_a_sort_defaults_to_ascending():

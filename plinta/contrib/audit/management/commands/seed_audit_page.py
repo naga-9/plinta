@@ -52,7 +52,6 @@ class Command(BaseCommand):
                 "component_type": "table_plinta",
                 "data_source": source,
                 "config": {
-                    "title": "Audit trail",
                     "page_size": 50,
                     "sort": [{"field": "at", "direction": "desc"}],
                     "empty_text": "Nothing has been recorded yet.",
@@ -78,7 +77,10 @@ class Command(BaseCommand):
         )
         PageBlock.objects.update_or_create(
             page=page, block=block,
-            defaults={"column": 0, "row": 0, "width": 12, "height": 8, "order": 0},
+            # The title belongs to the placement: the card header draws it,
+            # and a component carrying its own would make two.
+            defaults={"column": 0, "row": 0, "width": 12, "height": 8, "order": 0,
+                      "title": "Every write"},
         )
         for order, (field, label, lookup) in enumerate(
             [("target_label", "Record contains", Lookup.ICONTAINS),

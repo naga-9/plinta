@@ -35,7 +35,10 @@ class TableConfig(ComponentConfig):
     already answers.
     """
 
-    title: str = ""
+    # A title belongs to the *placement*, not to the component: `PageBlock`
+    # carries one and `block.html` draws it in the card header. A component
+    # drawing its own would put two inside one card, free to disagree — and
+    # this one was declared and read by nothing.
     page_size: int = Field(default=50, gt=0)
     sort: list[Sort] = Field(default_factory=list)
     #: CSS length, passed through to the widget. Empty lets it decide.

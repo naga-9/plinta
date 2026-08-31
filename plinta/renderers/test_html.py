@@ -17,6 +17,8 @@ class Field:
         self.prefix = display.get("prefix", "")
         self.suffix = display.get("suffix", "")
         self.thousands_separator = display.get("thousands_separator", False)
+        self.width = display.get("width")
+        self.visible = display.get("visible", True)
 
 
 class Row:
@@ -240,3 +242,43 @@ def test_a_style_pack_renames_them(settings, style_registry):
     settings.PLINTA_STYLE_PACK = "acme"
     html = HtmlRenderer().render([], [Field("title")], {"striped": True}, None)
     assert 'class="t t-zebra"' in html
+
+
+# --- per-column presentation ------------------------------------------------
+
+
+def test_a_plain_column_carries_no_attributes():
+    """A table is rows times columns; an empty class= on each is real weight."""
+    html = HtmlRenderer().render([Row(title="Dune")], [Field("title")], {}, None)
+    assert "<td>Dune</td>" in html
+    assert "<th>title</th>" in html or "<th>" in html
+
+
+def test_a_column_with_decimals_is_right_aligned():
+    """A declared precision is a number, and numbers line up so digits do."""
+    html = HtmlRenderer().render([Row(title="9")], [Field("title", decimals=2)], {}, None)
+    assert '<td class="pl-table__numeric">' in html
+    assert '<th class="pl-table__numeric"' in html
+
+
+def test_long_text_wraps():
+    """`textarea` said "long text" and meant nothing: every cell was nowrap,
+    so a description could only scroll the table sideways."""
+    html = HtmlRenderer().render(
+        [Row(title="a long description")], [Field("title", format="textarea")], {}, None
+    )
+    assert '<td class="pl-table__text-wrap">' in html
+
+
+def test_alignment_comes_from_the_column_not_the_value():
+    """A null in one row must not align that cell differently from its column."""
+    field = Field("title", decimals=2)
+    html = HtmlRenderer().render([Row(title=None), Row(title="4")], [field], {}, None)
+    assert html.count('<td class="pl-table__numeric">') == 2
+
+
+def test_a_width_reaches_the_heading_only():
+    """One declaration per column; the cells follow the header's width."""
+    html = HtmlRenderer().render([Row(title="x")], [Field("title", width=120)], {}, None)
+    assert '<th style="width: 120px">' in html
+    assert "width: 120px" not in html.split("</thead>")[1]

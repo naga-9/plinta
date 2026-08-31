@@ -79,8 +79,21 @@ class HtmlRenderer(Renderer):
     ) -> str:
         fields = list(fields)
         config = config or {}
+        cls = classes()
+        # Computed once per render rather than per cell: a column's options do
+        # not change between its rows, and a table is rows times columns.
+        column_classes = [self.column_class(f, cls) for f in fields]
+
         header = format_html_join(
-            "", "<th>{}</th>", ((self.heading(f, context),) for f in fields)
+            "",
+            "<th{}>{}</th>",
+            (
+                (
+                    self.attributes(column_classes[i], self.column_style(f)),
+                    self.heading(f, context),
+                )
+                for i, f in enumerate(fields)
+            ),
         )
         body = format_html_join(
             "",
@@ -88,7 +101,12 @@ class HtmlRenderer(Renderer):
             (
                 (
                     format_html_join(
-                        "", "<td>{}</td>", ((cell(row, f, user),) for f in fields)
+                        "",
+                        "<td{}>{}</td>",
+                        (
+                            (self.attributes(column_classes[i]), cell(row, f, user))
+                            for i, f in enumerate(fields)
+                        ),
                     ),
                 )
                 for row in rows
@@ -96,7 +114,6 @@ class HtmlRenderer(Renderer):
         )
         if not body:
             body = self.empty_row(fields, config.get("empty_text") or EMPTY_TEXT)
-        cls = classes()
         return format_html(
             '<div class="{}"><table class="{}">'
             "<thead><tr>{}</tr></thead><tbody>{}</tbody></table></div>{}",
@@ -106,6 +123,43 @@ class HtmlRenderer(Renderer):
             body,
             self.pager(context.get("page"), context.get("page_urls") or {}),
         )
+
+    def column_class(self, field: Any, cls: dict[str, str]) -> str:
+        """The classes one column's cells carry, from the column's own options.
+
+        Read from the **declaration**, never from a value: a null in one row
+        would otherwise align that cell differently from the rest of its
+        column.
+        """
+        names = []
+        # A declared precision is a number, and numbers line up on the right
+        # so their digits do.
+        if getattr(field, "decimals", None) is not None:
+            names.append(cls["table_numeric"])
+        # `textarea` says "long text" and meant nothing until now: every cell
+        # was `nowrap`, so a description could only ever scroll the table.
+        if getattr(field, "format", "") == "textarea":
+            names.append(cls["table_text_wrap"])
+        return " ".join(names)
+
+    def attributes(self, names: str = "", style: str = "") -> SafeString:
+        """`class` and `style`, present only when they carry something.
+
+        A table is rows times columns, so an empty `class=""` on every cell is
+        real weight in the response — and `<td>Dune</td>` is what a reader of
+        the output should see when a column asked for nothing.
+        """
+        out = SafeString("")
+        if names:
+            out += format_html(' class="{}"', names)
+        if style:
+            out += format_html(' style="{}"', style)
+        return out
+
+    def column_style(self, field: Any) -> str:
+        """A fixed width, when the column asks for one."""
+        width = getattr(field, "width", None)
+        return f"width: {int(width)}px" if width else ""
 
     def table_class(self, cls: dict[str, str], config: dict[str, Any]) -> str:
         """The table's classes: the base one, plus whatever the block asked for.

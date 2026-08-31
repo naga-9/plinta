@@ -61,10 +61,15 @@ def choose_columns(
     may not see is dropped rather than honoured, which is the same fail-closed
     rule an undeclared column already follows (§5.7) — so a saved view cannot
     become a way to ask for a column someone revoked.
+
+    With no columns named, the **default set** is drawn: the permitted columns
+    marked `visible`. That is what "shown by default" means — a column can be
+    left out of the default and still be asked for by name, because the
+    permission and not the flag is what decides whether it may be seen.
     """
     names = getattr(config, "columns", None)
     if not names:
-        return permitted
+        return [f for f in permitted if getattr(f, "visible", True)]
     by_name = {f.field_name: f for f in permitted}
     return [by_name[name] for name in names if name in by_name]
 

@@ -1426,6 +1426,17 @@ Every component implements `get_data()`. The mode decides *when* it is called:
 
 **The component declares a default; a block may override it.** The default follows from the widget's interaction model and is right nearly always; the override covers genuine exceptions — a five-row related grid on a detail page, or a chart with 50,000 points that should not bloat the page.
 
+**A column's presentation comes from its own declaration**, never from a value: a null in one row would otherwise align that cell differently from the rest of its column. Three `DataSourceField` options reach the markup.
+
+| Option | Effect |
+|---|---|
+| `visible` | in the **default column set**. A config naming columns may still ask for one left out — the permission decides what may be seen, the flag decides what is shown without being asked for |
+| `decimals` set | right-aligned, tabular numerals: a declared precision is a number |
+| `format = "textarea"` | wraps. Every other cell is `nowrap`, so long text could otherwise only scroll the table sideways |
+| `width` | a fixed width on the heading; the cells follow it |
+
+`class` and `style` are emitted only when they carry something — a table is rows times columns, and an empty `class=""` on each is real weight in the response.
+
 **A table's appearance is config, not CSS.** `striped`, `compact` and `bordered` are `TableConfig` fields, each mapping to one modifier class, because density is a property of *this screen*: a reference list wants room to read and an operational one wants rows on screen, from the same DataSource. One fixed look was most of why a table read as furniture.
 
 They need no plumbing — `render` passes `config.model_dump()` whole and the renderer takes what it needs, the same route `empty_text` already travels. The classes are in the style vocabulary, so a pack renames them like anything else (`table-striped`, `table-sm`, `table-bordered` under Bootstrap).

@@ -354,6 +354,13 @@ hr {
 
 .pl-table__numeric { text-align: right; font-variant-numeric: tabular-nums; }
 
+/* A column declared as long text. Everything else is `nowrap`, so without
+ * this a description can only scroll the table sideways, never wrap. */
+.pl-table__text-wrap {
+    white-space: normal;
+    min-width: 16rem;
+}
+
 /* Appearance, chosen per block. One fixed look was most of why a table read
  * as furniture: a reference list and an operational one want different
  * densities from the same DataSource. */

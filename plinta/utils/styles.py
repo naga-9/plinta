@@ -58,6 +58,10 @@ DEFAULT: dict[str, str] = {
     "table_striped": "pl-table--striped",
     "table_compact": "pl-table--compact",
     "table_bordered": "pl-table--bordered",
+    "table_numeric": "pl-table__numeric",
+    #: Long text that may run onto a second line. Named for what it does, not
+    #: for where it sits: `table_wrap` above is the scroll container.
+    "table_text_wrap": "pl-table__text-wrap",
     "table_sort": "pl-table__sort",
     "table_sort_active": "is-active",
     "table_empty": "pl-table__empty",

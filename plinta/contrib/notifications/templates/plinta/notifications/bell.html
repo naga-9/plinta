@@ -1,5 +1,5 @@
-{# The topbar bell. Counts only what is unread, and says nothing when there is
-   nothing — a zero badge is noise. #}
+{% comment %} The topbar bell. Counts only what is unread, and says nothing when there is
+   nothing — a zero badge is noise. {% endcomment %}
 {% load plinta_notifications %}{% unread_count as unread %}
 <a class="pl-btn pl-btn--ghost pl-btn--sm" href="{% url 'notifications:list' %}"
    aria-label="Notifications{% if unread %}, {{ unread }} unread{% endif %}">

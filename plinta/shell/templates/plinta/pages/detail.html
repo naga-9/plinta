@@ -1,8 +1,8 @@
 {% extends "plinta/pages/page.html" %}
-{# One record, its blocks, and whatever each installed app contributes.
+{% comment %} One record, its blocks, and whatever each installed app contributes.
 
    Extends the dashboard rather than repeating it: the grid, the filter bar
-   and the tabs are the same, and only the header and the sections differ. #}
+   and the tabs are the same, and only the header and the sections differ. {% endcomment %}
 
 {% block title %}{{ record }} · {{ page.name }} · {{ site_name }}{% endblock %}
 {% block topbar_title %}{{ record }}{% endblock %}

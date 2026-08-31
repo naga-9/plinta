@@ -1,8 +1,8 @@
 {% load plinta_workflow %}
-{# Where this row is, where it may go, and where it has been.
+{% comment %} Where this row is, where it may go, and where it has been.
 
    Refused moves are drawn greyed with their reason rather than hidden: a
-   button that vanishes reads as a missing feature. #}
+   button that vanishes reads as a missing feature. {% endcomment %}
 {% workflow_panel record user as panel %}
 
 {% if panel.workflow %}

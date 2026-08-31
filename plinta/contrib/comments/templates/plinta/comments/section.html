@@ -1,7 +1,7 @@
-{# The comments capability's section, shipped with the app that registers it.
+{% comment %} The comments capability's section, shipped with the app that registers it.
 
    Thin on purpose: a consumer restyles it by overriding this path, and the
-   markup uses plinta's own class names (§10.8) so it inherits the theme. #}
+   markup uses plinta's own class names (§10.8) so it inherits the theme. {% endcomment %}
 <section class="pl-stack" data-plinta-capability="comments">
     <h3>{% block comments_heading %}Comments{% endblock %}</h3>
 

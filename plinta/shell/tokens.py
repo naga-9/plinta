@@ -14,7 +14,7 @@ from typing import Any
 #: Where the tokens live, and where the generated files go.
 DESIGN = pathlib.Path(__file__).resolve().parent.parent / "design"
 TOKENS = DESIGN / "tokens.json"
-STATIC = pathlib.Path(__file__).resolve().parent.parent / "static" / "plinta"
+STATIC = pathlib.Path(__file__).resolve().parent / "static" / "plinta"
 
 #: `{slate-200}` refers to a primitive; anything else is literal CSS.
 ALIAS = re.compile(r"\A\{([a-z0-9-]+)\}\Z")

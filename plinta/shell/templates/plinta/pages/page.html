@@ -1,6 +1,6 @@
 {% extends "plinta/shell/base.html" %}
-{# A dashboard: a filter bar, then blocks on the grid at their stored
-   positions. No layout JavaScript — the position is custom properties. #}
+{% comment %} A dashboard: a filter bar, then blocks on the grid at their stored
+   positions. No layout JavaScript — the position is custom properties. {% endcomment %}
 
 {% block title %}{{ page.name }} · {{ site_name }}{% endblock %}
 {% block topbar_title %}{{ page.name }}{% endblock %}

@@ -1,9 +1,9 @@
 {% load plinta_tags %}
-{# The controls a page exposes. Page furniture: always visible, driven by the
-   viewer, and submitted as a plain GET so a filtered page is a shareable URL. #}
+{% comment %} The controls a page exposes. Page furniture: always visible, driven by the
+   viewer, and submitted as a plain GET so a filtered page is a shareable URL. {% endcomment %}
 {% if filter_sets %}
-    {# Its own form, so applying a set and applying the controls are separate
-       acts rather than one submission meaning two things. #}
+    {% comment %} Its own form, so applying a set and applying the controls are separate
+       acts rather than one submission meaning two things. {% endcomment %}
     <form class="pl-filters" method="get">
         {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
         <div class="pl-filters__control">

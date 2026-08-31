@@ -1,5 +1,5 @@
-{# Toasts. Django's messages framework when it is installed; the container is
-   here either way, because the client posts into it. #}
+{% comment %} Toasts. Django's messages framework when it is installed; the container is
+   here either way, because the client posts into it. {% endcomment %}
 <div class="pl-toasts" id="pl-toasts" aria-live="polite">
     {% if messages %}
         {% for message in messages %}

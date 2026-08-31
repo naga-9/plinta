@@ -1,5 +1,5 @@
-{# The card around one widget. Thin on purpose: this is the template most
-   likely to be replaced (§10.1). #}
+{% comment %} The card around one widget. Thin on purpose: this is the template most
+   likely to be replaced (§10.1). {% endcomment %}
 <article class="pl-card">
     {% block block_header %}
         {% if slot.placement.title or slot.placement.block.name %}

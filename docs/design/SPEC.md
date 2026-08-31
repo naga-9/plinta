@@ -4656,6 +4656,8 @@ So: a layer is not done until its extension points have skills, and a skill is n
 
 **Beside the code they document.** Core's are in `plinta/skills/`, and a contrib app that provides an extension point ships its own in `plinta/contrib/<app>/skills/`. A skill deletes with the app it documents and cannot drift into the core set.
 
+**Core's stay flat rather than moving into each layer**, because the asymmetry is real: a contrib app is a distribution unit that ships and un-ships whole, and core layers are a closed set that always ship together. `plinta/skills/` is the catalogue of §18 — one listing of the whole public surface, where a missing entry reads as missing rather than as a directory nobody opened. Splitting it by layer would also be a hybrid, since `start-consumer-app` and `add-contrib-app` belong to no layer. What keeps a skill honest is §25.6, not adjacency.
+
 **They reach a consumer as a Claude Code plugin, never as a copy.** Claude Code reads skills from the project's `.claude/skills/`, from the user's own, and from installed plugins — never from `site-packages`. That is a security boundary rather than an oversight: a skill is instructions an agent follows, so `pip install` must not be able to grant a transitive dependency write access to how an agent behaves.
 
 **So plinta ships no command that writes into a consumer's `.claude/`.** A library editing a developer's tooling directory would have to answer what happens when they already wrote their own `add-component`, and every answer is wrong. It would bake one vendor's config format into a Django package. And the copies go stale silently on the next `pip install -U`, which §25.5 already names as worse than no skill.

@@ -7,7 +7,6 @@ from django.db import IntegrityError, transaction
 from plinta.datasources.models import (
     DataSource,
     DataSourceField,
-    FilterLookup,
     PickerMode,
     Sorter,
 )
@@ -153,10 +152,9 @@ def test_a_column_is_visible_and_not_editable_by_default(books):
 def test_the_remaining_defaults(books):
     field = DataSourceField.objects.create(data_source=books, field_name="title", label="Title")
     assert field.sorter == Sorter.STRING
-    assert field.filter_lookup == FilterLookup.EXACT
     assert field.picker_mode == PickerMode.AUTO
     assert field.filterable is False
-    assert (field.format, field.header_filter, field.filter_widget) == ("", "", "")
+    assert (field.format, field.header_filter) == ("", "")
     assert (field.width, field.decimals) == (None, None)
     assert field.thousands_separator is False
 

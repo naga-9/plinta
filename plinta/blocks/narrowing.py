@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
 if TYPE_CHECKING:
     from plinta.blocks.models import Block
@@ -54,22 +54,22 @@ def apply_modifier(queryset: QuerySet, block: Block, user) -> QuerySet:
     return run(block.queryset_modifier, queryset, user)
 
 
-def narrowing_for(
-    block: Block, user, extra: dict[str, Any] | None = None
-) -> Narrow:
+def narrowing_for(block: Block, user, extra: Q | None = None) -> Narrow:
     """The narrowing this block applies, as one callable.
 
     Handed to a component so it can apply it after `datasources` has filtered,
     without learning what a Block is.
 
-    ``extra`` is already-resolved filter kwargs from whatever placed the block —
-    a page's filter bar, or a placement's own context filter. Configuration
+    ``extra`` is an already-resolved `Q` from whatever placed the block — a
+    page's filter bar, or a placement's own context filter. A `Q` rather than
+    keyword arguments because a date range is two keys from one control and a
+    relative range is a disjunction, and neither fits a dict. Configuration
     narrows first, then the viewer's choices, so a modifier never sees a
     queryset the viewer has already narrowed.
     """
 
     def narrow(queryset: QuerySet) -> QuerySet:
         rows = apply_modifier(apply_base_filter(queryset, block, user), block, user)
-        return rows.filter(**extra) if extra else rows
+        return rows.filter(extra) if extra else rows
 
     return narrow

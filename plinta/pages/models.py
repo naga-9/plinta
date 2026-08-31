@@ -213,7 +213,9 @@ class Widget:
     INPUT = "input_plinta"
     SELECT = "select_plinta"
     MULTISELECT = "multiselect_plinta"
+    DATE = "date_plinta"
     DATERANGE = "daterange_plinta"
+    RELATIVE_DATE = "relative_date_plinta"
     BOOLEAN = "boolean_plinta"
 
 

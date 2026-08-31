@@ -2099,6 +2099,8 @@ Filter values honour placeholders (§3.6), so `__CURRENT_QUARTER__` resolves at 
 
 The picker is its own form beside the controls, so applying a set and applying the controls are separate acts rather than one submission meaning two things. Absent when there are no sets: a control offering nothing to choose is furniture.
 
+**Where a control is declared is `PageFilter`, and nowhere else.** `DataSourceField` carried `filter_widget`, `filter_lookup` and `filter_display_format`, read by nothing — a second answer to a question the filter bar already answers. They are deleted. Labels need no format string (§9.5), and `_search_paths` only ever saw text columns, for which a display format means nothing.
+
 **How a control is drawn is a registry, not an enum.** A closed set in core would mean a consumer who installs a multi-select that fetches its options cannot choose it — the same trap v1's `CONTENT_COMPONENT_TYPES` set. Core registers five (`input`, `boolean`, `select`, `multiselect`, `daterange`); a widget nothing registered draws as a text input, so a filter naming an uninstalled one still narrows.
 
 A widget declares two things. **`multiple`** decides `getlist` over `get` — `GET[name]` keeps only the last of a repeated key, so a two-option selection would otherwise filter on whichever was last in the form. **`needs_options`** decides whether `options_for` is called at all; calling it for a text input would query for a list nothing draws.
@@ -2132,6 +2134,31 @@ It computes nothing of its own: `drawn_controls` is what the page render already
 **The cost is one query per option-bearing control, per render.** `order_by()` clears any `Meta.ordering` before `distinct()`: left in place, its columns join the SELECT and the same store returns once per sale.
 
 **Which DataSource a control resolves against is stated, not guessed.** `PageFilter.data_source` is nullable and needed only by a widget that offers options. A page's blocks may read different models, and "the first block that has this field" is the kind of implicit rule that bites once a page has two.
+
+#### 9.4a A filter produces a `Q`, not keyword arguments
+
+Two of the value shapes cannot be a `{field: value}` dict:
+
+- a **date range** is two keys from one control — `field__gte` *and* `field__lte`
+- a **relative range** is a disjunction — "past or this month" is one choice and two conditions, which `dates.resolve_q` already ORs
+
+So `filter_q` returns one `Q`, ANDed across the controls, and `narrowing_for` takes one. Every control that worked before is `Q(**{field: value})` and behaves identically.
+
+**The lookup comes from the widget's declared shape, never from the query string.** A viewer who could name their own would have `__regex` for a denial of service and `owner__password__startswith` for a search.
+
+**A widget declares the shape of its value**, and core knows the shapes: `multiple` (a list), `bounds` (two keys), `needs_ranges` (registered windows). A third party redrawing an existing shape needs nothing new; a genuinely new shape is a core change, because it affects reading, cascading and querying rather than only drawing.
+
+#### 9.4b Three date controls, not one
+
+`date_plinta` is one date. `daterange_plinta` is two bounds — either half alone is a filter, because "anything after March" is a question people ask. `relative_date_plinta` is a multi-select over the ranges registered in §3.2: named windows keep meaning what they say, where a date typed in September freezes there.
+
+**Separate controls rather than one with a mode.** One control asks one question; a mode switch inside a filter is a second thing to explain before the first can be used, and the stored value would be polymorphic. The page author knows which the column wants — an audit screen wants exact dates, a sales screen wants "this month" — so they choose once instead of every viewer choosing every time.
+
+`PageFilter` is unique on `(page, field_name)`, so a field gets one control. Two filters on one field would AND together, which nobody expects.
+
+**A range ignores `PageFilter.lookup`.** A range *is* its lookup, and `exact` on a bound is nonsense.
+
+**An unregistered range name means "no date filter", never "match nothing".** A stored name whose package was uninstalled must not empty the screen.
 
 **A value is coerced by its control's widget, and only where the ORM will not do it.** Django turns a string into a number, a date or a UUID on its own; `BooleanField` accepts `"True"` and `"1"` and rejects `"true"` — which is exactly what a yes/no control draws, and therefore what a remembered filter stores. So a `boolean` widget's value becomes a real `bool` before it reaches the query. A value that is neither true nor false is **dropped rather than raised on**: it can only come from a hand-edited URL, and a page that fails on a stray parameter is worse than one that ignores it.
 

@@ -154,15 +154,5 @@ def search_q(datasource: DataSource, user, term: str) -> Q | None:
 
 
 def _search_paths(field: DataSourceField) -> list[str]:
-    """Which paths a column searches on.
-
-    Its own, plus anything named in ``filter_display_format`` — a column
-    showing ``{region__name}`` should match on what it displays, not on the id
-    behind it.
-    """
-    paths = [field.field_name]
-    if field.filter_display_format:
-        import re
-
-        paths += [p for p in re.findall(r"\{([\w__]+)\}", field.filter_display_format)]
-    return list(dict.fromkeys(paths))
+    """Which paths a column searches on. Its own."""
+    return [field.field_name]

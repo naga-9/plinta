@@ -27,15 +27,15 @@ CAP = 500
 
 
 def options_for(
-    control: Any, user, *, siblings: dict[str, Any] | None = None, limit: int = CAP
+    control: Any, user, *, siblings: Any = None, limit: int = CAP
 ) -> list[tuple[str, str]]:
     """``[(value, label)]`` for one control, as its widget should draw them.
 
     Args:
         control: the `PageFilter`.
         user: the viewer. Their rows are what the options come from.
-        siblings: ORM keyword arguments from the *other* controls, already
-            resolved. This control's own selection must not be among them.
+        siblings: a `Q` built from the *other* controls, already resolved.
+            This control's own selection must not be among them.
         limit: how many to return.
 
     Returns nothing when the control names no DataSource, or when its model is
@@ -53,7 +53,7 @@ def options_for(
 
     rows = allowed(user, "view", model._default_manager.all())
     if siblings:
-        rows = rows.filter(**siblings)
+        rows = rows.filter(siblings)
 
     path = control.field_name
     values = list(

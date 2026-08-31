@@ -2,6 +2,7 @@
 import pytest
 from django.contrib.auth.models import Permission, User
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Q
 
 from plinta.datasources.models import DataSource
 from plinta.pages.models import Page, PageFilter, Widget
@@ -97,7 +98,7 @@ def test_the_row_policy_narrows_the_options(shop, policy_registry):
 
 def test_a_sibling_selection_narrows_the_list(shop):
     """Choosing a title leaves the region filter offering only its region."""
-    options = options_for(shop["region"], shop["ada"], siblings={"title__in": ["Dune"]})
+    options = options_for(shop["region"], shop["ada"], siblings=Q(title__in=["Dune"]))
     assert [label for _, label in options] == ["North"]
 
 

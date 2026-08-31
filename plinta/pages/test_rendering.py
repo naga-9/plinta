@@ -3,6 +3,7 @@ import pytest
 from django.contrib.auth.models import Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
+from django.db.models import Q
 from django.test.utils import CaptureQueriesContext
 
 from plinta.blocks.models import Block, SavedView
@@ -17,7 +18,8 @@ from plinta.pages.models import (
 )
 from plinta.pages.rendering import (
     default_filters,
-    filter_kwargs,
+    drawn_controls,
+    filter_q,
     placements_for,
     remember_filters,
     render_page,
@@ -198,9 +200,9 @@ def test_a_placement_with_no_tab_shows_on_every_tab(screen):
 def test_a_declared_filter_becomes_a_lookup(screen):
     page, _, ada = screen
     PageFilter.objects.create(page=page, field_name="region__name", label="Region")
-    assert filter_kwargs(page, {"region__name": "North"}, ada) == {
-        "region__name": "North"
-    }
+    assert filter_q(page, {"region__name": "North"}, ada) == Q(
+        **{"region__name": "North"}
+    )
 
 
 def test_a_lookup_shapes_the_keyword(screen):
@@ -208,22 +210,22 @@ def test_a_lookup_shapes_the_keyword(screen):
     PageFilter.objects.create(
         page=page, field_name="region__name", label="Region", lookup=Lookup.IN
     )
-    assert filter_kwargs(page, {"region__name": ["North"]}, ada) == {
+    assert filter_q(page, {"region__name": ["North"]}, ada) == Q(**{
         "region__name__in": ["North"]
-    }
+    })
 
 
 def test_a_value_for_an_undeclared_field_is_ignored(screen):
     """The bar is what the page exposes; a query string is not."""
     page, _, ada = screen
-    assert filter_kwargs(page, {"in_print": True}, ada) == {}
+    assert filter_q(page, {"in_print": True}, ada) == Q()
 
 
 def test_an_empty_value_is_not_a_filter(screen):
     page, _, ada = screen
     PageFilter.objects.create(page=page, field_name="region__name", label="Region")
-    assert filter_kwargs(page, {"region__name": ""}, ada) == {}
-    assert filter_kwargs(page, {"region__name": []}, ada) == {}
+    assert filter_q(page, {"region__name": ""}, ada) == Q()
+    assert filter_q(page, {"region__name": []}, ada) == Q()
 
 
 def test_a_placeholder_resolves_at_query_time(screen, placeholder_registry):
@@ -430,23 +432,104 @@ def test_a_yes_no_control_reaches_the_orm_as_a_bool(
     Django accepts "True" and "1" but not "true", so without coercion the
     query raises ValidationError from inside the ORM.
     """
-    kwargs = filter_kwargs(boolean_page, {"in_print": sent}, viewer)
-    assert kwargs == {"in_print": expected}
-    assert isinstance(kwargs["in_print"], bool)
+    assert filter_q(boolean_page, {"in_print": sent}, viewer) == Q(in_print=expected)
 
 
 def test_false_is_a_filter_not_an_absence(boolean_page, viewer):
     """`No` must narrow. Dropping it would show in-print titles too."""
-    assert filter_kwargs(boolean_page, {"in_print": "false"}, viewer) == {
-        "in_print": False
-    }
+    assert filter_q(boolean_page, {"in_print": "false"}, viewer) == Q(in_print=False)
 
 
 def test_any_sends_nothing(boolean_page, viewer):
     """The empty option is 'no opinion', not 'false'."""
-    assert filter_kwargs(boolean_page, {"in_print": ""}, viewer) == {}
+    assert filter_q(boolean_page, {"in_print": ""}, viewer) == Q()
 
 
 def test_a_nonsense_value_is_ignored_rather_than_raising(boolean_page, viewer):
     """It can only come from a hand-edited URL, and a 500 there is worse."""
-    assert filter_kwargs(boolean_page, {"in_print": "maybe"}, viewer) == {}
+    assert filter_q(boolean_page, {"in_print": "maybe"}, viewer) == Q()
+
+
+# --- date ranges, absolute and relative -------------------------------------
+
+
+@pytest.fixture
+def dated(screen):
+    """The catalogue page with both date controls over `published_on`."""
+    page, _, ada = screen
+    PageFilter.objects.create(
+        page=page, field_name="published_on", label="Published",
+        widget="daterange_plinta",
+    )
+    return page, ada
+
+
+def test_a_range_becomes_two_bounds(dated):
+    """One control, two keys — the shape a `{field: value}` dict cannot hold."""
+    page, ada = dated
+    assert filter_q(page, {"published_on": {"from": "2026-01-01",
+                                            "to": "2026-12-31"}}, ada) == Q(
+        published_on__gte="2026-01-01", published_on__lte="2026-12-31"
+    )
+
+
+def test_half_a_range_is_still_a_filter(dated):
+    """"Anything after March" is a question people ask."""
+    page, ada = dated
+    assert filter_q(page, {"published_on": {"from": "2026-03-01"}}, ada) == Q(
+        published_on__gte="2026-03-01"
+    )
+    assert filter_q(page, {"published_on": {"to": "2026-03-01"}}, ada) == Q(
+        published_on__lte="2026-03-01"
+    )
+
+
+def test_an_empty_range_is_no_filter(dated):
+    page, ada = dated
+    assert filter_q(page, {"published_on": {}}, ada) == Q()
+
+
+def test_a_range_ignores_the_controls_lookup(dated):
+    """A range *is* its lookup; `exact` on a bound would be nonsense."""
+    page, ada = dated
+    page.filters.update(lookup=Lookup.IN)
+    assert filter_q(page, {"published_on": {"from": "2026-01-01"}}, ada) == Q(
+        published_on__gte="2026-01-01"
+    )
+
+
+def test_relative_ranges_or_together(screen):
+    """Several names is one choice and several conditions — the other reason a
+    filter is a `Q` rather than keyword arguments."""
+    from plinta.dates.ranges import resolve_q
+
+    page, _, ada = screen
+    PageFilter.objects.create(
+        page=page, field_name="published_on", label="When",
+        widget="relative_date_plinta",
+    )
+    built = filter_q(page, {"published_on": ["past", "current_month"]}, ada)
+    assert built == Q() & resolve_q("published_on", ["past", "current_month"])
+
+
+def test_an_unregistered_range_name_is_ignored(screen):
+    """It means "no date filter", never "match nothing" — a stored name whose
+    package was uninstalled must not empty the screen."""
+    page, _, ada = screen
+    PageFilter.objects.create(
+        page=page, field_name="published_on", label="When",
+        widget="relative_date_plinta",
+    )
+    assert filter_q(page, {"published_on": ["fiscal_year"]}, ada) == Q()
+
+
+def test_the_relative_control_offers_registered_ranges(screen):
+    """Not values from the data: no row contains "current month"."""
+    page, _, ada = screen
+    PageFilter.objects.create(
+        page=page, field_name="published_on", label="When",
+        widget="relative_date_plinta",
+    )
+    drawn = next(d for d in drawn_controls(page, {}, ada)
+                 if d.control.field_name == "published_on")
+    assert ("current_month", "Current Month") in drawn.options

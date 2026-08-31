@@ -6,6 +6,8 @@ component is one resolved config that never mentions a saved view.
 """
 from __future__ import annotations
 
+from django.db.models import Q
+
 import logging
 from typing import Any
 
@@ -111,7 +113,7 @@ def render_block(
     user,
     *,
     view: SavedView | None = None,
-    extra_filters: dict[str, Any] | None = None,
+    extra_filters: Q | None = None,
     **context: Any,
 ) -> str:
     """Draw ``block`` for ``user``.
@@ -123,7 +125,7 @@ def render_block(
 
     Step 3 is why a block cannot widen access: the narrowing happened below it.
 
-    ``extra_filters`` is resolved filter kwargs from whatever placed the block.
+    ``extra_filters`` is a resolved `Q` from whatever placed the block.
     A page passes its filter bar and the placement's context filter through it.
     """
     from plinta.permissions import can

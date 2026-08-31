@@ -263,7 +263,12 @@ class Command(BaseCommand):
             page=pages["catalogue"], field_name="in_print",
             defaults={"label": "In print", "widget": "boolean_plinta", "order": 1},
         )
-        only_filters(pages["catalogue"], "title", "in_print")
+        # Two bounds, so the catalogue can be narrowed to a publication window.
+        PageFilter.objects.update_or_create(
+            page=pages["catalogue"], field_name="published_on",
+            defaults={"label": "Published", "widget": "daterange_plinta", "order": 2},
+        )
+        only_filters(pages["catalogue"], "title", "in_print", "published_on")
 
         # Sales ------------------------------------------------------------
         pages["sales"], _ = Page.objects.update_or_create(
@@ -301,7 +306,15 @@ class Command(BaseCommand):
             defaults={"label": "Title", "widget": "multiselect_plinta", "lookup": "in",
                       "data_source": sources["sales"], "order": 1},
         )
-        only_filters(pages["sales"], "store", "book")
+        # Named windows rather than dates: "current month" keeps meaning this
+        # month, where a date typed in September freezes there. Several may be
+        # chosen and they OR together.
+        PageFilter.objects.update_or_create(
+            page=pages["sales"], field_name="sold_on",
+            defaults={"label": "When", "widget": "relative_date_plinta",
+                      "data_source": sources["sales"], "order": 2},
+        )
+        only_filters(pages["sales"], "store", "book", "sold_on")
 
         # Purchasing --------------------------------------------------------
         pages["purchasing"], _ = Page.objects.update_or_create(

@@ -247,10 +247,16 @@ def test_search_ors_across_several_columns(books_ds, rows, ada, policy_registry)
     assert get_queryset(books_ds, ada).filter(q).count() == 1
 
 
-def test_a_display_format_adds_its_paths(books_ds, ada):
-    books_ds.fields.filter(field_name="title").update(filter_display_format="{region__name}")
-    ada = grant(ada, "view_book_title")
-    assert "region__name" in str(search_q(books_ds, ada, "North"))
+def test_search_covers_text_columns_only(books_ds, ada):
+    """A relation is excluded, so searching never matches a primary key.
+
+    Searching a relation *by its display* — "North" finding rows whose region
+    is North — is a real gap and belongs to search, not to a column's filter
+    configuration. `filter_display_format` claimed to do it and could not:
+    only text columns reach here, and a text column has no display format.
+    """
+    ada = grant(ada, "view_book_title", "view_book_region")
+    assert [f.field_name for f in searchable_fields(books_ds, ada)] == ["title"]
 
 
 def test_searchable_fields_is_what_search_uses(books_ds, ada):

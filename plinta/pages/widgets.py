@@ -38,6 +38,12 @@ class FilterWidget:
     #: Whether it wants `options_for()` called. A text input does not, and
     #: calling it anyway would query for a list nothing draws.
     needs_options: bool = False
+    #: Whether it submits two bounds — `field__from` and `field__to` — rather
+    #: than one value. One control, two query keys.
+    bounds: bool = False
+    #: Whether its options are the registered relative date ranges rather than
+    #: values from the data. "Current month" is not in any row.
+    needs_ranges: bool = False
 
 
 class WidgetError(Exception):
@@ -55,6 +61,8 @@ def register_filter_widget(
     label: str = "",
     multiple: bool = False,
     needs_options: bool = False,
+    bounds: bool = False,
+    needs_ranges: bool = False,
 ) -> FilterWidget:
     """Add a way of drawing a filter control.
 
@@ -72,6 +80,8 @@ def register_filter_widget(
         template=template,
         multiple=multiple,
         needs_options=needs_options,
+        bounds=bounds,
+        needs_ranges=needs_ranges,
     )
     _registry[name] = widget
     return widget
@@ -106,7 +116,7 @@ def get(name: str) -> FilterWidget:
 
 
 def register_defaults() -> None:
-    """The five core draws. Called from `AppConfig.ready()`.
+    """The seven core draws. Called from `AppConfig.ready()`.
 
     Named `capability_implementation` like components, so `multiselect_plinta`
     leaves the plain name free for whoever implements it next.
@@ -131,5 +141,18 @@ def register_defaults() -> None:
         needs_options=True,
     )
     register_filter_widget(
-        "daterange_plinta", template="plinta/filters/daterange.html", label="Date range"
+        "date_plinta", template="plinta/filters/date.html", label="Date"
+    )
+    register_filter_widget(
+        "daterange_plinta",
+        template="plinta/filters/daterange.html",
+        label="Date range",
+        bounds=True,
+    )
+    register_filter_widget(
+        "relative_date_plinta",
+        template="plinta/filters/relative_date.html",
+        label="Relative date",
+        multiple=True,
+        needs_ranges=True,
     )

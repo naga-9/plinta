@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from django.db.models import Q
+
 from plinta.pages.models import (
     FilterSet,
     Page,
@@ -177,7 +179,13 @@ def drawn_controls(page: Page, values: dict[str, Any], user) -> list[DrawnContro
     for control in controls_of(page):
         widget = find(control.widget) or find(Widget.INPUT)
         options = []
-        if widget and widget.needs_options:
+        if widget and widget.needs_ranges:
+            # Registered windows, not values from the data: no row contains
+            # "current month" (§3.2).
+            from plinta.dates.ranges import registered
+
+            options = [(r.name, r.label) for r in registered()]
+        elif widget and widget.needs_options:
             # The cascade: every control's selection except this one's. A
             # control that narrowed itself would drop the alternatives from
             # its own list, and the choice could not then be changed.
@@ -187,10 +195,12 @@ def drawn_controls(page: Page, values: dict[str, Any], user) -> list[DrawnContro
                 if name != control.field_name
             }
             options = options_for(
-                control, user, siblings=filter_kwargs(page, siblings, user)
+                control, user, siblings=filter_q(page, siblings, user)
             )
         value = values.get(control.field_name)
-        if widget and widget.multiple:
+        if widget and widget.bounds:
+            value = value if isinstance(value, dict) else {}
+        elif widget and widget.multiple:
             # A list of strings, because the options are strings: a stored
             # default of `[3]` would otherwise never match option `"3"`, and
             # `in` on a bare string is a substring test that ticks "2" for a
@@ -210,24 +220,58 @@ def drawn_controls(page: Page, values: dict[str, Any], user) -> list[DrawnContro
     return drawn
 
 
-def filter_kwargs(
-    page: Page, values: dict[str, Any], user, record: Any = None
-) -> dict[str, Any]:
-    """The stored values as ORM keyword arguments.
+def control_q(control: PageFilter, value: Any, widget) -> Q | None:
+    """One control's contribution to the query, or None for "no filter".
 
-    Each declared filter contributes its own lookup, so a control declared
-    ``in`` filters with ``__in``. A value for a field the page does not declare
-    is ignored: the bar is what the page exposes, and the query string is not.
+    A `Q` rather than keyword arguments, because two of the shapes cannot be
+    expressed as `{field: value}`: a range is **two** keys from one control,
+    and a relative range is a disjunction — "past or this month" is one choice
+    and two conditions.
+
+    The lookup comes from the widget's declared shape, never from the query
+    string. A viewer who could name their own would have `__regex` for a
+    denial of service and `owner__password__startswith` for a search.
     """
+    if value is None or value == "" or value == []:
+        return None
+
+    if widget is not None and widget.bounds:
+        # `{"from": ..., "to": ...}`, and either half alone is a valid filter:
+        # "anything after March" is a question people ask.
+        start, end = (value or {}).get("from"), (value or {}).get("to")
+        bounds = {}
+        if start:
+            bounds[f"{control.field_name}__gte"] = start
+        if end:
+            bounds[f"{control.field_name}__lte"] = end
+        return Q(**bounds) if bounds else None
+
+    if widget is not None and widget.needs_ranges:
+        from plinta.dates.ranges import resolve_q
+
+        # Several names OR together, which is why this cannot be kwargs.
+        return resolve_q(control.field_name, value)
+
+    suffix = "" if control.lookup == "exact" else f"__{control.lookup}"
+    return Q(**{f"{control.field_name}{suffix}": value})
+
+
+def filter_q(page: Page, values: dict[str, Any], user, record: Any = None) -> Q:
+    """The stored values as one `Q`, ANDed across the controls.
+
+    A value for a field the page does not declare is ignored: the bar is what
+    the page exposes, and the query string is not.
+    """
+    from plinta.pages.widgets import find
+
     resolved = resolve_filters(values, user, record)
-    out: dict[str, Any] = {}
+    combined = Q()
     for control in controls_of(page):
-        value = coerce(control, resolved.get(control.field_name))
-        if value is None or value == "" or value == []:
-            continue
-        suffix = "" if control.lookup == "exact" else f"__{control.lookup}"
-        out[f"{control.field_name}{suffix}"] = value
-    return out
+        widget = find(control.widget)
+        part = control_q(control, coerce(control, resolved.get(control.field_name)), widget)
+        if part is not None:
+            combined &= part
+    return combined
 
 
 def render_page(
@@ -256,7 +300,7 @@ def render_page(
     from plinta.blocks.rendering import BlockRenderError, render_block
 
     values = default_filters(page, user) if filters is None else filters
-    kwargs = filter_kwargs(page, values, user, record)
+    narrowing = filter_q(page, values, user, record)
 
     drawn = []
     for placement in placements_for(page, user, tab=tab):
@@ -265,10 +309,8 @@ def render_page(
             html = render_block(
                 placement.block,
                 user,
-                extra_filters={
-                    **kwargs,
-                    **resolve_filters(placement.context_filter, user, record),
-                },
+                extra_filters=narrowing
+                & Q(**resolve_filters(placement.context_filter, user, record)),
                 query=query,
                 param_prefix=f"b{placement.pk}_",
                 page=_page_number(query, f"b{placement.pk}_"),

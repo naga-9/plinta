@@ -37,18 +37,6 @@ class Format(models.TextChoices):
     HTML = "html", "HTML"
 
 
-class FilterWidget(models.TextChoices):
-    NONE = "", "None"
-    MULTISELECT = "multiselect", "Multi-select"
-    DATERANGE = "daterange", "Date range"
-
-
-class FilterLookup(models.TextChoices):
-    EXACT = "exact", "Exact"
-    IN = "in", "One of"
-    RANGE = "range", "Between"
-
-
 class PickerMode(models.TextChoices):
     """How an editor offers the choices for a related field."""
 
@@ -153,16 +141,10 @@ class DataSourceField(models.Model):
     filterable = models.BooleanField(
         default=False, help_text="Offered as a control on a page's filter bar."
     )
-    filter_widget = models.CharField(max_length=20, choices=FilterWidget, blank=True, default="")
-    filter_lookup = models.CharField(
-        max_length=10, choices=FilterLookup, default=FilterLookup.EXACT
-    )
-    filter_display_format = models.CharField(
-        max_length=200,
-        blank=True,
-        default="",
-        help_text="Template for a filter's option labels, e.g. '{state__name}'.",
-    )
+    # How a control is *drawn* is `PageFilter.widget`, a registry key (§9.4),
+    # and what it *offers* is the values present in the rows (§9.5). Both used
+    # to be declared here too, read by nothing — a second answer to a question
+    # the filter bar already answers.
 
     # --- editing ---
     editable = models.BooleanField(

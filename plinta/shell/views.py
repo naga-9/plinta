@@ -35,7 +35,7 @@ def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None
 
     A control whose widget takes several values is read with `getlist`; every
     other with `get`. An empty selection reaches here as an empty list, which
-    `filter_kwargs` drops — so clearing a multi-select clears the filter
+    `filter_q` drops — so clearing a multi-select clears the filter
     rather than reapplying the default.
     """
     from plinta.pages.widgets import find
@@ -46,6 +46,8 @@ def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None
         if name in RESERVED or name not in declared:
             continue
         widget = find(declared[name].widget)
+        if widget is not None and widget.bounds:
+            continue  # read below, from its two keys rather than from this one
         if widget is not None and widget.multiple:
             # `GET[name]` keeps only the last of a repeated key, so a
             # multi-valued control would silently filter on whichever option
@@ -53,6 +55,23 @@ def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None
             sent[name] = [v for v in request.GET.getlist(name) if v != ""]
         else:
             sent[name] = request.GET[name]
+
+    # A range submits `<field>__from` and `<field>__to`: one control, two
+    # keys, so it cannot be read by looking for its own field name.
+    for name, control in declared.items():
+        widget = find(control.widget)
+        if widget is None or not widget.bounds:
+            continue
+        bounds = {
+            edge: request.GET.get(f"{name}__{edge}", "").strip()
+            for edge in ("from", "to")
+        }
+        if any(bounds.values()):
+            sent[name] = {k: v for k, v in bounds.items() if v}
+        elif f"{name}__from" in request.GET or f"{name}__to" in request.GET:
+            # Present and empty is a cleared range, not an absent one — the
+            # same reason a multi-select ships a hidden companion.
+            sent[name] = {}
     return sent or None
 
 

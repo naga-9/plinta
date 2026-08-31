@@ -1,4 +1,15 @@
-{% comment %} A date. Two inputs and a real range want the relative-date registry
-   behind them, so this stays one date until that lands (§3.2). {% endcomment %}
-<input class="{{ cls.input }}" id="{{ control_id }}" type="date"
-       name="{{ control.field_name }}" value="{{ value|default:'' }}">
+{% comment %} Two bounds, submitted as `<field>__from` and `<field>__to`: one
+   control, two query keys, which is why a filter's value cannot be a plain
+   `{field: value}` dict.
+
+   Either half alone is a filter — "anything after March" is a question people
+   ask — so neither input is required. {% endcomment %}
+<div class="{{ cls.row }}">
+    <input class="{{ cls.input }}" id="{{ control_id }}" type="date"
+           name="{{ control.field_name }}__from" value="{{ value.from|default:'' }}"
+           aria-label="{{ control.label }} from">
+    <span class="{{ cls.muted }}" aria-hidden="true">–</span>
+    <input class="{{ cls.input }}" type="date"
+           name="{{ control.field_name }}__to" value="{{ value.to|default:'' }}"
+           aria-label="{{ control.label }} to">
+</div>

@@ -3,6 +3,7 @@ import re
 
 import pytest
 from django.contrib.auth.models import Permission, User
+from django.db.models import Q
 from django.test import RequestFactory
 from django.contrib.contenttypes.models import ContentType
 
@@ -710,17 +711,15 @@ def test_a_single_valued_control_stays_scalar(multi, client):
 def test_clearing_a_multiselect_clears_the_filter(multi, client):
     """The hidden field keeps the key present, so an empty selection reaches
     the view as [] and drops the filter rather than reapplying the default."""
-    from plinta.pages.rendering import filter_kwargs
+    from plinta.pages.rendering import filter_q
 
-    assert filter_kwargs(multi, {"region": []}, None) == {}
+    assert filter_q(multi, {"region": []}, None) == Q()
 
 
 def test_several_values_become_an_in_lookup(multi, client):
-    from plinta.pages.rendering import filter_kwargs
+    from plinta.pages.rendering import filter_q
 
-    assert filter_kwargs(multi, {"region": ["1", "2"]}, None) == {
-        "region__in": ["1", "2"]
-    }
+    assert filter_q(multi, {"region": ["1", "2"]}, None) == Q(region__in=["1", "2"])
 
 
 def test_the_bar_draws_the_widget_s_own_template(multi, client):

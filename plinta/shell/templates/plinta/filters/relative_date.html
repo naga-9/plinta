@@ -1,0 +1,15 @@
+{% comment %} Named windows rather than dates: "this month" keeps meaning this
+   month, where a date typed in September freezes there. Several may be chosen
+   and they OR together, which is the other reason a filter is a `Q`.
+
+   The options are registered ranges (§3.2), not values from the data — no row
+   contains "current month". {% endcomment %}
+<input type="hidden" name="{{ control.field_name }}" value="">
+<select class="{{ cls.select }}" id="{{ control_id }}" multiple
+        name="{{ control.field_name }}" size="4"
+        data-plinta-tags data-chip-class="{{ cls.chip }}" data-placeholder="Any time">
+    {% for option_value, option_label in options %}
+        <option value="{{ option_value }}"
+                {% if option_value in value %}selected{% endif %}>{{ option_label }}</option>
+    {% endfor %}
+</select>

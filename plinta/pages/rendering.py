@@ -159,6 +159,10 @@ class DrawnControl:
     value: Any = ""
     options: list = field(default_factory=list)
     truncated: bool = False
+    #: What the operator picker offers. Empty means no picker.
+    lookups: list = field(default_factory=list)
+    #: Which of them is in force.
+    lookup: str = ""
 
     @property
     def control_id(self) -> str:
@@ -198,6 +202,10 @@ def drawn_controls(page: Page, values: dict[str, Any], user) -> list[DrawnContro
                 control, user, siblings=filter_q(page, siblings, user)
             )
         value = values.get(control.field_name)
+        lookups = control.offered_lookups()
+        chosen = control.lookup
+        if lookups and isinstance(value, dict):
+            chosen, value = chosen_lookup(control, value)
         if widget and widget.bounds:
             value = value if isinstance(value, dict) else {}
         elif widget and widget.multiple:
@@ -215,6 +223,8 @@ def drawn_controls(page: Page, values: dict[str, Any], user) -> list[DrawnContro
                 value=value if value is not None else "",
                 options=options,
                 truncated=len(options) >= CAP,
+                lookups=lookups,
+                lookup=chosen,
             )
         )
     return drawn
@@ -252,8 +262,26 @@ def control_q(control: PageFilter, value: Any, widget) -> Q | None:
         # Several names OR together, which is why this cannot be kwargs.
         return resolve_q(control.field_name, value)
 
-    suffix = "" if control.lookup == "exact" else f"__{control.lookup}"
+    lookup, value = chosen_lookup(control, value)
+    if value is None or value == "" or value == []:
+        return None
+    suffix = "" if lookup == "exact" else f"__{lookup}"
     return Q(**{f"{control.field_name}{suffix}": value})
+
+
+def chosen_lookup(control: PageFilter, value: Any) -> tuple[str, Any]:
+    """The operator to filter with, and the value to filter on.
+
+    The second of two gates. `PageFilter.clean` refuses a stored operator
+    plinta does not know; this refuses a **submitted** one the control does
+    not offer, falling back to the author's own. An operator that reached the
+    query is one somebody chose from a list, never one they wrote.
+    """
+    if not isinstance(value, dict) or "op" not in value:
+        return control.lookup, value
+    asked = value.get("op")
+    offered = control.allowed_lookups or []
+    return (asked if asked in offered else control.lookup), value.get("value")
 
 
 def filter_q(page: Page, values: dict[str, Any], user, record: Any = None) -> Q:

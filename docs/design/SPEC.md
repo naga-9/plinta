@@ -2144,7 +2144,34 @@ Two of the value shapes cannot be a `{field: value}` dict:
 
 So `filter_q` returns one `Q`, ANDed across the controls, and `narrowing_for` takes one. Every control that worked before is `Q(**{field: value})` and behaves identically.
 
-**The lookup comes from the widget's declared shape, never from the query string.** A viewer who could name their own would have `__regex` for a denial of service and `owner__password__startswith` for a search.
+#### 9.4c The viewer may choose the operator, from a list
+
+`PageFilter.allowed_lookups` names the operators a control offers; empty means no picker and the author's `lookup` stands, so no existing filter grows a control it did not ask for. The picker draws beside the input and submits `<field>__op`.
+
+**The invariant: a query string may *select from* a list, and may never *supply* an operator or a path.** The path is always the control's own `field_name`. Two gates enforce it, because configuration and a query string are different inputs from different people:
+
+| Gate | Refuses |
+|---|---|
+| `PageFilter.clean` | a **stored** operator plinta does not know |
+| `chosen_lookup` | a **submitted** operator this control does not offer — falling back to the author's, not erroring |
+
+**v1 got half of this right and shipped the other half.** Its `ALLOWED_LOOKUPS` set excluded `regex`, so there was no ReDoS. But it validated the *lookup* and not the *path*:
+
+```python
+if base not in allowed_fields:
+    head = base.split('__', 1)[0]
+    if head not in allowed_fields:
+        errors.append(...); continue
+    # otherwise: accepted
+```
+
+A filter on `author` therefore accepted `author__user__password__startswith` — deliberately, for "nested lookups". A hash compared with `startswith` is still an oracle one character at a time, and any other traversal is plain reading. It needs an authenticated viewer who may open the page, so it is escalation rather than anonymous access, and it is a real bug.
+
+**Operator labels are words, not ORM spellings.** A viewer chooses "starts with", never `istartswith`.
+
+**Where a picker makes sense is narrow** — a text input, and later a number. A multi-select *is* "one of", a date range *is* "between", and a boolean is yes/no/any. So this is one template rather than five.
+
+**The lookup comes from the widget's declared shape or from this list, never from the query string.**
 
 **A widget declares the shape of its value**, and core knows the shapes: `multiple` (a list), `bounds` (two keys), `needs_ranges` (registered windows). A third party redrawing an existing shape needs nothing new; a genuinely new shape is a core change, because it affects reading, cascading and querying rather than only drawing.
 

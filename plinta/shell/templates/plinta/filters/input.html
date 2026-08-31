@@ -1,3 +1,21 @@
-{% comment %} A plain text field. Also what an unregistered widget falls back to. {% endcomment %}
-<input class="{{ cls.input }}" id="{{ control_id }}" type="text"
-       name="{{ control.field_name }}" value="{{ value|default:'' }}">
+{% comment %} A plain text field. Also what an unregistered widget falls back to.
+
+   With `allowed_lookups` set, a small picker sits beside it. It submits the
+   operator as its own key — `<field>__op` — because the *path* is never
+   assembled from input: a viewer chooses which operator, never writes one.
+   {% endcomment %}
+{% if lookups %}
+    <div class="{{ cls.row }}">
+        <select class="{{ cls.select }}" name="{{ control.field_name }}__op"
+                aria-label="{{ control.label }} operator">
+            {% for op, op_label in lookups %}
+                <option value="{{ op }}" {% if op == lookup %}selected{% endif %}>{{ op_label }}</option>
+            {% endfor %}
+        </select>
+        <input class="{{ cls.input }}" id="{{ control_id }}" type="text"
+               name="{{ control.field_name }}" value="{{ value|default:'' }}">
+    </div>
+{% else %}
+    <input class="{{ cls.input }}" id="{{ control_id }}" type="text"
+           name="{{ control.field_name }}" value="{{ value|default:'' }}">
+{% endif %}

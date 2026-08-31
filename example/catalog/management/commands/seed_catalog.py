@@ -255,9 +255,12 @@ class Command(BaseCommand):
                     config={"title": "Catalogue", "page_size": 25,
                             "sort": [{"field": "title"}]}),
               col=3, row=0, w=9, h=6, order=1)
+        # An operator the viewer may change. The author picks which are on
+        # offer; the query string can only choose from them, never write one.
         PageFilter.objects.update_or_create(
             page=pages["catalogue"], field_name="title",
-            defaults={"label": "Title contains", "lookup": "icontains", "order": 0},
+            defaults={"label": "Title", "lookup": "icontains", "order": 0,
+                      "allowed_lookups": ["icontains", "exact", "istartswith"]},
         )
         PageFilter.objects.update_or_create(
             page=pages["catalogue"], field_name="in_print",

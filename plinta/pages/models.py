@@ -220,10 +220,30 @@ class Widget:
 
 
 class Lookup(models.TextChoices):
-    EXACT = "exact", "Exact"
-    IN = "in", "One of"
-    RANGE = "range", "Between"
-    ICONTAINS = "icontains", "Contains"
+    """The operators a control may filter with.
+
+    A closed set, and that is the point. The **path** a filter queries is
+    always its own `field_name`; only the operator can be chosen, and only
+    from this list. A lookup assembled from the query string would give a
+    viewer `__regex` for a denial of service and
+    `owner__password__startswith` for reading a value one character at a time.
+
+    Labels are what a picker shows, so they are words rather than ORM
+    spellings: a viewer chooses "starts with", not `istartswith`.
+    """
+
+    EXACT = "exact", "is"
+    IEXACT = "iexact", "is (any case)"
+    ICONTAINS = "icontains", "contains"
+    ISTARTSWITH = "istartswith", "starts with"
+    IENDSWITH = "iendswith", "ends with"
+    IN = "in", "one of"
+    GT = "gt", "greater than"
+    GTE = "gte", "at least"
+    LT = "lt", "less than"
+    LTE = "lte", "at most"
+    RANGE = "range", "between"
+    ISNULL = "isnull", "is empty"
 
 
 class PageFilter(models.Model):
@@ -245,6 +265,15 @@ class PageFilter(models.Model):
         "a text input.",
     )
     lookup = models.CharField(max_length=20, choices=Lookup, default=Lookup.EXACT)
+    #: The operators the **viewer** may choose between, drawn as a small select
+    #: beside the control. Empty means no picker and `lookup` stands, so an
+    #: existing filter grows no control it did not ask for.
+    allowed_lookups = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Operators the viewer may pick from. Empty means the one "
+        "above, fixed.",
+    )
     order = models.PositiveIntegerField(default=0)
     #: Where a select's options come from. A page's blocks may read different
     #: models, so which one this control names is stated rather than guessed —
@@ -272,6 +301,28 @@ class PageFilter(models.Model):
                 fields=["page", "field_name"], name="unique_filter_per_page"
             )
         ]
+
+    def clean(self) -> None:
+        """Every offered operator is one of ours.
+
+        The first of two gates. This one refuses a stored operator nothing
+        recognises; the second refuses a *submitted* one the control does not
+        offer. Both are needed: configuration and a query string are different
+        inputs from different people.
+        """
+        from django.core.exceptions import ValidationError
+
+        unknown = sorted(set(self.allowed_lookups or []) - set(Lookup.values))
+        if unknown:
+            raise ValidationError(
+                {"allowed_lookups": f"not lookups plinta knows: {', '.join(unknown)}"}
+            )
+
+    def offered_lookups(self) -> list[tuple[str, str]]:
+        """``[(value, label)]`` for the picker, in the order declared."""
+        labels = dict(Lookup.choices)
+        return [(name, labels[name]) for name in (self.allowed_lookups or [])
+                if name in labels]
 
     def __str__(self) -> str:
         return f"{self.page.name}: {self.label}"

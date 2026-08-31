@@ -39,7 +39,7 @@
             <div class="{{ cls.filters_control }}">
                 <div class="{{ cls.field }}">
                     <label class="{{ cls.label }}" for="{{ drawn.control_id }}">{{ drawn.control.label }}</label>
-                    {% include drawn.template with control=drawn.control value=drawn.value options=drawn.options truncated=drawn.truncated control_id=drawn.control_id %}
+                    {% include drawn.template with control=drawn.control value=drawn.value options=drawn.options truncated=drawn.truncated control_id=drawn.control_id lookups=drawn.lookups lookup=drawn.lookup %}
                 </div>
             </div>
         {% endfor %}

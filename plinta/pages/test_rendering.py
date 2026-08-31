@@ -533,3 +533,74 @@ def test_the_relative_control_offers_registered_ranges(screen):
     drawn = next(d for d in drawn_controls(page, {}, ada)
                  if d.control.field_name == "published_on")
     assert ("current_month", "Current Month") in drawn.options
+
+
+# --- a viewer-chosen operator ------------------------------------------------
+
+
+@pytest.fixture
+def pickable(screen):
+    """A title filter offering three operators."""
+    page, _, ada = screen
+    control = PageFilter.objects.create(
+        page=page, field_name="title", label="Title", lookup=Lookup.ICONTAINS,
+        allowed_lookups=["icontains", "exact", "istartswith"],
+    )
+    return page, control, ada
+
+
+def test_the_viewer_may_choose_from_what_is_offered(pickable):
+    page, _, ada = pickable
+    assert filter_q(page, {"title": {"op": "istartswith", "value": "du"}}, ada) == Q(
+        title__istartswith="du"
+    )
+
+
+def test_an_operator_not_offered_falls_back_to_the_authors(pickable):
+    """The second gate. A query string may *select from* a list; it may never
+    *supply* an operator. v1 allowed a path to be assembled from input, so a
+    filter on `author` accepted `author__user__password__startswith`."""
+    page, _, ada = pickable
+    assert filter_q(page, {"title": {"op": "regex", "value": ".*"}}, ada) == Q(
+        title__icontains=".*"
+    )
+
+
+def test_a_control_offering_none_ignores_a_submitted_operator(screen):
+    """Not opt-out: a filter with no picker cannot be given one by asking."""
+    page, _, ada = screen
+    PageFilter.objects.create(
+        page=page, field_name="title", label="Title", lookup=Lookup.EXACT
+    )
+    assert filter_q(page, {"title": {"op": "istartswith", "value": "du"}}, ada) == Q(
+        title="du"
+    )
+
+
+def test_a_stored_operator_plinta_does_not_know_is_refused(screen):
+    """The first gate, at save time. Configuration and a query string are
+    different inputs from different people, so both are checked."""
+    from django.core.exceptions import ValidationError
+
+    page, _, _ = screen
+    control = PageFilter(
+        page=page, field_name="title", label="Title", allowed_lookups=["regex"]
+    )
+    with pytest.raises(ValidationError, match="not lookups plinta knows: regex"):
+        control.full_clean()
+
+
+def test_the_picker_offers_words_not_orm_spellings(pickable):
+    """A viewer chooses "starts with", not `istartswith`."""
+    page, control, ada = pickable
+    assert control.offered_lookups() == [
+        ("icontains", "contains"), ("exact", "is"), ("istartswith", "starts with")
+    ]
+
+
+def test_no_allowed_lookups_means_no_picker(screen):
+    """Every existing filter is unchanged and grows no control."""
+    page, _, ada = screen
+    PageFilter.objects.create(page=page, field_name="title", label="Title")
+    drawn = next(d for d in drawn_controls(page, {}, ada))
+    assert drawn.lookups == []

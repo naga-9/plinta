@@ -56,6 +56,17 @@ def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None
         else:
             sent[name] = request.GET[name]
 
+        # A control offering a choice of operator submits it as its own key,
+        # `<field>__op`. The **path** is never assembled from input: only
+        # which operator, and only from what this control offers.
+        control = declared[name]
+        if control.allowed_lookups:
+            asked = request.GET.get(f"{name}__op", "")
+            sent[name] = {
+                "op": asked if asked in control.allowed_lookups else control.lookup,
+                "value": sent[name],
+            }
+
     # A range submits `<field>__from` and `<field>__to`: one control, two
     # keys, so it cannot be read by looking for its own field name.
     for name, control in declared.items():

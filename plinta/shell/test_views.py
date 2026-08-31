@@ -786,3 +786,63 @@ def test_anonymous_is_redirected_not_answered(multi):
 def test_the_bar_carries_the_endpoint(multi, client):
     body = client.get(multi.get_absolute_url()).content.decode()
     assert f'data-options-url="/pages/{multi.pk}/filter-options/"' in body
+
+
+# --- the operator picker -----------------------------------------------------
+
+
+@pytest.fixture
+def picker(screen):
+    """The catalogue's title filter, offering three operators."""
+    from plinta.pages.models import Lookup
+
+    page, _, _ = screen
+    PageFilter.objects.create(
+        page=page, field_name="title", label="Title", lookup=Lookup.ICONTAINS,
+        allowed_lookups=["icontains", "exact", "istartswith"],
+    )
+    return page
+
+
+def test_the_picker_is_drawn_beside_the_input(picker, client):
+    body = client.get(picker.get_absolute_url()).content.decode()
+    assert 'name="title__op"' in body
+    assert ">starts with<" in body
+
+
+def test_choosing_an_operator_changes_the_query(picker, client):
+    body = client.get(
+        picker.get_absolute_url(), {"title": "du", "title__op": "istartswith"}
+    ).content.decode()
+    assert "Dune" in body and "Emma" not in body
+
+
+def test_an_operator_off_the_list_is_refused_end_to_end(picker, client):
+    """Not an error — the author's own operator stands. The path is never
+    assembled from input, so there is nothing to inject into."""
+    body = client.get(
+        picker.get_absolute_url(), {"title": "une", "title__op": "regex"}
+    ).content.decode()
+    # `icontains` matched, so the regex operator was not honoured.
+    assert "Dune" in body
+
+
+def test_a_traversal_cannot_be_smuggled_through_the_operator(picker, client):
+    """v1 accepted `author__user__password__startswith` because it validated
+    the lookup and not the path."""
+    response = client.get(
+        picker.get_absolute_url(),
+        {"title": "a", "title__op": "owner__password__startswith"},
+    )
+    assert response.status_code == 200
+
+
+def test_the_chosen_operator_is_remembered(picker, client, screen):
+    """It is part of the control's value, so it survives into a saved set and
+    a remembered preference like any other choice."""
+    from plinta.pages.models import PageFilterPreference
+
+    _, _, ada = screen
+    client.get(picker.get_absolute_url(), {"title": "du", "title__op": "exact"})
+    stored = PageFilterPreference.objects.get(page=picker, owner=ada).values
+    assert stored["title"] == {"op": "exact", "value": "du"}

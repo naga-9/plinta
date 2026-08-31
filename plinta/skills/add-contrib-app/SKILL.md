@@ -19,7 +19,9 @@ plinta/contrib/labels/
     policies.py
     listeners.py
     templates/plinta/labels/
-    skills/             # your own extension points, shipped with you
+    static/plinta/labels/       # registered; base.html links no package's CSS
+    admin.py                    # your models, like django.contrib's own apps
+    skills/                     # your own extension points, shipped with you
     test_labels.py
 ```
 
@@ -30,11 +32,18 @@ class LabelsConfig(AppConfig):
     verbose_name = "plinta labels"
     default_auto_field = "django.db.models.BigAutoField"
 
-    requires = ["plinta.permissions", "plinta.events"]
+    requires = ["plinta.permissions", "plinta.blocks"]
 
     def ready(self):
         from plinta.contrib.labels import listeners, policies  # noqa: F401
 ```
+
+**Name applications, not layers.** `utils`, `dates`, `forms` and `events` ship
+as plain packages with no `AppConfig` — importable wherever plinta is,
+impossible to omit. Naming one is `plinta.apps.E002` at boot rather than a
+no-op, because a declaration that cannot fail is one a reader trusts for
+nothing. Every contrib package shipped `plinta.events` this way, which is what
+made the vocabulary look load-bearing while it was decorative.
 
 ## Requires the layers you actually use, and no more
 
@@ -86,6 +95,22 @@ Workflow.objects.create(content_type=..., state_field="state")
 
 The price is usually one call the consumer makes themselves. That is the
 honest cost of not owning the model, and it is cheaper than the trap.
+
+## Register your models in the admin
+
+An app that ships models ships an `admin.py`, the way `django.contrib`'s own
+apps do (§12.0). The authoring screens are a convenience layer over
+configuration that stays ordinary rows, not the only door to it — and without
+this every consumer writes the same file.
+
+It costs an install nothing: `admin.py` is imported only by admin
+autodiscovery, which runs only when `django.contrib.admin` is in
+`INSTALLED_APPS`.
+
+**Open every changelist and add form in a test.** `manage.py check` validates
+`list_display` and `list_filter`, but an inline naming a field the model does
+not have passes it and raises `FieldError` when the *form is built*. Four
+wrong field names shipped that way here.
 
 ## Say what breaks when you are gone
 

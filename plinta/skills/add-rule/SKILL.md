@@ -70,9 +70,29 @@ time — an anonymous user has no primary key. Return `DENY` and `False`. The
 engine denies anonymous first, so this is belt and braces, but a rule is public
 API and may be called directly.
 
-**`to_q` returns `DENY`, never `Q()`.** `Q()` is the *empty* filter, which
-matches **everything**. `DENY` is `Q(pk__in=[])`, which matches nothing. Getting
-these the wrong way round turns a denial into a full grant.
+**`to_q` returns `DENY` or `ALLOW`, never a bare `Q()`.** Both are importable
+from `plinta.permissions.rules`:
+
+```python
+DENY  = Q(pk__in=[])        # matches nothing
+ALLOW = Q(pk__isnull=False) # matches every row
+```
+
+Getting denial the wrong way round turns it into a full grant — `Q()` is the
+*empty* filter and matches everything. But "allow everything" needs the
+explicit form too, and for a subtler reason: **`Q()` is falsy and Django's
+combination short-circuits.**
+
+```python
+>>> Q() | Q(store__in=[3])
+<Q: (AND: ('store__in', [3]))>     # the branch admitting everything vanished
+```
+
+So `HasPerm(...) | FieldInUserSet(...)` would list fewer rows than `can()`
+admits one at a time — the two halves of a policy disagreeing, which is the
+invariant `add-policy` asks every policy to hold. `HasPerm` returned `Q()` and
+did exactly this until it was found by a demo where head office saw no rows
+while `explain()` said ALLOWED.
 
 **Read the id, not the object.** In `evaluate`, `instance.region_id` is already
 in memory; `instance.region` is a query per row. And never as a `getattr`

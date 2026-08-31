@@ -89,6 +89,11 @@ CLASSES = {
     "alert_warning": "alert-warning",
     "alert_danger": "alert-danger",
     "chip": "badge text-bg-secondary",
+    "chip_success": "text-bg-success",
+    "chip_warning": "text-bg-warning",
+    "chip_danger": "text-bg-danger",
+    "chip_info": "text-bg-info",
+    "chip_neutral": "text-bg-secondary",
     "muted": "text-secondary",
     "spinner": "spinner-border spinner-border-sm",
     # layout

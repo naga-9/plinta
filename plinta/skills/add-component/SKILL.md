@@ -136,6 +136,16 @@ def ready(self):
     register_stylesheet("plinta/heatmap/heatmap.css")
 ```
 
+**Multi-line `{# #}` is not a comment.** Django's lexer matches it without
+`DOTALL`, so a comment carrying a newline is *text* and prints on the page.
+Nothing warns: the page still returns 200. Use `{% comment %}` when it will
+not fit on one line — thirteen of these shipped here at once.
+
+**Draw with `cls`, not typed-in class names.** `{{ cls.card }}`,
+`{{ cls.btn }}` — it is the style vocabulary (§10.9), so a project running a
+Bootstrap pack gets your component drawn in Bootstrap's classes. Your own
+internals (`pl-heatmap__cell`) are yours to name and style.
+
 **Style only what you draw.** Core owns the chrome and the shared primitives —
 `pl-card`, `pl-btn`, `pl-table`, `pl-chip`, `pl-stat`. Your sheet is for
 `pl-heatmap__cell` and its kind. Redefining a shared class from a component

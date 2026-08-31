@@ -67,6 +67,17 @@ a column, and you never add a model field to make something sortable.
 Traversal with `__` works, and is the usual answer for anything on a related
 model.
 
+**Four `DataSourceField` options change how a column draws**, and all four read
+from the declaration rather than from a value — a null in one row must not
+align that cell differently from its column:
+
+| Option | Effect |
+|---|---|
+| `visible` | in the **default column set**. A saved view may still name a column left out of it — the permission decides what may be *seen*, this decides what is shown unasked |
+| `decimals` | right-aligned with tabular numerals |
+| `format="textarea"` | wraps. Every other cell is `nowrap`, so long text would only scroll the table sideways |
+| `width` | a fixed pixel width |
+
 ## 3. Declare a policy — before anyone sees a screen
 
 **A model with no policy fails open.** Anyone holding `view_sale` sees every
@@ -115,6 +126,26 @@ PageBlock.objects.update_or_create(
 
 It appears in the sidebar on its own, for whoever may open it. You do not
 register a menu entry for a page.
+
+## 5. Register your models in the admin
+
+Optional, and worth it. plinta's own apps each ship an `admin.py` (§12.0), so
+`DataSource`, `Block` and `Page` are editable there already; yours are not
+until you say so.
+
+```python
+# yourapp/admin.py
+@admin.register(Store)
+class StoreAdmin(admin.ModelAdmin):
+    list_display = ("name", "region")
+    filter_horizontal = ("managers",)     # who manages what *is* your tenancy
+```
+
+**The admin knows nothing about policies.** It answers to `is_staff` and the
+model permission, so it shows every row of everything to whoever may open it.
+That is true of the admin for every Django app, and it is why the plinta
+screens exist — use the admin to grant a permission and a plinta screen to see
+what that did.
 
 ## Seeders are for demos and first runs, not for syncing
 

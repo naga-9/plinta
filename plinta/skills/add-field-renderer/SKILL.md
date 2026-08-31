@@ -102,6 +102,33 @@ Field renderers produce HTML. A spreadsheet, a CSV and an email call
 with a chip renderer exports as its plain value, which is usually what an export
 should contain anyway.
 
+## Drawing with the shared classes
+
+A renderer returns markup, so it names classes — and typed-in names stop
+working for a project running a style pack (§10.9). Read them from the
+vocabulary instead:
+
+```python
+from plinta.utils.styles import classes
+
+def stock_badge(value, *, obj, field, user):
+    cls = classes()
+    return format_html(
+        '<span class="{} {}">{}</span>',
+        cls["chip"],
+        cls["chip_success"] if obj.in_print else cls["chip_neutral"],
+        "In print" if obj.in_print else "Out of print",
+    )
+```
+
+**A status is the one place colour carries meaning** rather than decoration.
+Two states drawn identically are a label nobody needs to scan; `chip_success`,
+`chip_warning`, `chip_danger`, `chip_info` and `chip_neutral` exist for it.
+
+**Only use a class the stylesheet defines.** A name nothing styles renders
+plain and fails nothing — `pl-stat` shipped that way and drew a KPI figure at
+body size.
+
 ## Rules
 
 **One name, one meaning.** The registry is flat, so `status` must mean the same

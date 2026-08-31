@@ -30,6 +30,7 @@ from plinta.permissions.rules import (
 from plinta.renderers.fields import register_field_renderer
 from plinta.shell.links import register_shell_link
 from plinta.utils.placeholders import register_placeholder
+from plinta.utils.styles import classes
 
 from catalog.models import (
     Book,
@@ -168,9 +169,11 @@ def stock_badge(value, *, obj, field, user):
     so the two states use different chips. Rendered identically they read as a
     label nobody needs to scan.
     """
+    cls = classes()
     return format_html(
-        '<span class="pl-chip pl-chip--{}">{}</span>',
-        "success" if obj.in_print else "neutral",
+        '<span class="{} {}">{}</span>',
+        cls["chip"],
+        cls["chip_success"] if obj.in_print else cls["chip_neutral"],
         "In print" if obj.in_print else "Out of print",
     )
 
@@ -191,7 +194,8 @@ def note_count(value, *, obj, field, user):
     notes = list(obj.notes.all())
     if not notes:
         return format_html("<span class='pl-muted'>—</span>")
-    return format_html_join(" ", "<span class='pl-chip pl-chip--info'>{}</span>",
+    chip = f"{classes()['chip']} {classes()['chip_info']}"
+    return format_html_join(" ", '<span class="' + chip + '">{}</span>',
                             ((f"{len(notes)} notes",),))
 
 

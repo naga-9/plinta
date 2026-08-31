@@ -5,8 +5,9 @@ description: Add a way of drawing a filter control — a searching multi-select,
 
 # Add a filter widget
 
-Core draws five: `input`, `boolean`, `select`, `multiselect`, `daterange`. A
-sixth is registered, and a `PageFilter` chooses it by name.
+Core draws five — `input_plinta`, `boolean_plinta`, `select_plinta`,
+`multiselect_plinta`, `daterange_plinta`. A sixth is registered, and a
+`PageFilter` chooses it by name.
 
 ```python
 # yourapp/apps.py
@@ -107,7 +108,8 @@ chooses it; renaming a widget orphans them.
 same capability is obvious.
 
 **One name, one widget.** A second registration raises rather than replacing.
-To change how `select` draws, register your own and point the filters at it.
+To change how `select_plinta` draws, register your own and point the filters
+at it.
 
 **Degrade to a working control.** A widget whose JavaScript fails should leave
 a usable native input behind, not an inert div — the bar is how a viewer

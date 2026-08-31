@@ -85,9 +85,21 @@ party would use, which is what keeps that door real.
 
 - [`docs/design/SPEC.md`](docs/design/SPEC.md) — the specification: every
   decision, and why it was taken rather than the alternative.
-- [`.claude/skills/`](.claude/skills/) — one guide per extension point:
+- [`plinta/skills/`](plinta/skills/) — one guide per extension point:
   adding a component, a policy, a computed column, a renderer, a capability.
+  A contrib app ships its own beside it, in `plinta/contrib/<app>/skills/`.
 - [`example/`](example/) — the demo, and the guard that the public API is real.
+
+Those guides are also a Claude Code plugin, so they load in your own project
+rather than only in this repository:
+
+```
+/plugin marketplace add naga-9/plinta
+/plugin install plinta@plinta
+```
+
+Nothing is copied into your project — the manifest points at the files in the
+package, so they stay in step with the version you installed.
 
 ## Status
 

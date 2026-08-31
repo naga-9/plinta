@@ -2163,7 +2163,7 @@ Ten files, so `base.html` is about thirty lines of document and three includes r
 
 **Dropping a region is a block, not a fork.** `{% block sidebar %}{% endblock %}` removes the sidebar without touching anything else; shadowing `plinta/shell/sidebar.html` replaces its markup; extending it and overriding `sidebar_footer` adds a link while the rest keeps updating.
 
-**This table is the contract.** The block names above and the context each template receives are public API (§18.16), and are the reason the file split is fixed here rather than left to taste.
+**This table is the contract.** The block names above and the context each template receives are public API (§18.19), and are the reason the file split is fixed here rather than left to taste.
 
 ### 10.2 The sidebar
 
@@ -2301,7 +2301,7 @@ A consumer wanting Bootstrap specifically loads it there and writes a bridge sty
 
 **Templates are split by override boundary**, not by taste: a separate file when someone would replace the whole thing, a block when they would change part of it. A forty-line `sidebar.html` is a cheap fork; a four-hundred-line `base.html` is not. `block.html` — the card around every widget — is the one most likely to be replaced, so it stays deliberately thin.
 
-**Three things become public API**, with the same stability obligation as the Python (§18.16): the **class names**, the **context** each template receives, and the **block names**. Without that, "override the template" is a promise broken every release.
+**Three things become public API**, with the same stability obligation as the Python (§18.19): the **class names**, the **context** each template receives, and the **block names**. Without that, "override the template" is a promise broken every release.
 
 ### 10.10 Decisions
 
@@ -2312,7 +2312,7 @@ A consumer wanting Bootstrap specifically loads it there and writes a bridge sty
 | Bootstrap | **not a dependency**, not even an optional one (§10.8) |
 | Theme attribute | `data-theme`, not `data-bs-theme` |
 | Template granularity | split by override boundary; blocks for partial changes |
-| Class names, template context, block names | **public API** (§18.16) |
+| Class names, template context, block names | **public API** (§18.19) |
 | The notification bell | **contributed, not built in** — a topbar registry (§10.1) |
 | `LoginRequiredMiddleware` | **required**, with a system check |
 | Fixed sidebar links | shell-rendered, shell-gated |
@@ -2586,7 +2586,7 @@ Optional. Never imported by core. Installed by listing it in `INSTALLED_APPS`, a
 - registers itself from its own `AppConfig.ready()` — components, renderers, capabilities, policies, event listeners, placeholders
 - declares `requires` (core layers, checked at boot), and where applicable `enhances` or `composes` (§2)
 - ships its own models, migrations, templates, static assets, front-end adapter and vendor
-- ships the **skills** for whatever extension points it provides (§25)
+- ships the **skills** for whatever extension points it provides, in its own `skills/` directory (§25.4)
 - passes the import-boundary test: it may import any core layer, and another contrib package only where it declares `enhances` or `composes` (§2.5)
 
 **A contrib package may import `blocks` and `pages`.** Core layers may not import each other out of order, but contrib sits above all of them — which is what makes `contrib.components.repeater` legal where a core component would not be (§11.2).
@@ -3529,9 +3529,11 @@ Vendored assets do not update themselves, which is the real cost of this choice.
 
 ## 18. Extension points
 
-Fourteen extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
+Seventeen extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
 
-Ten are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
+Thirteen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
+
+Contrib apps add their own on top — `register_channel` and `register_notification` in `contrib.notifications`, `register_guard` in `contrib.workflow` — each with a skill shipped inside the app that provides it (§25.4).
 
 Every bundled package uses these and only these. A private path for bundled code would make the contract fiction, so there isn't one.
 
@@ -3605,7 +3607,19 @@ class Owner(Rule):
 
 **The two must never disagree** — a row surviving `to_q` must pass `evaluate`. That invariant is the reason the pairing exists.
 
-### 18.7 Add a queryset modifier — `datasources` (§6.4)
+### 18.7 Add an action — `permissions` (§5.3)
+
+A verb beyond Django's four, registered once for the project and minted for every DataSource-backed model — plinta cannot add `Meta.permissions` to a consumer's model.
+
+```python
+register_action("publish", "publish", filters_rows=True)
+```
+
+`filters_rows` is the decision. A **row action** reaches a set of rows genuinely different from any other verb's, and a policy may narrow it. A **capability** is a model-level yes or no — `export` is one, and it composes with `view`'s row filter rather than carrying its own.
+
+Registering one of Django's four raises rather than shadowing it.
+
+### 18.8 Add a queryset modifier — `datasources` (§6.4)
 
 ```python
 @register_queryset_modifier('overdue_only')
@@ -3615,7 +3629,7 @@ def overdue_only(qs, request, **kw):
 
 Registration is mandatory: configuration names a registered key, never a dotted import path, so a saved config cannot cause arbitrary code to be imported. May narrow; must not widen.
 
-### 18.8 Add a computed column — `datasources` (§6.10)
+### 18.9 Add a computed column — `datasources` (§6.10)
 
 ```python
 @register_annotation('order_total', output_field=DecimalField())
@@ -3625,7 +3639,7 @@ def order_total():
 
 Argument-free by design. A `DataSourceField` naming it gets a column that **sorts and filters in the database**, which a `@property` cannot. Read-only, and it gets its own field permission.
 
-### 18.9 Add a renderer — `renderers` (§7.1)
+### 18.10 Add a renderer — `renderers` (§7.1)
 
 ```python
 @register_renderer('csv')
@@ -3635,11 +3649,11 @@ class CsvRenderer(Renderer):
 
 Rows and fields arrive already filtered by row policy and field permission. **A renderer must never query** — that is what makes it structurally incapable of widening access.
 
-### 18.10 Add a field renderer — `renderers` (§7.8)
+### 18.11 Add a field renderer — `renderers` (§7.8)
 
 Declares how one value renders **and what it needs joined**, which is what lets prefetch derivation (§6.5) see relations no column names. Replaces the `serialize_for_table` / `table_select_related` duck-typing.
 
-### 18.11 Add a component — `components` (§7.2)
+### 18.12 Add a component — `components` (§7.2)
 
 ```python
 @register_component('heatmap', label='Heat map')
@@ -3653,23 +3667,36 @@ Register from your own `AppConfig.ready()`; ship the template, assets, adapter a
 
 A Block referencing an unregistered type renders an empty slot, so removing your package degrades pages rather than breaking them.
 
-### 18.12 Add a capability — `blocks` (§8.5)
+### 18.13 Add a capability — `blocks` (§8.5)
 
 Attaches a section to a model's detail page and a row to the capability matrix. A capability declares a probe and a template; the probe decides whether a model opts in, conventionally by checking for a generic relation.
 
 **Register both aspects from your own app.** Core does not enumerate them — that it currently does for seven packages is the defect §8.5 removes.
 
-### 18.12a Add a shell link — `shell` (§10.2)
+### 18.14 Add a shell link — `shell` (§10.2)
 
 Puts a screen in the sidebar that is not a `Page`. Registered from the owning app with a label, a URL name and the permission it needs, so the shell names no package it does not own and a link cannot outlive the app behind it.
 
 **Prefer a `Page`.** A composition seeds one and appears in the menu already permission-filtered, shareable per row, and rearrangeable in the browser. A link is for a screen with no composition to record — a wizard, a console, a builder.
 
-### 18.13 Ship a contrib package — (§14.0)
+### 18.15 Add a topbar item — `shell` (§10.1)
+
+Puts a control in the topbar's actions — a bell, a counter, a badge. The shell draws whatever is registered and names no package, which is what keeps `contrib.notifications` out of core's chrome.
+
+```python
+register_topbar_item(
+    "alerts", template="alerts/topbar_badge.html",
+    permission="alerts.view_alert", order=20,
+)
+```
+
+The template renders with the request, so it can count its own rows — and that query is charged to every screen in the product.
+
+### 18.16 Ship a contrib package — (§14.0)
 
 Register from `AppConfig.ready()`, declare `requires` / `enhances` / `composes`, ship your own models, migrations, templates, assets, adapter and **skills**, and pass the import-boundary test.
 
-### 18.14 Build a consumer application — (§1.4)
+### 18.17 Build a consumer application — (§1.4)
 
 The widest door, and the one most people use. A consumer is an ordinary Django project that installs plinta:
 
@@ -3677,7 +3704,7 @@ The widest door, and the one most people use. A consumer is an ordinary Django p
 - **Register what should be visible** as DataSources, in a data migration or a seeder.
 - **Declare policies** for row and field access; core's rule vocabulary composes them (§5.4).
 - **Compose screens in the browser**, or seed Pages and Blocks so a fresh install arrives usable.
-- **Create the groups and grant the permissions.** Core mints; it never grants (§18.14a).
+- **Create the groups and grant the permissions.** Core mints; it never grants (§18.17).
 - **Depend on anything.** Core, contrib, several packages at once — the sideways rule (§2.5) governs what plinta ships, not what is built on it.
 
 #### 18.14a Core mints permissions; it never grants them
@@ -3718,7 +3745,7 @@ view_page  view_block  view_savedview  view_filterset  view_datasource
 
 Nothing here is privileged. `example/catalog` is written against exactly this list, and a consumer that needs something not on it has found a gap in the public API, not a reason for a private path.
 
-### 18.15 Declaring relationships
+### 18.18 Declaring relationships
 
 ```python
 class MyAppConfig(AppConfig):
@@ -3730,7 +3757,7 @@ class MyAppConfig(AppConfig):
 
 The register of declared relationships is §2.5, and it is the only place they are listed.
 
-### 18.16 Stability
+### 18.19 Stability
 
 These six points, the six event signatures, and the `render` contracts are the public API — and so is the **front end a consumer overrides** (§10.8): the class names core emits, the context each template receives, and its block names. Overriding a template is a supported extension point, so those three carry the same obligation as the Python; without that, the promise is broken every release.
 
@@ -4594,10 +4621,13 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | `register_field_renderer` | `add-field-renderer` | renderers (§7) |
 | `register_component` | `add-component` | components (§7) |
 | `register_capability` | `add-capability` | blocks (§8) |
+| `register_shell_link` | `add-shell-link` | shell (§10) |
+| `register_topbar_item` | `add-topbar-item` | shell (§10.1) |
+| `register_action` | `add-action` | permissions (§5.3) |
 | a contrib package | `add-contrib-app` | contrib (§14) |
 | a consumer application | `start-consumer-app` | the whole surface (§1.4) |
 
-Fourteen points, fourteen skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
+Seventeen points, seventeen skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
 
 ### 25.2 Examples use the demo domain
 
@@ -4622,7 +4652,26 @@ A skill written against a layer that does not exist yet is fiction. §21 records
 
 So: a layer is not done until its extension points have skills, and a skill is not written until the layer is.
 
-### 25.4 The v1 skills are not ported
+### 25.4 Where skills live, and how they travel
+
+**Beside the code they document.** Core's are in `plinta/skills/`, and a contrib app that provides an extension point ships its own in `plinta/contrib/<app>/skills/`. A skill deletes with the app it documents and cannot drift into the core set.
+
+**They reach a consumer as a Claude Code plugin, never as a copy.** Claude Code reads skills from the project's `.claude/skills/`, from the user's own, and from installed plugins — never from `site-packages`. That is a security boundary rather than an oversight: a skill is instructions an agent follows, so `pip install` must not be able to grant a transitive dependency write access to how an agent behaves.
+
+**So plinta ships no command that writes into a consumer's `.claude/`.** A library editing a developer's tooling directory would have to answer what happens when they already wrote their own `add-component`, and every answer is wrong. It would bake one vendor's config format into a Django package. And the copies go stale silently on the next `pip install -U`, which §25.5 already names as worse than no skill.
+
+The repository is a marketplace, and the plugin's manifest **points at the authored directories rather than copying them** — `skills` in `plugin.json` takes a list of paths. There is one copy of every skill, in the package, and:
+
+```
+/plugin marketplace add naga-9/plinta
+/plugin install plinta@plinta
+```
+
+`scripts/build_plugin.py` regenerates the manifest by discovering `plinta/**/skills/*/SKILL.md`, and `--check` runs in CI — a skill added without regenerating ships to nobody, and the check is what makes that a failed build rather than a silence.
+
+**A skill for an optional app opens by saying so** — *"Requires `plinta.contrib.workflow` in `INSTALLED_APPS`"* — because the plugin cannot read a consumer's settings. That sentence is cheaper than a settings-aware installer and degrades better: it is a line to read rather than a file that is not there.
+
+### 25.5 The v1 skills are not ported
 
 Sixteen exist today — `add-block-type`, `setup-datasource`, `add-workflow` and the rest. They encode v1 structure: module paths that move, the `AJAX` class constant that becomes a mode, model-driven field permissions that become DSF-driven, `is_staff` gates that become permissions.
 
@@ -4630,13 +4679,13 @@ Sixteen exist today — `add-block-type`, `setup-datasource`, `add-workflow` and
 
 The old skills stay readable in git history for reference, exactly as the v1 code does.
 
-### 25.5 A skill and its section change together
+### 25.6 A skill and its section change together
 
 If §7.2's component contract changes, `add-component` changes **in the same commit**. A skill that lags its section is worse than no skill, because it is confidently wrong.
 
 This is the same coupling the design applies elsewhere: permissions follow the column, adapters ship with their components, vendors ship with the package that needs them.
 
-### 25.6 Section-by-section, as we go
+### 25.7 Section-by-section, as we go
 
 The document is updated **as each layer is built**, not afterwards:
 

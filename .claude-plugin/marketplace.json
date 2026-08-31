@@ -1,0 +1,15 @@
+{
+  "name": "plinta",
+  "description": "plinta's own skills, versioned with the code they document.",
+  "owner": {
+    "name": "Nagabrahmam Mantha",
+    "url": "https://github.com/naga-9"
+  },
+  "plugins": [
+    {
+      "name": "plinta",
+      "source": "./",
+      "description": "Skills for every plinta extension point."
+    }
+  ]
+}

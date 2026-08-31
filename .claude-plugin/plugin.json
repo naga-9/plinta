@@ -1,0 +1,20 @@
+{
+  "name": "plinta",
+  "displayName": "plinta",
+  "description": "Skills for extending plinta — components, renderers, policies, capabilities, and the contrib apps that are installed.",
+  "homepage": "https://plinta.readthedocs.io/",
+  "repository": "https://github.com/naga-9/plinta",
+  "license": "MIT",
+  "keywords": [
+    "django",
+    "dashboard",
+    "permissions",
+    "plinta"
+  ],
+  "version": "0.1.0",
+  "skills": [
+    "./plinta/contrib/notifications/skills/",
+    "./plinta/contrib/workflow/skills/",
+    "./plinta/skills/"
+  ]
+}

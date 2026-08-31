@@ -23,6 +23,18 @@ jobs:
       - name: Test
         run: pytest -q
 
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      # The manifest is generated from the skill directories that exist. A
+      # skill added without regenerating would ship to nobody.
+      - name: Plugin manifest is current
+        run: python scripts/build_plugin.py --check
+
   lint:
     runs-on: ubuntu-latest
     steps:

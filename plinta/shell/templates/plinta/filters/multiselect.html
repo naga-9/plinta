@@ -1,0 +1,14 @@
+{% comment %} Several of a list. The hidden field keeps the key in the query string
+   when nothing is selected, so clearing the control clears the filter instead
+   of falling back to its default. {% endcomment %}
+<input type="hidden" name="{{ control.field_name }}" value="">
+<select class="{{ cls.select }}" id="{{ control_id }}" multiple
+        name="{{ control.field_name }}" size="4">
+    {% for option_value, option_label in options %}
+        <option value="{{ option_value }}"
+                {% if option_value in value %}selected{% endif %}>{{ option_label }}</option>
+    {% endfor %}
+</select>
+{% if truncated %}
+    <span class="{{ cls.help }}">Showing the first {{ options|length }}.</span>
+{% endif %}

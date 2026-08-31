@@ -200,14 +200,16 @@ class PageBlock(models.Model):
         return f"{self.page.name}: {self.block.name}"
 
 
-class Widget(models.TextChoices):
-    """How a filter control is drawn."""
+#: The names core registers. Kept as constants because the code refers to
+#: them; the set of *valid* names is the registry, not this (`pages.widgets`).
+class Widget:
+    """Core's own filter widgets, by name."""
 
-    INPUT = "input", "Text input"
-    SELECT = "select", "Select"
-    MULTISELECT = "multiselect", "Multi-select"
-    DATERANGE = "daterange", "Date range"
-    BOOLEAN = "boolean", "Yes / no"
+    INPUT = "input"
+    SELECT = "select"
+    MULTISELECT = "multiselect"
+    DATERANGE = "daterange"
+    BOOLEAN = "boolean"
 
 
 class Lookup(models.TextChoices):
@@ -229,9 +231,26 @@ class PageFilter(models.Model):
         max_length=100, help_text="Field path the control filters on."
     )
     label = models.CharField(max_length=200)
-    widget = models.CharField(max_length=20, choices=Widget, default=Widget.INPUT)
+    widget = models.CharField(
+        max_length=50,
+        default="input",
+        help_text="A registered filter widget. An unregistered one draws as "
+        "a text input.",
+    )
     lookup = models.CharField(max_length=20, choices=Lookup, default=Lookup.EXACT)
     order = models.PositiveIntegerField(default=0)
+    #: Where a select's options come from. A page's blocks may read different
+    #: models, so which one this control names is stated rather than guessed —
+    #: "the first block that has the field" is the kind of implicit rule that
+    #: bites once a page has two.
+    data_source = models.ForeignKey(
+        "plinta_datasources.DataSource",
+        on_delete=models.SET_NULL,
+        related_name="page_filters",
+        null=True,
+        blank=True,
+        help_text="Needed only by a widget that offers options to choose from.",
+    )
     default_value = models.JSONField(
         default=None,
         null=True,

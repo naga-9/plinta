@@ -251,3 +251,56 @@ def test_every_rule_agrees_with_itself_on_an_empty_table(rule, ada):
 
 def test_repr_names_the_rule_and_its_arguments():
     assert repr(Owner("created_by")) == "Owner(field='created_by')"
+
+
+# --- the two halves must agree ----------------------------------------------
+
+
+def test_a_permission_branch_survives_an_or(db):
+    """`Q() | Q(x)` is `Q(x)` in Django: an empty Q is falsy and combination
+    short-circuits, so the branch admitting everything was discarded.
+
+    A policy written `HasPerm(...) | FieldInUserSet(...)` then listed fewer
+    rows than `can()` admitted one at a time — fail-closed, and silent.
+    """
+    holder = User.objects.create(username="head-office")
+    ct = ContentType.objects.get_for_model(Book)
+    perm, _ = Permission.objects.get_or_create(
+        codename="change_book", content_type=ct, defaults={"name": "change_book"}
+    )
+    holder.user_permissions.add(perm)
+    holder = User.objects.get(pk=holder.pk)
+
+    rule = HasPerm("testapp.change_book") | Owner()
+    everything = set(Book.objects.values_list("pk", flat=True))
+    selected = set(
+        Book.objects.filter(rule.to_q(holder)).values_list("pk", flat=True)
+    )
+    assert selected == everything
+
+
+def test_the_halves_agree_for_that_rule(db):
+    """The invariant `add-policy` asks every policy to hold."""
+    holder = User.objects.create(username="ho")
+    ct = ContentType.objects.get_for_model(Book)
+    perm, _ = Permission.objects.get_or_create(
+        codename="change_book", content_type=ct, defaults={"name": "change_book"}
+    )
+    holder.user_permissions.add(perm)
+    holder = User.objects.get(pk=holder.pk)
+
+    rule = HasPerm("testapp.change_book") | Owner()
+    by_query = set(Book.objects.filter(rule.to_q(holder)).values_list("pk", flat=True))
+    by_check = {b.pk for b in Book.objects.all() if rule.evaluate(holder, b)}
+    assert by_query == by_check
+
+
+def test_a_denied_permission_still_leaves_the_other_branch(db):
+    """DENY | Owner() must be Owner(), not nothing."""
+    ada = User.objects.create(username="ada")
+    mine = Book.objects.create(title="Mine", owner=ada)
+    Book.objects.create(title="Theirs")
+
+    rule = HasPerm("testapp.change_book") | Owner()
+    selected = set(Book.objects.filter(rule.to_q(ada)).values_list("pk", flat=True))
+    assert selected == {mine.pk}

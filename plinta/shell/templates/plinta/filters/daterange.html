@@ -1,0 +1,4 @@
+{% comment %} A date. Two inputs and a real range want the relative-date registry
+   behind them, so this stays one date until that lands (§3.2). {% endcomment %}
+<input class="{{ cls.input }}" id="{{ control_id }}" type="date"
+       name="{{ control.field_name }}" value="{{ value|default:'' }}">

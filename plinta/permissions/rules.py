@@ -16,7 +16,17 @@ from django.db.models import Q
 
 #: Matches nothing. The deny path is a constant rather than a rule, so a policy
 #: cannot compose one in and make a decision order-dependent (§5.18).
+#: Matches no row, and matches it *explicitly*. A rule never returns a bare
+#: `Q()` for either answer: Django's `Q()` is falsy and its combination
+#: short-circuits, so `Q() | Q(store__in=[3])` is `Q(store__in=[3])` — the
+#: branch that admitted everything silently replaced by the one that narrows.
+#: A policy written `HasPerm("x") | FieldInUserSet(...)` would then list fewer
+#: rows than `can()` admits one at a time, and the two halves would disagree.
 DENY = Q(pk__in=[])
+
+#: Matches every row. Always true for a saved row, so it composes under `|`,
+#: `&` and `~` the way DENY does.
+ALLOW = Q(pk__isnull=False)
 
 
 def _authenticated(user) -> bool:
@@ -157,7 +167,7 @@ class HasPerm(Rule):
         self.codename = codename
 
     def to_q(self, user) -> Q:
-        return Q() if user.has_perm(self.codename) else DENY
+        return ALLOW if user.has_perm(self.codename) else DENY
 
     def evaluate(self, user, instance) -> bool:
         return user.has_perm(self.codename)
@@ -297,7 +307,7 @@ class AllowAll(Rule):
     """Admits everything. The only rule that narrows nothing."""
 
     def to_q(self, user) -> Q:
-        return Q()
+        return ALLOW
 
     def evaluate(self, user, instance) -> bool:
         return True

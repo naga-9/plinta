@@ -267,9 +267,13 @@ class Command(BaseCommand):
               block("recent-sales", "table_plinta", sources["sales"],
                     config={"title": "Recent sales", "page_size": 20}),
               col=3, row=0, w=9, h=6, order=1)
+        # A multi-select over the store relation: the options are scoped to
+        # the viewer, so mira sees Hale Street and noor sees Marsh Lane. The
+        # dropdown never names a store whose rows they may not see.
         PageFilter.objects.update_or_create(
-            page=pages["sales"], field_name="store__name",
-            defaults={"label": "Store", "order": 0},
+            page=pages["sales"], field_name="store",
+            defaults={"label": "Store", "widget": "multiselect", "lookup": "in",
+                      "data_source": sources["sales"], "order": 0},
         )
 
         # Purchasing --------------------------------------------------------

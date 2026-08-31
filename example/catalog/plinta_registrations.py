@@ -62,6 +62,18 @@ class SalePolicy(PermissionPolicy):
     delete = FieldInUserSet("store", user_set=stores_of)
 
 
+class StorePolicy(PermissionPolicy):
+    """A manager sees the stores they manage, and head office sees all.
+
+    Needed because a filter's options are only as narrow as the policy on the
+    model they come from. `SalePolicy` scopes sales; without this, a Store
+    multi-select would offer every branch by name to somebody who may not see
+    a single row from most of them — the rows protected and the list not.
+    """
+
+    view = HasPerm("catalog.change_store") | FieldInUserSet("pk", user_set=stores_of)
+
+
 class PurchaseOrderPolicy(PermissionPolicy):
     view = FieldInUserSet("store", user_set=stores_of)
     # Placing an order is a manager's, but cancelling one is the head office's.
@@ -321,6 +333,7 @@ __all__ = [
 def register_policies():
     """Bind the policies to their models, from `AppConfig.ready()`."""
     register_policy(Sale, SalePolicy)
+    register_policy(Store, StorePolicy)
     register_policy(PurchaseOrder, PurchaseOrderPolicy)
     register_policy(PurchaseOrderLine, PurchaseOrderLinePolicy)
     register_policy(Promotion, PromotionPolicy)

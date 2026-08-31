@@ -12,6 +12,7 @@ from django.shortcuts import redirect, render
 
 from plinta.pages.models import Page, PageType
 from plinta.pages.rendering import (
+    drawn_controls,
     controls_of,
     default_filters,
     remember_filters,
@@ -30,13 +31,27 @@ def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None
     Only fields the page declares are read. A query string naming anything
     else is ignored, because the bar is what the page exposes and a URL is
     not (§9.4).
+
+    A control whose widget takes several values is read with `getlist`; every
+    other with `get`. An empty selection reaches here as an empty list, which
+    `filter_kwargs` drops — so clearing a multi-select clears the filter
+    rather than reapplying the default.
     """
-    declared = {control.field_name for control in controls_of(page)}
-    sent = {
-        name: value
-        for name, value in request.GET.items()
-        if name in declared and name not in RESERVED
-    }
+    from plinta.pages.widgets import find
+
+    declared = {control.field_name: control for control in controls_of(page)}
+    sent: dict[str, Any] = {}
+    for name in request.GET:
+        if name in RESERVED or name not in declared:
+            continue
+        widget = find(declared[name].widget)
+        if widget is not None and widget.multiple:
+            # `GET[name]` keeps only the last of a repeated key, so a
+            # multi-valued control would silently filter on whichever option
+            # happened to be last in the form.
+            sent[name] = [v for v in request.GET.getlist(name) if v != ""]
+        else:
+            sent[name] = request.GET[name]
     return sent or None
 
 
@@ -140,6 +155,7 @@ def page_view(
                 record=row,
             ),
             "filter_values": values,
+            "filter_controls": drawn_controls(page, values, request.user),
             "filter_sets": sets,
             "chosen_set": chosen,
         },

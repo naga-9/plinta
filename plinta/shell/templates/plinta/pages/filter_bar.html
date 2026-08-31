@@ -31,22 +31,11 @@
     {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
 
     {% block filter_controls %}
-        {% for control in page.filters.all %}
-            <div class="pl-filters__control">
-                <div class="pl-field">
-                    <label class="pl-label" for="pl-filter-{{ forloop.counter }}">{{ control.label }}</label>
-                    {% if control.widget == "boolean" %}
-                        <select class="pl-select" id="pl-filter-{{ forloop.counter }}" name="{{ control.field_name }}">
-                            <option value="">Any</option>
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                        </select>
-                    {% else %}
-                        <input class="pl-input" id="pl-filter-{{ forloop.counter }}"
-                               type="{% if control.widget == 'daterange' %}date{% else %}text{% endif %}"
-                               name="{{ control.field_name }}"
-                               value="{{ filter_values|get_item:control.field_name|default:'' }}">
-                    {% endif %}
+        {% for drawn in filter_controls %}
+            <div class="{{ cls.filters_control }}">
+                <div class="{{ cls.field }}">
+                    <label class="{{ cls.label }}" for="{{ drawn.control_id }}">{{ drawn.control.label }}</label>
+                    {% include drawn.template with control=drawn.control value=drawn.value options=drawn.options truncated=drawn.truncated control_id=drawn.control_id %}
                 </div>
             </div>
         {% endfor %}

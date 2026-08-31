@@ -1,0 +1,7 @@
+{% comment %} Yes, no, or no opinion. The empty option is "no opinion" rather than
+   "false", so a bar that has not been touched narrows nothing. {% endcomment %}
+<select class="{{ cls.select }}" id="{{ control_id }}" name="{{ control.field_name }}">
+    <option value="">Any</option>
+    <option value="true" {% if value == True %}selected{% endif %}>Yes</option>
+    <option value="false" {% if value == False %}selected{% endif %}>No</option>
+</select>

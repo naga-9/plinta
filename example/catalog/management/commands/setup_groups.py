@@ -70,6 +70,9 @@ AUTHOR = [
 
 #: Configuring the platform itself.
 ADMINISTRATOR = [
+    # Head office. Also what `StorePolicy` reads to decide who sees every
+    # branch rather than only the ones they manage.
+    "catalog.change_store",
     "plinta_datasources.add_datasource",
     "plinta_datasources.change_datasource",
     "plinta_datasources.add_datasourcefield",

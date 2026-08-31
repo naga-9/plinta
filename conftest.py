@@ -4,6 +4,7 @@ import pytest
 from plinta.dates import ranges
 from plinta.datasources import annotations, modifiers
 from plinta.events import signals
+from plinta.pages import widgets
 from plinta.permissions import actions, policies
 from plinta.forms import overrides
 from plinta.utils import assets, placeholders, styles
@@ -17,6 +18,16 @@ def placeholder_registry():
     yield placeholders
     placeholders._registry.clear()
     placeholders._registry.update(saved)
+
+
+@pytest.fixture
+def widget_registry():
+    """Empty filter-widget registry, restored afterwards."""
+    saved = dict(widgets._registry)
+    widgets._registry.clear()
+    yield widgets
+    widgets._registry.clear()
+    widgets._registry.update(saved)
 
 
 @pytest.fixture

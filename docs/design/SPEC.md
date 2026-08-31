@@ -2099,6 +2099,24 @@ Filter values honour placeholders (§3.6), so `__CURRENT_QUARTER__` resolves at 
 
 The picker is its own form beside the controls, so applying a set and applying the controls are separate acts rather than one submission meaning two things. Absent when there are no sets: a control offering nothing to choose is furniture.
 
+**How a control is drawn is a registry, not an enum.** A closed set in core would mean a consumer who installs a multi-select that fetches its options cannot choose it — the same trap v1's `CONTENT_COMPONENT_TYPES` set. Core registers five (`input`, `boolean`, `select`, `multiselect`, `daterange`); a widget nothing registered draws as a text input, so a filter naming an uninstalled one still narrows.
+
+A widget declares two things. **`multiple`** decides `getlist` over `get` — `GET[name]` keeps only the last of a repeated key, so a two-option selection would otherwise filter on whichever was last in the form. **`needs_options`** decides whether `options_for` is called at all; calling it for a text input would query for a list nothing draws.
+
+**A multi-select carries a hidden companion field**, so the key is present in the query string when nothing is selected. Without it, clearing the control removes the key and the default is reapplied — the viewer cannot express "no filter".
+
+**And core has no opinion about how large an option set may be.** The list is capped for the native widget, which says so; a widget that fetches has no such limit. A save-time refusal would refuse a configuration that becomes valid the moment somebody installs the widget that handles it.
+
+### 9.5 A filter's options are scoped to the viewer
+
+`options_for(control, user)` returns a field's own `choices`, or an FK's target rows **narrowed by `allowed(user, "view", …)` on the target model**.
+
+v1's equivalent took no `user` at all, so a store filter listed every branch by name to somebody who could see two stores' rows: the rows were protected and the option list was not. A dropdown that names rows you may not see is a leak whatever draws it.
+
+**The list is only as narrow as the policy on the model it comes from.** Scoping `Sale` by store says nothing about `Store`, so a Store filter needs `StorePolicy` — the same lesson §5.6 teaches about children, arriving from the other direction. `example/catalog` demonstrates it: head office sees three branches, each manager sees one, and a viewer with neither sees none.
+
+**Which DataSource a control resolves against is stated, not guessed.** `PageFilter.data_source` is nullable and needed only by a widget that offers options. A page's blocks may read different models, and "the first block that has this field" is the kind of implicit rule that bites once a page has two.
+
 **A value is coerced by its control's widget, and only where the ORM will not do it.** Django turns a string into a number, a date or a UUID on its own; `BooleanField` accepts `"True"` and `"1"` and rejects `"true"` — which is exactly what a yes/no control draws, and therefore what a remembered filter stores. So a `boolean` widget's value becomes a real `bool` before it reaches the query. A value that is neither true nor false is **dropped rather than raised on**: it can only come from a hand-edited URL, and a page that fails on a stray parameter is worse than one that ignores it.
 
 **Which values apply when the viewer sent none:** their remembered state, then their own default `FilterSet`, then a public one, then each control's own `default_value`. The same chain shape as a block's saved view (§8.2), and for the same reason: every step is a mark someone made.
@@ -3629,9 +3647,9 @@ Vendored assets do not update themselves, which is the real cost of this choice.
 
 ## 18. Extension points
 
-Eighteen extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
+Nineteen extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
 
-Fourteen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
+Fifteen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
 
 Contrib apps add their own on top — `register_channel` and `register_notification` in `contrib.notifications`, `register_guard` in `contrib.workflow` — each with a skill shipped inside the app that provides it (§25.4).
 
@@ -4735,6 +4753,7 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | `register_component` | `add-component` | components (§7) |
 | `register_capability` | `add-capability` | blocks (§8) |
 | `register_style_pack` | `add-style-pack` | utils (§10.9) |
+| `register_filter_widget` | `add-filter-widget` | pages (§9.4) |
 | `register_stylesheet` | `add-component` | utils (§10.10) |
 | `register_shell_link` | `add-shell-link` | shell (§10) |
 | `register_topbar_item` | `add-topbar-item` | shell (§10.1) |
@@ -4742,7 +4761,7 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | a contrib package | `add-contrib-app` | contrib (§14) |
 | a consumer application | `start-consumer-app` | the whole surface (§1.4) |
 
-Eighteen points, eighteen skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
+Nineteen points, nineteen skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
 
 ### 25.2 Examples use the demo domain
 

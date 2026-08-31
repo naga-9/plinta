@@ -3,6 +3,7 @@ import re
 
 import pytest
 from django.contrib.auth.models import Permission, User
+from django.test import RequestFactory
 from django.contrib.contenttypes.models import ContentType
 
 from plinta.blocks.models import Block, SavedView
@@ -665,3 +666,65 @@ def test_a_registered_stylesheet_reaches_the_page(screen, client, stylesheet_reg
 
     assert "/static/plinta/heatmap/heatmap.css" in body
     assert body.index("plinta.css") < body.index("heatmap.css")
+
+
+# --- multi-valued controls --------------------------------------------------
+
+
+@pytest.fixture
+def multi(screen):
+    """The catalogue page, with a multi-select over the region relation."""
+    from plinta.pages.models import PageFilter, Widget
+
+    page, block, _ = screen
+    PageFilter.objects.create(
+        page=page,
+        field_name="region",
+        label="Region",
+        widget=Widget.MULTISELECT,
+        lookup="in",
+        data_source=block.data_source,
+    )
+    # A scalar control beside it, so the two paths are compared on one page.
+    PageFilter.objects.create(page=page, field_name="title", label="Title")
+    return page
+
+
+def test_a_repeated_key_carries_every_value(multi, client):
+    """`GET[name]` keeps only the last, so a two-option selection silently
+    filtered on whichever happened to be last in the form."""
+    from plinta.shell.views import submitted_filters
+
+    request = RequestFactory().get(multi.get_absolute_url(), {"region": ["1", "2"]})
+    assert submitted_filters(request, multi) == {"region": ["1", "2"]}
+
+
+def test_a_single_valued_control_stays_scalar(multi, client):
+    """Only a widget that says it is multiple gets a list."""
+    from plinta.shell.views import submitted_filters
+
+    request = RequestFactory().get(multi.get_absolute_url(), {"title": "Dune"})
+    assert submitted_filters(request, multi)["title"] == "Dune"
+
+
+def test_clearing_a_multiselect_clears_the_filter(multi, client):
+    """The hidden field keeps the key present, so an empty selection reaches
+    the view as [] and drops the filter rather than reapplying the default."""
+    from plinta.pages.rendering import filter_kwargs
+
+    assert filter_kwargs(multi, {"region": []}, None) == {}
+
+
+def test_several_values_become_an_in_lookup(multi, client):
+    from plinta.pages.rendering import filter_kwargs
+
+    assert filter_kwargs(multi, {"region": ["1", "2"]}, None) == {
+        "region__in": ["1", "2"]
+    }
+
+
+def test_the_bar_draws_the_widget_s_own_template(multi, client):
+    body = client.get(multi.get_absolute_url()).content.decode()
+    assert "<select" in body and "multiple" in body
+    # The hidden companion, without which clearing is impossible.
+    assert '<input type="hidden" name="region" value="">' in body

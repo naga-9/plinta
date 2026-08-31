@@ -1,0 +1,9 @@
+{% comment %} One of a list. Options are scoped to the viewer, so this never names
+   a row they may not see. {% endcomment %}
+<select class="{{ cls.select }}" id="{{ control_id }}" name="{{ control.field_name }}">
+    <option value="">Any</option>
+    {% for option_value, option_label in options %}
+        <option value="{{ option_value }}"
+                {% if option_value == value %}selected{% endif %}>{{ option_label }}</option>
+    {% endfor %}
+</select>

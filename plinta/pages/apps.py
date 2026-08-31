@@ -13,6 +13,7 @@ class PagesConfig(AppConfig):
         from plinta.utils import checks as _dependency_checks  # noqa: F401
         # Imported for their side effects: registering the policies that make
         # pages and filter sets shareable, and the boot check.
-        from plinta.pages import checks, placeholders, policies  # noqa: F401
+        from plinta.pages import checks, placeholders, policies, widgets  # noqa: F401
 
         placeholders.register()
+        widgets.register_defaults()

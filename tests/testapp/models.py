@@ -13,6 +13,11 @@ from django.db import models
 class Region(models.Model):
     name = models.CharField(max_length=50)
 
+    def __str__(self) -> str:
+        # A filter option's label is `str(row)`, the same as Django's own
+        # ModelChoiceField. Without this the list reads "Region object (1)".
+        return self.name
+
 
 class Book(models.Model):
     title = models.CharField(max_length=200)

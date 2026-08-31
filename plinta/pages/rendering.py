@@ -6,7 +6,7 @@ private, or uninstalling a component, must never break the page holding it.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from plinta.pages.models import (
@@ -142,6 +142,58 @@ def coerce(control: PageFilter, value: Any) -> Any:
     if text in FALSEY:
         return False
     return None
+
+
+@dataclass(frozen=True)
+class DrawnControl:
+    """One filter control, ready for its widget's template.
+
+    Assembled in the view rather than in the template, so the option query
+    happens once per control and a template cannot decide to run one.
+    """
+
+    control: Any
+    template: str
+    value: Any = ""
+    options: list = field(default_factory=list)
+    truncated: bool = False
+
+    @property
+    def control_id(self) -> str:
+        return f"pl-filter-{self.control.pk}"
+
+
+def drawn_controls(page: Page, values: dict[str, Any], user) -> list[DrawnControl]:
+    """Every control on ``page``, with what its widget needs to draw it.
+
+    A widget nothing registered falls back to a text input: a filter naming an
+    uninstalled one still narrows, which is the same degradation a block with
+    an unregistered component makes.
+    """
+    from plinta.pages.options import CAP, options_for
+    from plinta.pages.widgets import find
+
+    drawn = []
+    for control in controls_of(page):
+        widget = find(control.widget) or find(Widget.INPUT)
+        options = (
+            options_for(control, user) if widget and widget.needs_options else []
+        )
+        value = values.get(control.field_name)
+        if widget and widget.multiple and not isinstance(value, list):
+            # So `{% if option_value in value %}` is a membership test rather
+            # than a substring one, which would tick "2" for a value of "12".
+            value = [value] if value else []
+        drawn.append(
+            DrawnControl(
+                control=control,
+                template=widget.template if widget else "plinta/filters/input.html",
+                value=value if value is not None else "",
+                options=options,
+                truncated=len(options) >= CAP,
+            )
+        )
+    return drawn
 
 
 def filter_kwargs(

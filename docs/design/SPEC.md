@@ -2067,6 +2067,8 @@ Filter values honour placeholders (§3.6), so `__CURRENT_QUARTER__` resolves at 
 
 The picker is its own form beside the controls, so applying a set and applying the controls are separate acts rather than one submission meaning two things. Absent when there are no sets: a control offering nothing to choose is furniture.
 
+**A value is coerced by its control's widget, and only where the ORM will not do it.** Django turns a string into a number, a date or a UUID on its own; `BooleanField` accepts `"True"` and `"1"` and rejects `"true"` — which is exactly what a yes/no control draws, and therefore what a remembered filter stores. So a `boolean` widget's value becomes a real `bool` before it reaches the query. A value that is neither true nor false is **dropped rather than raised on**: it can only come from a hand-edited URL, and a page that fails on a stray parameter is worse than one that ignores it.
+
 **Which values apply when the viewer sent none:** their remembered state, then their own default `FilterSet`, then a public one, then each control's own `default_value`. The same chain shape as a block's saved view (§8.2), and for the same reason: every step is a mark someone made.
 
 **A value for a field the page does not declare is ignored.** The bar is what the page exposes; a query string is not, and honouring an undeclared key would let a URL filter on a column the page never offered.

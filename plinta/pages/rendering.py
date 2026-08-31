@@ -15,6 +15,7 @@ from plinta.pages.models import (
     PageBlock,
     PageFilter,
     PageFilterPreference,
+    Widget,
 )
 
 
@@ -112,6 +113,37 @@ def resolve_filters(values: dict[str, Any], user, record: Any = None) -> dict[st
     return resolve_values(values or {}, Context(user=user, record=record))
 
 
+#: What a yes/no control may send. A query string carries strings, and a
+#: `BooleanField` accepts "True" and "1" but not "true" — which is what the
+#: bar draws, and what a remembered filter therefore stores.
+TRUTHY = frozenset({"true", "1", "yes", "on", "t"})
+FALSEY = frozenset({"false", "0", "no", "off", "f"})
+
+
+def coerce(control: PageFilter, value: Any) -> Any:
+    """One control's value as the ORM wants it, or None to drop it.
+
+    Only booleans need this. Django coerces a string to a number, a date or a
+    UUID on its own, but `BooleanField.to_python` rejects anything outside
+    "True"/"False"/"1"/"0" — so a control that draws `true` raises
+    `ValidationError` from inside the query rather than filtering.
+
+    A value that is neither is dropped rather than raising: it can only come
+    from a hand-edited URL, and a page that 500s on a stray parameter is worse
+    than one that ignores it.
+    """
+    if control.widget != Widget.BOOLEAN:
+        return value
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in TRUTHY:
+        return True
+    if text in FALSEY:
+        return False
+    return None
+
+
 def filter_kwargs(
     page: Page, values: dict[str, Any], user, record: Any = None
 ) -> dict[str, Any]:
@@ -124,7 +156,7 @@ def filter_kwargs(
     resolved = resolve_filters(values, user, record)
     out: dict[str, Any] = {}
     for control in controls_of(page):
-        value = resolved.get(control.field_name)
+        value = coerce(control, resolved.get(control.field_name))
         if value is None or value == "" or value == []:
             continue
         suffix = "" if control.lookup == "exact" else f"__{control.lookup}"

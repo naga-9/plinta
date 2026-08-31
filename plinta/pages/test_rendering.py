@@ -392,3 +392,61 @@ def test_more_rows_do_not_cost_more_queries(screen):
     for i in range(100):
         Book.objects.create(title=f"Book {i}", owner=ada)
     assert count() == small
+
+
+# --- boolean controls -------------------------------------------------------
+
+
+@pytest.fixture
+def viewer(db):
+    return User.objects.create(username="viewer")
+
+
+@pytest.fixture
+def boolean_page(db):
+    """A page with one yes/no control over `Widget.BOOLEAN`."""
+    from plinta.pages.models import Page, PageFilter, Widget
+
+    page = Page.objects.create(name="Books", slug="books")
+    PageFilter.objects.create(
+        page=page, field_name="in_print", label="In print", widget=Widget.BOOLEAN
+    )
+    return page
+
+
+@pytest.mark.parametrize(
+    "sent,expected",
+    [
+        ("true", True), ("True", True), ("1", True), ("yes", True), ("on", True),
+        ("false", False), ("False", False), ("0", False), ("no", False),
+        (True, True), (False, False),
+    ],
+)
+def test_a_yes_no_control_reaches_the_orm_as_a_bool(
+    boolean_page, viewer, sent, expected
+):
+    """The bar draws `true`, and a BooleanField refuses it.
+
+    Django accepts "True" and "1" but not "true", so without coercion the
+    query raises ValidationError from inside the ORM.
+    """
+    kwargs = filter_kwargs(boolean_page, {"in_print": sent}, viewer)
+    assert kwargs == {"in_print": expected}
+    assert isinstance(kwargs["in_print"], bool)
+
+
+def test_false_is_a_filter_not_an_absence(boolean_page, viewer):
+    """`No` must narrow. Dropping it would show in-print titles too."""
+    assert filter_kwargs(boolean_page, {"in_print": "false"}, viewer) == {
+        "in_print": False
+    }
+
+
+def test_any_sends_nothing(boolean_page, viewer):
+    """The empty option is 'no opinion', not 'false'."""
+    assert filter_kwargs(boolean_page, {"in_print": ""}, viewer) == {}
+
+
+def test_a_nonsense_value_is_ignored_rather_than_raising(boolean_page, viewer):
+    """It can only come from a hand-edited URL, and a 500 there is worse."""
+    assert filter_kwargs(boolean_page, {"in_print": "maybe"}, viewer) == {}

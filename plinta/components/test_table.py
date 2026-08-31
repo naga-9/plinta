@@ -384,3 +384,31 @@ def test_paging_keeps_the_sort(books):
         TableConfig(page_size=1), ada, datasource=ds, query={"sort": "-title"}, sort="-title"
     )
     assert "sort=-title" in out and "page=2" in out
+
+
+@pytest.mark.django_db
+def test_appearance_flags_reach_the_markup(books):
+    """The route the flags travel: TableConfig -> model_dump -> renderer.
+
+    Nothing plumbs them. `render` dumps the whole config and the renderer
+    reads what it needs, which is the same route `empty_text` already takes.
+    """
+    ds, ada = books
+    out = TableComponent().render(
+        TableConfig(striped=True, compact=True), ada, datasource=ds
+    )
+    assert 'class="pl-table pl-table--striped pl-table--compact"' in out
+
+
+@pytest.mark.django_db
+def test_appearance_defaults_to_off(books):
+    """A block that says nothing gets the plain table it always had."""
+    ds, ada = books
+    out = TableComponent().render(TableConfig(), ada, datasource=ds)
+    assert 'class="pl-table"' in out
+
+
+def test_an_unknown_appearance_flag_is_refused():
+    """`extra='forbid'`, so a typo is a save-time error, not a silent no-op."""
+    with pytest.raises(Exception, match="stiped|extra"):
+        TableConfig(stiped=True)

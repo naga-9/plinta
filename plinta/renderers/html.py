@@ -101,11 +101,26 @@ class HtmlRenderer(Renderer):
             '<div class="{}"><table class="{}">'
             "<thead><tr>{}</tr></thead><tbody>{}</tbody></table></div>{}",
             cls["table_wrap"],
-            cls["table"],
+            self.table_class(cls, config),
             header,
             body,
             self.pager(context.get("page"), context.get("page_urls") or {}),
         )
+
+    def table_class(self, cls: dict[str, str], config: dict[str, Any]) -> str:
+        """The table's classes: the base one, plus whatever the block asked for.
+
+        A fixed order rather than the config's, so the attribute reads the same
+        whichever way the flags were set — a diff of two blocks should show
+        what differs, not how it was typed.
+        """
+        names = [cls["table"]]
+        names += [
+            cls[f"table_{flag}"]
+            for flag in ("striped", "compact", "bordered")
+            if config.get(flag)
+        ]
+        return " ".join(names)
 
     def heading(self, field: Any, context: dict[str, Any]) -> SafeString:
         """A column heading, as a sort link when the caller supplied one.

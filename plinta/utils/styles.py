@@ -55,6 +55,9 @@ DEFAULT: dict[str, str] = {
     # table
     "table_wrap": "pl-table-wrap",
     "table": "pl-table",
+    "table_striped": "pl-table--striped",
+    "table_compact": "pl-table--compact",
+    "table_bordered": "pl-table--bordered",
     "table_sort": "pl-table__sort",
     "table_sort_active": "is-active",
     "table_empty": "pl-table__empty",

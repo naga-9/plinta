@@ -196,3 +196,47 @@ def test_it_renders_only_the_fields_it_was_given():
 @pytest.mark.parametrize("value,expected", [(True, "Yes"), (False, "No"), (0, "0")])
 def test_values_go_through_the_shared_formatter(value, expected):
     assert f"<td>{expected}</td>" in render([Row(v=value)], [Field("v")])
+
+
+# --- appearance, chosen per block -------------------------------------------
+
+
+def test_a_plain_table_carries_only_its_base_class():
+    html = HtmlRenderer().render([], [Field("title")], {}, None)
+    assert 'class="pl-table"' in html
+
+
+@pytest.mark.parametrize(
+    "flag,expected",
+    [
+        ("striped", "pl-table--striped"),
+        ("compact", "pl-table--compact"),
+        ("bordered", "pl-table--bordered"),
+    ],
+)
+def test_each_flag_adds_its_modifier(flag, expected):
+    html = HtmlRenderer().render([], [Field("title")], {flag: True}, None)
+    assert f'class="pl-table {expected}"' in html
+
+
+def test_the_order_is_fixed_not_the_config_s():
+    """A diff of two blocks should show what differs, not how it was typed."""
+    one = HtmlRenderer().render([], [Field("title")], {"bordered": True, "striped": True}, None)
+    two = HtmlRenderer().render([], [Field("title")], {"striped": True, "bordered": True}, None)
+    assert 'class="pl-table pl-table--striped pl-table--bordered"' in one
+    assert one == two
+
+
+def test_a_false_flag_adds_nothing():
+    html = HtmlRenderer().render([], [Field("title")], {"striped": False}, None)
+    assert "pl-table--striped" not in html
+
+
+def test_a_style_pack_renames_them(settings, style_registry):
+    """They are vocabulary, so Bootstrap's own names arrive by mapping."""
+    from plinta.utils.styles import register_style_pack
+
+    register_style_pack("acme", {"table": "t", "table_striped": "t-zebra"})
+    settings.PLINTA_STYLE_PACK = "acme"
+    html = HtmlRenderer().render([], [Field("title")], {"striped": True}, None)
+    assert 'class="t t-zebra"' in html

@@ -1426,6 +1426,10 @@ Every component implements `get_data()`. The mode decides *when* it is called:
 
 **The component declares a default; a block may override it.** The default follows from the widget's interaction model and is right nearly always; the override covers genuine exceptions — a five-row related grid on a detail page, or a chart with 50,000 points that should not bloat the page.
 
+**A table's appearance is config, not CSS.** `striped`, `compact` and `bordered` are `TableConfig` fields, each mapping to one modifier class, because density is a property of *this screen*: a reference list wants room to read and an operational one wants rows on screen, from the same DataSource. One fixed look was most of why a table read as furniture.
+
+They need no plumbing — `render` passes `config.model_dump()` whole and the renderer takes what it needs, the same route `empty_text` already travels. The classes are in the style vocabulary, so a pack renames them like anything else (`table-striped`, `table-sm`, `table-bordered` under Bootstrap).
+
 **Not every component reads a model.** A **content component** — text, an unconditional banner — carries its content in its config, so `Block.data_source` is nullable and the component declares which it is:
 
 ```python

@@ -54,6 +54,9 @@ CLASSES = {
     # table
     "table_wrap": "table-responsive",
     "table": "table table-hover align-middle mb-0",
+    "table_striped": "table-striped",
+    "table_compact": "table-sm",
+    "table_bordered": "table-bordered",
     "table_sort": "link-body-emphasis text-decoration-none",
     "table_sort_active": "fw-bold",
     "table_empty": "text-center text-secondary",

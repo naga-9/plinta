@@ -45,6 +45,19 @@ class TableConfig(ComponentConfig):
     #: What the table says when nothing matched. Blank uses the default.
     empty_text: str = ""
 
+    # --- appearance ---------------------------------------------------------
+    # Config rather than CSS, because density is a property of *this* screen:
+    # a reference list wants room to read and an operational one wants rows on
+    # screen, from the same DataSource. Each maps to one modifier class, so a
+    # style pack renames them like anything else.
+
+    #: Alternate row shading, for a wide table the eye has to track across.
+    striped: bool = False
+    #: Tighter rows. More on screen, at the cost of scanning comfort.
+    compact: bool = False
+    #: Vertical rules between columns.
+    bordered: bool = False
+
 
 @register_component("table_plinta", label="Table")
 class TableComponent(Component):

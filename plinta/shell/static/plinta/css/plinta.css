@@ -354,6 +354,33 @@ hr {
 
 .pl-table__numeric { text-align: right; font-variant-numeric: tabular-nums; }
 
+/* Appearance, chosen per block. One fixed look was most of why a table read
+ * as furniture: a reference list and an operational one want different
+ * densities from the same DataSource. */
+
+/* Shading the even rows rather than the odd ones keeps the first row on the
+ * surface colour, so the header still separates from the body. */
+.pl-table--striped tbody tr:nth-child(even) { background: var(--pl-surface-sunken); }
+
+/* Hover has to win over the stripe, or every other row stops responding. */
+.pl-table--striped tbody tr:hover { background: var(--pl-hover-bg); }
+
+.pl-table--compact th,
+.pl-table--compact td {
+    padding: var(--pl-space-1) var(--pl-space-2);
+}
+
+.pl-table--bordered th,
+.pl-table--bordered td {
+    border-right: 1px solid var(--pl-border);
+}
+
+/* The last column's rule would draw against the card's own edge. */
+.pl-table--bordered th:last-child,
+.pl-table--bordered td:last-child {
+    border-right: 0;
+}
+
 .pl-table__empty td {
     padding: var(--pl-space-6);
     text-align: center;

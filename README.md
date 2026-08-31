@@ -19,11 +19,19 @@ A bookshop chain, built entirely on the published API:
 
 ```bash
 git clone https://github.com/naga-9/plinta
-cd plinta/example
+cd plinta
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -e .
+cd example
 python manage.py migrate
 python manage.py seed_catalog
 python manage.py runserver
 ```
+
+Python 3.14 or newer. `manage.py` puts the repository root on the path, so the
+demo runs against the plinta beside it rather than any other copy on the
+machine.
 
 Then sign in at http://127.0.0.1:8000/ as **`mira`** (password `demo`) and open
 **Sales**. Sign out, sign in as **`noor`**, and open it again.

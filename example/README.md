@@ -9,14 +9,16 @@ API is real: if it ever needs a private path, that is a gap in the API.
 ## Running it
 
 ```
+pip install -e ..
 python manage.py migrate
 python manage.py seed_catalog
 python manage.py runserver
 ```
 
-Django is the only thing you need installed: `manage.py` puts the repository
-root on the path, so a clone runs the plinta beside it. A real consumer
-installs the package and their `manage.py` is Django's own.
+Django and pydantic, on Python 3.14 — `pip install -e ..` from here gets both.
+`manage.py` puts the repository root on the path, so a clone runs the plinta
+beside it rather than any other copy on the machine. A real consumer installs
+the package and their `manage.py` is Django's own.
 
 Sign in as `ada`, `mira`, `noor` or `sam` — password `demo`.
 

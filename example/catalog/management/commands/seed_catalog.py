@@ -322,4 +322,29 @@ class Command(BaseCommand):
                 self.stderr.write(f"{username}: no {role} group to join")
             if store_name:
                 Store.objects.get(name=store_name).managers.add(user)
+
+        self.superuser()
         self.stdout.write("logins: ada, mira, noor, sam — password 'demo'")
+
+    def superuser(self):
+        """One account for Django's admin, kept apart from the four roles.
+
+        A superuser is the permission engine's single bypass: both tiers stop
+        applying, so every store's rows are visible at once. That is the
+        opposite of what `mira` and `noor` demonstrate, which is why this is a
+        fifth login rather than a flag on `ada` — administering the catalogue
+        is a role built from grants, and this is an escape hatch.
+        """
+        User = get_user_model()
+        root, created = User.objects.get_or_create(
+            username="root", defaults={"is_staff": True, "is_superuser": True}
+        )
+        if created:
+            root.set_password("demo")  # noqa: S106 - a demo login
+            root.save()
+        elif not (root.is_staff and root.is_superuser):
+            # Re-running must repair it: a demo is disposable and the account
+            # is worth nothing if a stray edit left it unable to sign in.
+            root.is_staff = root.is_superuser = True
+            root.save(update_fields=["is_staff", "is_superuser"])
+        self.stdout.write("admin: root — password 'demo' — /admin/")

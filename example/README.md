@@ -29,6 +29,14 @@ Sign in as `ada`, `mira`, `noor` or `sam` — password `demo`.
 | `noor` | Store Manager, Marsh Lane | Marsh Lane's |
 | `sam` | Catalogue Viewer | the catalogue, and no sales at all |
 
+A fifth login, `root`, is a Django superuser for `/admin/`, where users and
+groups are edited. **Do not browse the demo as `root`:** a superuser is the
+permission engine's one bypass, so both tiers stop applying and every store's
+rows appear at once — which is precisely what `mira` and `noor` are here to
+disprove. Django's admin is not how plinta screens are meant to be used; it is
+installed so there is somewhere to grant a permission and watch a screen
+change.
+
 Sign in as `mira` and then `noor` and look at the Sales page. Same block, same
 configuration, different rows — that is the policy engine scoping through the
 consumer's own tenancy, with no organisation app installed.

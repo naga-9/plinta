@@ -12,6 +12,10 @@ DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
+    # Not required by plinta, and not how the demo is meant to be used: every
+    # screen here is a plinta Page. It is installed so `root` has somewhere to
+    # edit users and groups directly.
+    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",

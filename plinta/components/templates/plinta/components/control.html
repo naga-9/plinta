@@ -1,0 +1,40 @@
+{% comment %} One field. The markup a layout must not have to reproduce: the
+name the server reads, the kind the client sends by, and the box an error
+lands in. {% endcomment %}
+<div class="{{ cls.field }}" data-plinta-field="{{ control.name }}">
+    <label class="{{ cls.label }}" for="pl-form-{{ control.name }}">{{ control.label }}</label>
+
+    {% if control.control == "checkbox" %}
+        <input class="{{ cls.checkbox }}" type="checkbox" id="pl-form-{{ control.name }}"
+               name="{{ control.name }}" data-kind="{{ control.kind }}"
+               {% if control.value %}checked{% endif %}>
+
+    {% elif control.control == "select" %}
+        <select class="{{ cls.select }}" id="pl-form-{{ control.name }}"
+                name="{{ control.name }}" data-kind="{{ control.kind }}">
+            <option value="">&mdash;</option>
+            {% for option in control.options %}
+                <option value="{{ option.value }}"
+                        {% if option.value == control.value %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+        </select>
+
+    {% elif control.control == "select-multiple" %}
+        <select class="{{ cls.select }}" id="pl-form-{{ control.name }}" multiple
+                name="{{ control.name }}" data-kind="{{ control.kind }}">
+            {% for option in control.options %}
+                <option value="{{ option.value }}"
+                        {% if option.value in control.value %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+        </select>
+
+    {% else %}
+        <input class="{{ cls.input }}" type="{{ control.control }}"
+               id="pl-form-{{ control.name }}" name="{{ control.name }}"
+               data-kind="{{ control.kind }}"
+               value="{{ control.value|default_if_none:'' }}">
+    {% endif %}
+
+    {% if control.help %}<div class="{{ cls.help }}">{{ control.help }}</div>{% endif %}
+    <div class="{{ cls.error }}" data-plinta-error hidden></div>
+</div>

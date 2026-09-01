@@ -1999,6 +1999,9 @@ It does **not** own: the export endpoint (`contrib.export`, §14) or anything a 
 | Which components write | the **component** declares it can (a chart cannot); the **block** decides whether this viewer may |
 | A write's client half | **`save(record, values)` beside `load(params)`** — the client owns the URL, the CSRF token and the error path; the adapter owns when |
 | Denied vs invalid | **403 vs a field-keyed body** — refusing a write is not the same answer as failing to validate one |
+| Form layout | a **registered template** naming the body, never a path in config — and never the shell, so a layout cannot break saving |
+| A control the viewer may not write | **drawn as nothing**, so one layout serves every viewer |
+| An unregistered layout | **stacks**, and is reported by a check — rendering degrades, so something else has to speak up |
 | Block addressing | **by id**; the by-name endpoints and their resolution order are removed |
 | `/export/`, `/pivot/export/` | **move to contrib** |
 | `/actions-inline/` | **deleted** with `actions` (ADR 0008 (§24)) |
@@ -2134,6 +2137,12 @@ A per-component write endpoint would make three of those into three shapes for o
 **Built, and `form_plinta` is the many-field case.** Core's form draws the columns this viewer may **write** — not the ones they may see — because a control the save would refuse is a promise the page cannot keep, and the writer finds out only after typing. Its fields come from the DataSource and the model; `plinta.forms` derives a form from a **pydantic schema** and edits a block's *configuration*, so the two never meet and neither is the other's consumer.
 
 A rejection is answered beside the control it belongs to, which is the reason the endpoint returns a field-keyed body rather than a message.
+
+**Layout is a registered template, and it owns the body only.** Forms get complicated in ways a config field cannot express, so past a point the honest answer is a template — `register_form_layout("book", "catalog/book_form.html")`, named by key from the block's config. A key and not a path, for the reason `queryset_modifier` takes a registered name: a template path stored in a row is a string in the database that decides what code runs.
+
+The split is the load-bearing part. The **component** owns the mount, the payload, the field names, the submit and the error plumbing; the **layout** places controls with `{% control "title" %}`. A layout that owned the shell could get one thing subtly wrong and the form would render perfectly and silently never save, which is the failure this codebase has hit three times. The worst a layout can do is omit a field, which is visible.
+
+A control draws nothing when the viewer may not write that column, so one layout serves every viewer. An unregistered layout stacks rather than breaking — the app that registered it may have been uninstalled — and `plinta.components.W001` reports it at boot, because rendering will not.
 
 **Status: the pipeline is built and tested (`plinta/blocks/write.py`, 185 lines) and nothing calls it.** No endpoint, no client, no component that writes. It is a declared-but-unused layer until one of the rows in that table exists.
 

@@ -206,3 +206,73 @@ def test_a_value_is_escaped(writer, source):
     nasty = Book.objects.create(title='" onfocus="alert(1)')
     out = drawn(FormConfig(), writer, source, nasty)
     assert 'onfocus="alert(1)"' not in out
+
+
+# --- layouts ----------------------------------------------------------------
+#
+# A layout owns the body. The mount, the payload, the field names and the
+# submit stay with the component, because a layout that owned them could get
+# one subtly wrong and the form would render perfectly and never save.
+
+
+@pytest.fixture
+def layout(form_layout_registry, tmp_path, settings):
+    """A registered layout that draws two fields side by side."""
+    from plinta.components.layouts import register_form_layout
+
+    directory = tmp_path / "templates"
+    directory.mkdir()
+    (directory / "two_up.html").write_text(
+        "{% load plinta_form %}"
+        '<div class="row">{% control "title" %}{% control "region" %}</div>',
+        encoding="utf-8",
+    )
+    settings.TEMPLATES = [
+        {**settings.TEMPLATES[0], "DIRS": [str(directory)]}
+    ]
+    register_form_layout("two_up", "two_up.html")
+    return "two_up"
+
+
+def test_a_layout_draws_the_body(writer, source, book, layout):
+    out = drawn(FormConfig(layout=layout), writer, source, book)
+    assert '<div class="row">' in out
+    assert 'name="title"' in out
+    assert 'name="region"' in out
+
+
+def test_a_layout_does_not_own_the_shell(writer, source, book, layout):
+    """Everything a save depends on is still the component's."""
+    out = drawn(FormConfig(layout=layout), writer, source, book)
+    assert 'data-plinta-mount="form_plinta"' in out
+    assert '{"config": {"record": %d}}' % book.pk in out
+    assert 'type="submit"' in out
+    assert "data-plinta-status" in out
+
+
+def test_a_field_a_layout_leaves_out_is_simply_absent(writer, source, book, layout):
+    """The worst a layout can do: visible, and not a broken save."""
+    out = drawn(FormConfig(layout=layout), writer, source, book)
+    assert 'name="in_print"' not in out
+
+
+def test_a_control_the_viewer_may_not_write_draws_nothing(
+    writer, source, book, layout
+):
+    """A layout is written once; which fields it may place depends on who is
+    looking, so a missing one is ordinary rather than an error."""
+    writer.user_permissions.remove(
+        Permission.objects.get(codename="change_book_title")
+    )
+    out = drawn(FormConfig(layout=layout), User.objects.get(pk=writer.pk), source, book)
+    assert '<div class="row">' in out
+    assert 'name="title"' not in out
+    assert 'name="region"' in out
+
+
+def test_an_unregistered_layout_stacks_rather_than_breaking(writer, source, book):
+    """The app that registered it may since have been uninstalled, which is
+    the event that turns a component into an empty slot rather than a crash."""
+    out = drawn(FormConfig(layout="nonesuch"), writer, source, book)
+    assert 'name="title"' in out
+    assert 'data-plinta-mount="form_plinta"' in out

@@ -178,6 +178,11 @@ endpoint.
 answers it, and core's `form_plinta` is the worked example: a control the save
 would refuse is a promise the page cannot keep.
 
+**If your component has a layout worth varying, register the template rather
+than reading a path from config** — see `add-form-layout`. And keep the mount,
+the payload and the submit yours: a template that owns those can break saving
+in a way that still renders perfectly.
+
 **Render your payload as `{"config": ...}`** like every other mount. Emitted
 flat, the client finds no config, your adapter reads no state from it, and the
 failure looks like something else entirely — a form whose record went missing

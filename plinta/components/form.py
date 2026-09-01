@@ -50,6 +50,11 @@ class FormConfig(ComponentConfig):
     #: Shown once a write lands, so a save that changed nothing visible still
     #: says it happened.
     saved_text: str = Field(default="Saved")
+    #: A registered layout for the body (`register_form_layout`). Blank stacks
+    #: the fields. A name nothing registered stacks them too and is reported
+    #: by a system check, because the app that registered it may since have
+    #: been uninstalled and a page should degrade rather than break.
+    layout: str = Field(default="")
 
 
 @register_component("form_plinta", label="Form")
@@ -125,9 +130,14 @@ class FormComponent(Component):
                 self.control(field, record, kind, drawn.get("options") or [])
             )
 
+        from plinta.components.layouts import get as layout_for
+
         return render_to_string(
             "plinta/components/form.html",
             {
+                # The body a layout owns, and the shell it does not.
+                "body": layout_for(config.layout),
+                "controls_by_name": {c["name"]: c for c in controls},
                 # Rendered without a request, so the class map the context
                 # processor would supply is passed in — a style pack renames
                 # a form the same way it renames everything else.

@@ -12,6 +12,7 @@ class ComponentsConfig(AppConfig):
         from plinta.utils import checks as _dependency_checks  # noqa: F401
         # Imported for their side effect: registering core's two components,
         # one per contract — the table reads, the form writes (ADR 0005).
+        from plinta.components import checks as _layout_checks  # noqa: F401
         from plinta.components import form, table  # noqa: F401
         from plinta.utils.assets import register_script
 

@@ -1,0 +1,7 @@
+{% load plinta_form %}
+{% comment %} The default body: every control the viewer may write, stacked.
+
+A consumer wanting anything else registers their own and draws the controls
+where they want them.
+{% endcomment %}
+{% for field in controls %}{% control field.name %}{% endfor %}

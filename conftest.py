@@ -52,6 +52,18 @@ def widget_registry():
 
 
 @pytest.fixture
+def form_layout_registry():
+    """Empty form-layout registry, restored afterwards."""
+    from plinta.components import layouts
+
+    saved = dict(layouts._registry)
+    layouts._registry.clear()
+    yield layouts
+    layouts._registry.clear()
+    layouts._registry.update(saved)
+
+
+@pytest.fixture
 def stylesheet_registry():
     """Empty asset registries — stylesheets and scripts — restored after."""
     saved, saved_scripts = dict(assets._registry), dict(assets._scripts)

@@ -225,3 +225,63 @@ def test_a_block_on_another_page_is_not_reachable(client, screen):
         content_type="application/json",
     )
     assert response.status_code == 404
+
+
+# --- the form a card opens --------------------------------------------------
+
+
+def form_url(page, placement):
+    return f"/pages/{page.pk}/blocks/{placement.pk}/form/"
+
+
+def test_a_record_is_asked_for_by_id(client, screen):
+    page, placement, _, book = screen
+    response = client.get(form_url(page, placement), {"record": book.pk})
+    assert response.status_code == 200
+    assert 'value="Ariel"' in response.content.decode()
+
+
+def test_no_record_is_a_create(client, screen):
+    """Which is all that separates "add" from "edit"."""
+    page, placement, _, _ = screen
+    body = client.get(form_url(page, placement)).content.decode()
+    assert '"record": null' in body
+
+
+def test_a_record_that_does_not_exist_is_not_found(client, screen):
+    page, placement, _, _ = screen
+    assert client.get(form_url(page, placement), {"record": 9999}).status_code == 404
+
+
+def test_a_record_named_unusably_is_not_found(client, screen):
+    """A pk the key cannot be compared against raises rather than missing."""
+    page, placement, _, _ = screen
+    assert client.get(form_url(page, placement), {"record": "x"}).status_code == 404
+
+
+def test_a_form_cannot_be_opened_on_an_unreachable_row(client, screen, settings):
+    """The same gate the write applies, so a form cannot be opened on a row
+    that could not then be saved."""
+    page, placement, _, book = screen
+    placement.context_filter = {"title": "Nothing like this"}
+    placement.save()
+    assert client.get(
+        form_url(page, placement), {"record": book.pk}
+    ).status_code == 404
+
+
+def test_signing_in_is_required_to_open_one(client, screen):
+    page, placement, _, book = screen
+    client.logout()
+    response = client.get(form_url(page, placement), {"record": book.pk})
+    assert response.status_code in (302, 403)
+
+
+def test_a_form_on_another_page_is_not_reachable(client, screen):
+    """The same resolution as both other halves: a form cannot be opened on a
+    card a read could not reach."""
+    page, placement, _, book = screen
+    other = Page.objects.create(name="Other", slug="other", owner=page.owner)
+    assert client.get(
+        f"/pages/{other.pk}/blocks/{placement.pk}/form/", {"record": book.pk}
+    ).status_code == 404

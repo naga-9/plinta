@@ -1999,6 +1999,10 @@ It does **not** own: the export endpoint (`contrib.export`, §14) or anything a 
 | Which components write | the **component** declares it can (a chart cannot); the **block** decides whether this viewer may |
 | A write's client half | **`save(record, values)` beside `load(params)`** — the client owns the URL, the CSRF token and the error path; the adapter owns when |
 | Denied vs invalid | **403 vs a field-keyed body** — refusing a write is not the same answer as failing to validate one |
+| Opening a record's form | **one endpoint**, `?record=` or nothing — a pencil, a card header button and a kanban card are callers, not variants. Add and edit differ by a query parameter |
+| Edit vs view | **not a mode.** The form offers what the viewer may change; the trigger never decides |
+| The dialog | **core chrome, a real `<dialog>`** — the browser owns backdrop, Escape and focus |
+| A trigger's attribute | **`data-plinta-open-form`**, never the one a mount carries: `closest` walks up, so a shared name turns every click inside the card into an opener |
 | Form layout | a **registered template** naming the body, never a path in config — and never the shell, so a layout cannot break saving |
 | A field the viewer may see but not change | **shown, not offered** — formatted value, no `data-kind`, so it cannot be submitted. This is "view mode": two permissions, no second component |
 | A control the viewer may not see | **drawn as nothing**, so one layout serves every viewer |
@@ -2139,6 +2143,16 @@ A per-component write endpoint would make three of those into three shapes for o
 **Built, and `form_plinta` is the many-field case.** Core's form draws the columns this viewer may **write** — not the ones they may see — because a control the save would refuse is a promise the page cannot keep, and the writer finds out only after typing. Its fields come from the DataSource and the model; `plinta.forms` derives a form from a **pydantic schema** and edits a block's *configuration*, so the two never meet and neither is the other's consumer.
 
 A rejection is answered beside the control it belongs to, which is the reason the endpoint returns a field-keyed body rather than a message.
+
+**A form is opened from wherever a record is listed, not only from a detail page.** `GET .../blocks/<placement>/form/` returns the same form, for the record named by `?record=` or for none — and *no record* is all that separates "add" from "edit", so the pencil on a row and the button on a card header are one endpoint. A kanban card will be the third caller and needs nothing new.
+
+Which fields it offers is the form's answer and not the caller's, so **"edit" and "view" are the same request**: a viewer holding `view` and not `change` gets the record shown and nothing offered (§8.11). The trigger never decides.
+
+The row is reached through the block's own narrowing, the same gate the write applies — a form cannot be opened on a row that could not then be saved. The DataSource is the placement's own, because a block edits records of its own DataSource and never another's (§6.7); the opening component says only *which layout*, not what a form is.
+
+**The dialog is core chrome, a real `<dialog>`.** The browser owns the backdrop, Escape, the focus trap and returning focus — reimplementing those is how a modal becomes unusable with a keyboard. One dialog for every opener, because three owners is how three of them come to disagree.
+
+A trigger carries `data-plinta-open-form`, which is deliberately **not** the attribute a mount carries for the same URL: the listener matches with `closest`, which walks upwards, so a shared name made every click inside a table open a form — including the click that was opening a cell editor.
 
 **Layout is a registered template, and it owns the body only.** Forms get complicated in ways a config field cannot express, so past a point the honest answer is a template — `register_form_layout("book", "catalog/book_form.html")`, named by key from the block's config. A key and not a path, for the reason `queryset_modifier` takes a registered name: a template path stored in a row is a string in the database that decides what code runs.
 

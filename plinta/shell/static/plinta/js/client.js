@@ -241,15 +241,32 @@
                 // throw away the edit the writer is still holding.
                 save: sendWrite,
                 options: askOptions,
-                writable: mount.dataset.plintaWriteUrl ? true : false
+                writable: mount.dataset.plintaWriteUrl ? true : false,
+                //: Where one record's form is asked for, or blank. The client
+                //: does not fetch it — `modal.js` does, from a click — so this
+                //: is passed on rather than wrapped.
+                formUrl: mount.dataset.plintaFormUrl || ""
             });
         } catch (error) {
             fail(error);
         }
     }
 
+    /**
+     * Mount every widget inside ``root``.
+     *
+     * Exposed because markup can arrive after the page has: a form fetched
+     * into a dialog has a mount like any other, and the walk at load time
+     * has long since finished.
+     */
+    plinta.mount = function (root) {
+        (root || document)
+            .querySelectorAll('[data-plinta-mount]')
+            .forEach(mountOne);
+    };
+
     function init() {
-        document.querySelectorAll('[data-plinta-mount]').forEach(mountOne);
+        plinta.mount(document);
     }
 
     // Wait for DOMContentLoaded, and note the condition: a deferred script

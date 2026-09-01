@@ -328,6 +328,66 @@ def block_options(
     )
 
 
+@login_required
+def block_form(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
+    """One record's form, for a card that opens one.
+
+    The **same** form a detail page draws, asked for after the page has
+    loaded: a pencil on a row and a button on a card header both come here,
+    and so will a kanban card. Which fields it offers is the form's answer,
+    not the caller's, so "edit" and "view" are one request (§8.11).
+
+    ``?record=`` names the row. Without one it is a create, which is why the
+    two buttons need no separate endpoint between them.
+
+    Its DataSource is the placement's own. A block edits records of its own
+    DataSource and never another's (§6.7), so there is nothing here to point
+    somewhere else.
+    """
+    from plinta.blocks.narrowing import narrowing_for
+    from plinta.components.form import FormComponent
+    from plinta.components.registry import find as find_component
+    from plinta.datasources.services import get_queryset
+
+    _, slot, opener = placement_of(request, pk, placement)
+    source = slot.block.data_source
+
+    record = None
+    asked = request.GET.get("record") or ""
+    if asked:
+        # Reached through the rows this viewer may see, narrowed the way the
+        # block is — the same gate the write applies, so a form cannot be
+        # opened on a row that could not then be saved.
+        context = Q(**resolve_filters(slot.context_filter, request.user, None))
+        rows = narrowing_for(slot.block, request.user, context)(
+            get_queryset(source, request.user, columns=[])
+        )
+        try:
+            record = rows.filter(pk=asked).first()
+        except (ValueError, TypeError):
+            record = None
+        if record is None:
+            raise Http404("no such record here")
+
+    component = find_component("form_plinta") or FormComponent()
+    # The component that opens the form says which layout to draw it with,
+    # and nothing else about it: what a form is stays the form's business.
+    opened = opener.validate(slot.block.config)
+    config = component.config_schema(
+        layout=getattr(opened, "form_layout", "") or ""
+    )
+    return HttpResponse(
+        component.render(
+            config,
+            request.user,
+            datasource=source,
+            record=record,
+            write_url=f"/pages/{pk}/blocks/{placement}/write/",
+            options_url=f"/pages/{pk}/blocks/{placement}/options/",
+        )
+    )
+
+
 def page_view(
     request: HttpRequest, pk: int, slug: str = "", record: str | None = None
 ) -> HttpResponse:

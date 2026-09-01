@@ -63,8 +63,9 @@ def test_a_fetching_widget_draws(page, live_server, signed_in, screen):
 def test_the_columns_are_the_ones_the_server_sent(page, live_server, signed_in, screen):
     open_page(page, live_server, screen)
     headers = page.locator(".tabulator-col-title").all_inner_texts()
+    # The leading blank is the pencil's column, which the server never sent.
     assert [h.strip() for h in headers] == [
-        "Title", "In print", "Region", "Watchers",
+        "", "Title", "In print", "Region", "Watchers",
     ]
 
 
@@ -601,3 +602,91 @@ def test_a_reader_sees_the_record_and_is_offered_nothing(
     assert record.title in page.locator(".pl-form").inner_text()
     assert page.locator(".pl-form [data-kind]").count() == 0
     assert page.locator('.pl-form button[type="submit"]').count() == 0
+
+
+# --- opening a record's form ------------------------------------------------
+
+
+def test_a_pencil_opens_the_record_in_a_dialog(page, live_server, signed_in, screen):
+    """The same form a detail page draws, asked for after the page loaded."""
+    from tests.testapp.models import Book
+
+    open_page(page, live_server, screen)
+    first = Book.objects.order_by("title").first()
+
+    rows(page).first.locator("[data-plinta-open-form]").click()
+    page.wait_for_selector("dialog[open] .pl-form", timeout=15000)
+    assert page.locator('dialog [name="title"]').input_value() == first.title
+
+
+def test_the_dialog_form_writes(page, live_server, signed_in, screen):
+    """It mounts like any other widget, though its markup arrived late."""
+    from tests.testapp.models import Book
+
+    open_page(page, live_server, screen)
+    first = Book.objects.order_by("title").first()
+
+    rows(page).first.locator("[data-plinta-open-form]").click()
+    page.wait_for_selector("dialog[open] .pl-form", timeout=15000)
+    page.fill('dialog [name="title"]', "From the dialog")
+    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
+        page.click('dialog button[type="submit"]')
+
+    assert answer.value.status == 200
+    assert Book.objects.get(pk=first.pk).title == "From the dialog"
+
+
+def test_add_opens_the_same_form_with_nothing_in_it(
+    page, live_server, signed_in, screen, viewer
+):
+    """Which is all that separates "add" from "edit"."""
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+    from tests.testapp.models import Book
+
+    grant = Permission.objects.get_or_create(
+        codename="add_book",
+        content_type=ContentType.objects.get_for_model(Book),
+        defaults={"name": "add_book"},
+    )[0]
+    viewer.user_permissions.add(grant)
+
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form]")
+    page.wait_for_selector("dialog[open] .pl-form", timeout=15000)
+    assert page.locator('dialog [name="title"]').input_value() == ""
+
+    page.fill('dialog [name="title"]', "Brand new")
+    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
+        page.click('dialog button[type="submit"]')
+    assert answer.value.status == 200
+    assert Book.objects.filter(title="Brand new").exists()
+
+
+def test_add_is_not_offered_without_the_permission(
+    page, live_server, signed_in, screen
+):
+    """The viewer has no `add_book`, so the card does not offer one."""
+    open_page(page, live_server, screen)
+    assert page.locator(".pl-card__actions [data-plinta-open-form]").count() == 0
+
+
+def test_escape_closes_the_dialog(page, live_server, signed_in, screen):
+    """`<dialog>`, so the browser owns this rather than the page."""
+    open_page(page, live_server, screen)
+    rows(page).first.locator("[data-plinta-open-form]").click()
+    page.wait_for_selector("dialog[open]", timeout=15000)
+    page.keyboard.press("Escape")
+    assert page.locator("dialog[open]").count() == 0
+
+
+def test_a_record_outside_the_blocks_narrowing_is_not_opened(
+    page, live_server, signed_in, screen
+):
+    """The form cannot be opened on a row the write would then refuse."""
+    subject, _, placement = screen
+    answer = page.request.get(
+        f"{live_server.url}/pages/{subject.pk}/blocks/{placement.pk}"
+        f"/form/?record=999999"
+    )
+    assert answer.status == 404

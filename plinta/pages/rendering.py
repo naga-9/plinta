@@ -40,6 +40,9 @@ class Placement:
     view: Any = None
     #: What the card's header offers to do with this block.
     actions: list = field(default_factory=list)
+    #: Where the card opens a record's form. An action reads it from here
+    #: rather than building a URL, which is the page's job (§9.0).
+    form_url: str = ""
 
     @property
     def param(self) -> str:
@@ -397,6 +400,7 @@ def render_page(
                 # and the endpoint refuses one in its name anyway.
                 write_url=f"/pages/{page.pk}/blocks/{placement.pk}/write/",
                 options_url=f"/pages/{page.pk}/blocks/{placement.pk}/options/",
+                form_url=f"/pages/{page.pk}/blocks/{placement.pk}/form/",
                 # The row a detail page is about. A component that edits one
                 # needs to know which; everything else ignores it.
                 record=record,
@@ -416,6 +420,7 @@ def render_page(
                 views=views,
                 view=view,
                 actions=actions_for(placement.block, user, views=views),
+                form_url=f"/pages/{page.pk}/blocks/{placement.pk}/form/",
                 column=placement.column,
                 row=placement.row,
                 width=placement.width,

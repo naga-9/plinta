@@ -30,6 +30,10 @@ urlpatterns = [
     # with the columns.
     path("pages/<int:pk>/blocks/<int:placement>/options/<str:field>/",
          views.block_options, name="block_options"),
+    # The form a card opens, for one record or for none. The same form a
+    # detail page draws, asked for after the page has loaded.
+    path("pages/<int:pk>/blocks/<int:placement>/form/", views.block_form,
+         name="block_form"),
     # A detail page: the record in the path, so the URL is shareable and the
     # page is what somebody sends a colleague.
     path("pages/<int:pk>-<slug:slug>/<str:record>/", views.page_view, name="record"),

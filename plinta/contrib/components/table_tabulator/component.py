@@ -43,6 +43,15 @@ class TabulatorConfig(TabularConfig):
     #: of reading until somebody says otherwise, and a grid that saves on blur
     #: is a surprising thing to get by accident.
     editable: bool = False
+    #: A pencil on each row, opening the record's form in a dialog. Separate
+    #: from `editable`: editing a cell where it sits and opening the whole
+    #: record are different gestures, and a table may reasonably offer one,
+    #: both or neither.
+    row_form: bool = False
+    #: Which registered layout that form uses. A name and not a nested form
+    #: config: a component says *which* form to open, and what a form is
+    #: remains the form's own business.
+    form_layout: str = ""
 
 
 @register_component("table_tabulator", label="Table (interactive)")
@@ -95,11 +104,13 @@ class TabulatorComponent(Component):
         return format_html(
             '<div class="pl-tabulator" data-plinta-mount="table_tabulator" '
             'data-plinta-url="{}" data-plinta-write-url="{}" '
-            'data-plinta-options-url="{}" style="{}">'
+            'data-plinta-options-url="{}" data-plinta-form-url="{}" '
+            'style="{}">'
             '<script type="application/json">{}</script></div>',
             context.get("data_url", ""),
             context.get("write_url", "") if config.editable else "",
             context.get("options_url", "") if config.editable else "",
+            context.get("form_url", "") if config.row_form else "",
             f"height: {config.height}" if config.height else "",
             # `</script>` inside a string would close the tag it sits in.
             mark_safe(

@@ -74,6 +74,51 @@
         return params;
     }
 
+    /**
+     * A pencil per row, opening that record's own form.
+     *
+     * The markup carries the URL and nothing else — `modal.js` is listening
+     * for it — so the table never learns what a dialog is.
+     */
+    function opener(formUrl) {
+        return {
+            title: '',
+            field: '_record',
+            width: 44,
+            hozAlign: 'center',
+            headerSort: false,
+            resizable: false,
+            formatter: function (cell) {
+                return (
+                    '<button type="button" class="pl-btn pl-btn--ghost ' +
+                    'pl-btn--sm" aria-label="Open record" ' +
+                    'data-plinta-open-form="' +
+                    formUrl +
+                    '?record=' +
+                    encodeURIComponent(cell.getValue()) +
+                    '">✎</button>'
+                );
+            }
+        };
+    }
+
+    /**
+     * Every column the grid draws, in one place.
+     *
+     * Built twice — at mount and again whenever the server sends a different
+     * set — and the two must agree. Built separately, the second one dropped
+     * the pencil the moment the first page of rows arrived.
+     */
+    function columnsFor(list, config, ask, formUrl) {
+        var drawn = (list || []).map(function (c) {
+            return toColumn(c, config, ask);
+        });
+        if (formUrl) {
+            drawn.unshift(opener(formUrl));
+        }
+        return drawn;
+    }
+
     /** A plinta column as Tabulator wants it. */
     function toColumn(column, config, ask) {
         var editor = column.editable ? EDITORS[column.type] : false;
@@ -171,9 +216,7 @@
             var options = {
                 layout: 'fitColumns',
                 placeholder: config.empty_text || 'No records',
-                columns: (ctx.columns || []).map(function (c) {
-                    return toColumn(c, config, ask);
-                }),
+                columns: columnsFor(ctx.columns, config, ask, ctx.formUrl),
                 pagination: true,
                 paginationSize: config.page_size || 50
             };
@@ -210,9 +253,9 @@
                             if (body.columns && signature !== drawn) {
                                 drawn = signature;
                                 table.setColumns(
-                                    body.columns.map(function (c) {
-                                        return toColumn(c, config, ask);
-                                    })
+                                    columnsFor(
+                                        body.columns, config, ask, ctx.formUrl
+                                    )
                                 );
                             }
                             return { data: body.rows, last_page: body.page.count };

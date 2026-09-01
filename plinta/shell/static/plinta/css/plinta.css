@@ -675,6 +675,11 @@ hr {
 .pl-modal__title { margin: 0; font-size: var(--pl-font-md); }
 .pl-modal__body { padding: var(--pl-space-4); }
 
+/* The dialog scrolls its own body rather than the page behind it, and says
+ * something while the form it was opened for is on its way. */
+.pl-modal__body { overflow-y: auto; max-height: calc(100vh - 8rem); }
+.pl-modal__loading { margin: 0; color: var(--pl-fg-muted); }
+
 .pl-toasts {
     position: fixed;
     right: var(--pl-space-4);

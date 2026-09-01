@@ -31,6 +31,7 @@
     {% comment %} Before any adapter: an adapter registers with the client, and
        deferred scripts run in document order. {% endcomment %}
     <script defer src="{% static 'plinta/js/client.js' %}"></script>
+    <script defer src="{% static 'plinta/js/modal.js' %}"></script>
     {% for script in plinta_scripts %}
         <script {% if script.module %}type="module"{% elif script.defer %}defer{% endif %}
                 src="{% static script.path %}"></script>

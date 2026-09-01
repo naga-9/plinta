@@ -1,0 +1,6 @@
+{% load plinta_tags %}{% comment %} Opens the same form a pencil does, with no record — which is
+what makes it a create rather than a second screen. {% endcomment %}
+<button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}"
+        data-plinta-open-form="{{ slot.form_url }}">
+    {% icon "plinta:plus" %} Add
+</button>

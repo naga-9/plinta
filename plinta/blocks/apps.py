@@ -2,6 +2,21 @@
 from django.apps import AppConfig
 
 
+def _may_add(block=None, user=None, **kwargs) -> bool:
+    """Whether this viewer may create a row of this block's model.
+
+    The model permission alone: the row does not exist yet, so there is no
+    policy to ask about it, and the write refuses again on arrival.
+    """
+    from plinta.permissions import can
+
+    source = getattr(block, "data_source", None)
+    model = getattr(source, "model", None)
+    if model is None or user is None:
+        return False
+    return can(user, "add", model)
+
+
 class BlocksConfig(AppConfig):
     name = "plinta.blocks"
     label = "plinta_blocks"
@@ -23,6 +38,15 @@ class BlocksConfig(AppConfig):
             # trips.
             when=lambda views=(), **kw: bool(views),
             order=10,
+        )
+        # And core's other: a record this block's DataSource is about. The
+        # same form a pencil opens, asked for with no record — which is all
+        # that separates "add" from "edit".
+        actions.register_block_action(
+            "add_record",
+            template="plinta/blocks/add_record.html",
+            when=_may_add,
+            order=20,
         )
         # The declared-dependency checks, registered wherever plinta is.
         from plinta.utils import checks as _dependency_checks  # noqa: F401

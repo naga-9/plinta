@@ -116,7 +116,13 @@ def screen(viewer):
         component_type="table_tabulator",
         data_source=source,
         owner=viewer,
-        config={"page_size": PAGE_SIZE, "header_filters": True, "editable": True},
+        config={
+            "page_size": PAGE_SIZE,
+            "header_filters": True,
+            "editable": True,
+            # A pencil per row, opening the record's own form.
+            "row_form": True,
+        },
     )
     placement = PageBlock.objects.create(
         page=page, block=block, column=0, row=0, width=12, height=6

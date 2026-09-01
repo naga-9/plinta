@@ -19,13 +19,23 @@ what a table is.
     {% if views %}
         <div class="{{ cls.field }}">
             <label class="{{ cls.label }}">Views on this block</label>
+            {% comment %} Each opens in the dialog it is already in.
+
+            The href must be the **endpoint's**, not a bare `?view=`: a
+            relative query resolves against the page's URL, so the browser
+            navigates the whole page and the dialog goes with it.
+            {% endcomment %}
             <ul class="pl-views">
                 {% for each in views %}
                     <li>
-                        <a href="?view={{ each.pk }}">{{ each.name }}</a>
+                        <a href="{{ action }}?view={{ each.pk }}"
+                           data-plinta-open-form="{{ action }}?view={{ each.pk }}">{{ each.name }}</a>
                         {% if not each.owner %}<span class="{{ cls.chip }}">Everyone</span>{% endif %}
                     </li>
                 {% endfor %}
+                {% if view %}
+                    <li><a href="{{ action }}" data-plinta-open-form="{{ action }}">New view…</a></li>
+                {% endif %}
             </ul>
         </div>
     {% endif %}

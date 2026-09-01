@@ -764,3 +764,57 @@ def test_publishing_is_not_offered_without_the_permission(
     page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
     page.wait_for_selector("dialog form", timeout=15000)
     assert page.locator('dialog [name="public"]').count() == 0
+
+
+def test_an_existing_view_opens_in_the_dialog(page, live_server, signed_in, screen):
+    """A bare `?view=` link resolves against the *page's* URL, so the browser
+    navigates the whole page and the dialog goes with it. The link carries the
+    endpoint's own URL, and reopens where it already is."""
+    from plinta.blocks.models import SavedView
+
+    subject, block, _ = screen
+    SavedView.objects.create(
+        block=block, name="Existing", owner=block.owner, config={"page_size": 3}
+    )
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector("dialog form", timeout=15000)
+
+    page.click("dialog .pl-views a")
+    page.wait_for_function(
+        "() => { var n = document.querySelector('dialog [name=\\\"name\\\"]');"
+        " return n && n.value === 'Existing'; }",
+        timeout=15000,
+    )
+    assert page.locator("dialog[open]").count() == 1
+    # And it opens showing what that view overrides, not the block's values.
+    assert page.is_checked('dialog [name="override_page_size"]')
+    assert page.locator('dialog [name="page_size"]').input_value() == "3"
+
+
+def test_editing_an_existing_view_updates_it(page, live_server, signed_in, screen):
+    from plinta.blocks.models import SavedView
+
+    subject, block, _ = screen
+    view = SavedView.objects.create(
+        block=block, name="Existing", owner=block.owner, config={"page_size": 3}
+    )
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector("dialog form", timeout=15000)
+    page.click("dialog .pl-views a")
+    page.wait_for_function(
+        "() => { var n = document.querySelector('dialog [name=\\\"name\\\"]');"
+        " return n && n.value === 'Existing'; }",
+        timeout=15000,
+    )
+
+    page.fill('dialog [name="name"]', "Renamed")
+    page.fill('dialog [name="page_size"]', "7")
+    page.click('dialog button[type="submit"]')
+    page.wait_for_url("**/*view=*", timeout=15000)
+
+    view.refresh_from_db()
+    assert view.name == "Renamed"
+    assert view.config == {"page_size": 7}
+    assert SavedView.objects.count() == 1, "updated, not duplicated"

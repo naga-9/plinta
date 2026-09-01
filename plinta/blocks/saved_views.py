@@ -153,6 +153,7 @@ def controls(component, block, user, view: SavedView | None) -> list[dict[str, A
                 "name": field.name,
                 "label": field.title or field.name.replace("_", " ").capitalize(),
                 "widget": field.widget,
+                "choices": field.choices,
                 "template": field.override_template,
                 "help": field.description or "",
                 "value": effective.get(field.name, field.default),

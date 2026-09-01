@@ -246,3 +246,85 @@ def test_a_column_the_viewer_may_not_see_is_not_offered(block, columns):
     )
     stripped = User.objects.get(pk=columns.pk)
     assert "in_print" not in {c["name"] for c in column_choices(block, stripped)}
+
+
+# --- a component nobody in core wrote ---------------------------------------
+#
+# The question this has to answer: a consumer ships a chart, and gets saved
+# views without writing a form, an endpoint or a template.
+
+
+@pytest.fixture
+def chart(component_registry, block):
+    """A chart-shaped component: no columns to speak of, a closed set, and a
+    nested list its author would rather draw themselves."""
+    from typing import Literal
+
+    from pydantic import Field as PydanticField
+
+    from plinta.components.base import Component, ComponentConfig
+    from plinta.components.registry import register_component
+
+    class ChartConfig(ComponentConfig):
+        x_field: str = ""
+        chart_type: Literal["line", "bar", "area"] = "line"
+        stacked: bool = False
+        max_points: int = PydanticField(default=500, gt=0)
+
+    @register_component("chart_probe", label="Chart")
+    class Chart(Component):
+        config_schema = ChartConfig
+
+        def render(self, config, user, **context):
+            return ""
+
+    Block.objects.filter(pk=block.pk).update(
+        component_type="chart_probe", config={"chart_type": "bar"}
+    )
+    block.refresh_from_db()
+    return Chart(), block
+
+
+def test_a_consumers_component_gets_an_editor_for_free(chart, ada):
+    component, block = chart
+    drawn = {c["name"]: c for c in controls(component, block, ada, None)}
+
+    assert drawn["x_field"]["widget"] == "text"
+    assert drawn["stacked"]["widget"] == "bool"
+    assert drawn["max_points"]["widget"] == "number"
+
+
+def test_a_closed_set_is_offered_rather_than_typed(chart, ada):
+    """A text box would accept every string and validation would refuse all
+    but three, so the writer finds the answer by being wrong."""
+    component, block = chart
+    drawn = {c["name"]: c for c in controls(component, block, ada, None)}
+
+    assert drawn["chart_type"]["widget"] == "choice"
+    assert drawn["chart_type"]["choices"] == ("line", "bar", "area")
+    assert drawn["chart_type"]["value"] == "bar"
+
+
+def test_it_inherits_the_column_chooser_without_asking(chart, ada):
+    """`columns` is declared on `ComponentConfig`, so the widget registered
+    for it reaches a component written next year."""
+    component, block = chart
+    drawn = {c["name"]: c for c in controls(component, block, ada, None)}
+    assert drawn["columns"]["template"] == "plinta/blocks/columns_widget.html"
+
+
+def test_a_delta_over_a_consumers_config_is_still_a_delta(chart, ada):
+    component, block = chart
+    view = save(block, ada, name="Stacked", values={"stacked": True})
+    assert view.config == {"stacked": True}
+
+    Block.objects.filter(pk=block.pk).update(
+        config={"chart_type": "area", "max_points": 100}
+    )
+    block.refresh_from_db()
+
+    from plinta.blocks.rendering import effective_config
+
+    effective = effective_config(block, ada, view)
+    assert effective["stacked"] is True       # overridden
+    assert effective["chart_type"] == "area"  # inherited, and the block moved

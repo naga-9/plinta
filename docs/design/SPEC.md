@@ -3005,6 +3005,8 @@ The same mechanism as the block inspector, over a **delta** rather than a base. 
 
 The override is registered on `ComponentConfig`, and `overrides_for` walks the MRO to find it: `columns` is declared there, so a chooser each component had to re-register is one an author will forget.
 
+**A closed set is offered, not typed.** `Literal` and `Enum` derive to a select carrying their values. Read as text — which is what an unrecognised annotation gets — a form accepts every string and validation refuses all but the three somebody wrote down, so the writer finds the answer by being wrong. Verified against a chart-shaped component rather than a table, since a consumer's component is the case that matters.
+
 **Submitted as a form, answered with a redirect.** Saving changes what the card shows, so the page redraws for the reason §7.12 gives, and the redirect carries *this placement's* view parameter so the other card keeps its own.
 
 **Which default wins, and why in that order.** Five steps, ordered by how *personal* the mark was:

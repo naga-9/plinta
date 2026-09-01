@@ -178,6 +178,20 @@ endpoint.
 answers it, and core's `form_plinta` is the worked example: a control the save
 would refuse is a promise the page cannot keep.
 
+**Your component gets saved views for free.** The editor derives its fields
+from your `config_schema`, so a consumer arranging your chart can save one,
+publish it and set a default without you writing a form, an endpoint or a
+template. Two things follow from that:
+
+- **Declare a closed set as a `Literal` or an `Enum`** and it is drawn as a
+  select. A plain `str` is a text box, so every value fits and validation
+  refuses all but the three you meant.
+- **A field the annotation cannot describe** — a list of series, a nested
+  model — derives to a JSON textarea. Register a widget for it:
+  `register_widget(YourConfig, "series", "yourapp/series.html")`. Core does
+  exactly this for `columns`, on `ComponentConfig`, and the MRO carries it to
+  you.
+
 **If your component has a layout worth varying, register the template rather
 than reading a path from config** — see `add-form-layout`. And keep the mount,
 the payload and the submit yours: a template that owns those can break saving

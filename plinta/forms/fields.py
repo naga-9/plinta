@@ -5,8 +5,9 @@ here knows what a user is.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Union, get_args, get_origin
+import enum
+from dataclasses import dataclass, field as dataclass_field
+from typing import Any, Literal, Union, get_args, get_origin
 
 from pydantic import BaseModel
 
@@ -24,6 +25,9 @@ class FormField:
     description: str | None
     editable: bool = True
     override_template: str | None = None
+    #: The values a closed field may take, for a `choice` widget. Empty for
+    #: everything else.
+    choices: tuple = dataclass_field(default_factory=tuple)
 
 
 def unwrap_optional(annotation: Any) -> Any:
@@ -35,6 +39,22 @@ def unwrap_optional(annotation: Any) -> Any:
     return annotation
 
 
+def choices_for(annotation: Any) -> tuple:
+    """The values a closed annotation admits, or empty.
+
+    `Literal["line", "bar"]` and a `str` enum are both a fixed set somebody
+    wrote down. Rendered as a text box — which is what an unrecognised
+    annotation gets — the form offers every string and validation refuses all
+    but three, so the writer discovers the answer by being wrong.
+    """
+    inner = unwrap_optional(annotation)
+    if get_origin(inner) is Literal:
+        return get_args(inner)
+    if isinstance(inner, type) and issubclass(inner, enum.Enum):
+        return tuple(member.value for member in inner)
+    return ()
+
+
 def widget_for(annotation: Any) -> str:
     """Pick a widget from a type annotation.
 
@@ -42,6 +62,8 @@ def widget_for(annotation: Any) -> str:
     shape a form can render. Those are the fields a component overrides.
     """
     inner = unwrap_optional(annotation)
+    if choices_for(annotation):
+        return "choice"
     if inner is bool:
         return "bool"
     if inner in (int, float):
@@ -76,6 +98,7 @@ def fields_for(
             FormField(
                 name=name,
                 widget=widget_for(info.annotation),
+                choices=choices_for(info.annotation),
                 annotation=info.annotation,
                 required=info.is_required(),
                 default=None if info.is_required() else info.get_default(call_default_factory=True),

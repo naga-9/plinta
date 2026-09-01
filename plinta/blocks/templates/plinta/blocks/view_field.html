@@ -19,6 +19,17 @@ at a time.
     {% elif control.widget == "bool" %}
         <input class="{{ cls.checkbox }}" type="checkbox" name="{{ control.name }}"
                {% if control.value %}checked{% endif %}>
+    {% elif control.widget == "choice" %}
+        {% comment %} A closed set, so it is offered rather than typed: the
+        alternative is a text box where two thirds of what fits is refused.
+        {% endcomment %}
+        <select class="{{ cls.select }}" name="{{ control.name }}">
+            {% for choice in control.choices %}
+                <option value="{{ choice }}"
+                        {% if choice == control.value %}selected{% endif %}>{{ choice }}</option>
+            {% endfor %}
+        </select>
+
     {% elif control.widget == "number" %}
         <input class="{{ cls.input }}" type="number" name="{{ control.name }}"
                value="{{ control.value|default_if_none:'' }}">

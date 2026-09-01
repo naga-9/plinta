@@ -87,3 +87,52 @@ def test_an_override_replaces_the_derived_widget():
     assert fields["series"].override_template == "chart/series.html"
     assert fields["series"].widget == "json", "the derived widget stays as the fallback"
     assert fields["title"].override_template is None
+
+
+# --- closed sets ------------------------------------------------------------
+
+
+def test_a_literal_is_a_choice():
+    """Rendered as text, a form offers every string and validation refuses
+    all but three — so the writer finds the answer by being wrong."""
+    from typing import Literal
+
+    class Config(BaseModel):
+        chart_type: Literal["line", "bar", "area"] = "line"
+
+    field = fields_for(Config)[0]
+    assert field.widget == "choice"
+    assert field.choices == ("line", "bar", "area")
+
+
+def test_an_enum_is_a_choice():
+    import enum
+
+    class Kind(str, enum.Enum):
+        LINE = "line"
+        BAR = "bar"
+
+    class Config(BaseModel):
+        kind: Kind = Kind.LINE
+
+    field = fields_for(Config)[0]
+    assert field.widget == "choice"
+    assert field.choices == ("line", "bar")
+
+
+def test_an_optional_literal_is_still_a_choice():
+    from typing import Literal, Optional  # noqa: F401
+
+    class Config(BaseModel):
+        chart_type: "Optional[Literal['line', 'bar']]" = None
+
+    assert fields_for(Config)[0].widget == "choice"
+
+
+def test_an_ordinary_string_is_not():
+    class Config(BaseModel):
+        title: str = ""
+
+    field = fields_for(Config)[0]
+    assert field.widget == "text"
+    assert field.choices == ()

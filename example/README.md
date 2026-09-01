@@ -72,6 +72,27 @@ All in `catalog/plinta_registrations.py`, in one sitting's worth of reading.
 They are orthogonal. A shopkeeper has no business rearranging dashboards, and
 a dashboard editor has no business reading the chain's takings.
 
+## Columns are granted, not implied
+
+Every role names its column permissions one at a time. `view_sale` says a
+person may see sales; `view_sale_sale_total` says they may see what one came
+to. Deriving the second from the first would mean anybody who can open a
+screen can read every column on it, which is what field permissions exist to
+prevent — so the lists are long on purpose.
+
+The sharpest case is plinta's own:
+
+| | Store Manager | Catalogue Author |
+|---|---|---|
+| save a view for themselves | yes | yes |
+| rename it | yes | yes |
+| **publish it to everyone** | **no** | yes |
+
+Publishing sets `SavedView.owner` to null, so it is a change to one field and
+`change_savedview_owner` is what gates it. That permission exists only because
+`seed_shareables` registers `SavedView` as a DataSource — a field permission
+comes from a `DataSourceField` row and from nothing else.
+
 **Run `setup_groups` after the screens are configured.** Column permissions are
 minted when a `DataSourceField` is saved, so a role built beforehand grants
 `view_sale` and none of its columns, and every table renders empty.

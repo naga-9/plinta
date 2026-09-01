@@ -96,6 +96,10 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         self.sample_data()
+        # Core's own shareables first: registering them is what mints
+        # `change_savedview_owner` and `change_filterset_owner`, and a role
+        # granted before the permission exists is granted nothing (§6.1b).
+        call_command("seed_shareables", verbosity=0)
         sources = self.sources()
         pages = self.screens(sources)
         # After the columns, because they are what mint the field permissions a

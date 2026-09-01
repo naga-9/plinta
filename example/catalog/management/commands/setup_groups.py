@@ -42,6 +42,13 @@ CATALOG_READ = [
 #: user manages — the model permission is the capability, the policy is the
 #: scope (§5.6).
 MANAGER = [
+    # Personal views and filter sets, and no `_owner` permission: a manager
+    # saves what they want to see and cannot publish it to the company.
+    "plinta_blocks.add_savedview",
+    "plinta_blocks.change_savedview",
+    "plinta_blocks.delete_savedview",
+    "plinta_pages.add_filterset",
+    "plinta_pages.change_filterset",
     "catalog.add_sale",
     "catalog.change_sale",
     "catalog.delete_sale",
@@ -59,6 +66,14 @@ AUTHOR = [
     "plinta_blocks.add_savedview",
     "plinta_blocks.change_savedview",
     "plinta_blocks.delete_savedview",
+    # Publishing, which is a change to one field: `owner = None` is public.
+    # An author may share a view and a filter set with everyone; a manager
+    # below may save their own and not publish it. That distinction exists
+    # only because the two models are registered as DataSources — a field
+    # permission comes from a DataSourceField row and from nothing else
+    # (§6.1b).
+    "plinta_blocks.change_savedview_owner",
+    "plinta_pages.change_filterset_owner",
     "plinta_pages.add_page",
     "plinta_pages.change_page",
     "plinta_pages.add_pageblock",
@@ -96,6 +111,20 @@ ROLES = {
 }
 
 
+#: Column permissions the expansion must **not** hand out with their model
+#: permission, because they are a different act.
+#:
+#: `change_savedview` lets somebody edit a view they own.
+#: `change_savedview_owner` sets `owner = None`, which publishes it to the
+#: whole company. One model permission covering both would mean anybody who
+#: may save a view may publish one, and nobody would have chosen that.
+#:
+#: Granting these by name is the point: they exist only because plinta
+#: registers `SavedView` and `FilterSet` as DataSources, and a field
+#: permission comes from a DataSourceField row and from nothing else (§6.1b).
+WITHHELD = {"change_savedview_owner", "change_filterset_owner"}
+
+
 def column_permissions(names: list[str]) -> list[Permission]:
     """The column permissions implied by the model permissions in ``names``.
 
@@ -115,7 +144,9 @@ def column_permissions(names: list[str]) -> list[Permission]:
             Permission.objects.filter(
                 content_type__app_label=app_label,
                 codename__startswith=f"{action}_{model}_",
-            ).exclude(codename__contains="_instance_")
+            )
+            .exclude(codename__contains="_instance_")
+            .exclude(codename__in=WITHHELD)
         )
     return wanted
 

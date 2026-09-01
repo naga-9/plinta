@@ -5,9 +5,11 @@ checked, so renaming a page does not break a link someone shared (§9.0).
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 
@@ -169,6 +171,28 @@ def filter_options(request: HttpRequest, pk: int) -> JsonResponse:
     )
 
 
+def placement_of(request: HttpRequest, pk: int, placement: int):
+    """The page, the placement and the component behind one card.
+
+    Shared by both halves of a card's conversation with the server, so a
+    write cannot reach a placement a read could not.
+    """
+    from plinta.components.registry import find
+
+    page = visible_page(request, pk)
+    try:
+        slot = page.placements.select_related("block", "block__data_source").get(
+            pk=placement, is_visible=True
+        )
+    except PageBlock.DoesNotExist as exc:
+        raise Http404("no such block on this page") from exc
+
+    component = find(slot.block.component_type)
+    if component is None or slot.block.data_source is None:
+        raise Http404("that block has nothing to fetch")
+    return page, slot, component
+
+
 @login_required
 def block_data(request: HttpRequest, pk: int, placement: int) -> JsonResponse:
     """The rows one card asks for, as JSON.
@@ -186,20 +210,8 @@ def block_data(request: HttpRequest, pk: int, placement: int) -> JsonResponse:
     from plinta.blocks.feed import feed, requested
     from plinta.blocks.rendering import chosen_view, effective_config, views_for
     from plinta.blocks.narrowing import narrowing_for
-    from plinta.components.registry import find
 
-    page = visible_page(request, pk)
-    try:
-        slot = page.placements.select_related("block", "block__data_source").get(
-            pk=placement, is_visible=True
-        )
-    except PageBlock.DoesNotExist as exc:
-        raise Http404("no such block on this page") from exc
-
-    component = find(slot.block.component_type)
-    if component is None or slot.block.data_source is None:
-        raise Http404("that block has nothing to fetch")
-
+    page, slot, component = placement_of(request, pk, placement)
     asked = requested(request.GET)
     views = views_for([slot.block], request.user).get(slot.block_id, [])
     view = chosen_view(views, request.user, asked["view"], slot.default_view_id)
@@ -222,6 +234,67 @@ def block_data(request: HttpRequest, pk: int, placement: int) -> JsonResponse:
             asked=asked,
         )
     )
+
+
+@login_required
+@require_POST
+def block_write(request: HttpRequest, pk: int, placement: int) -> JsonResponse:
+    """One write from one card, through the pipeline.
+
+    The mirror of `block_data`, and deliberately the same shape for every
+    component that writes: a record and the fields being written is what a
+    dragged kanban card, an edited table cell and a submitted form all are
+    (§8.11).
+
+    Narrowed by the **block's** own filters, never by the page's filter bar.
+    A base filter is a boundary — a card scoped to one region may not write
+    outside it — while the bar is a viewer's passing choice, and a write that
+    failed because of what somebody typed into a filter box would be a bug
+    nobody could reproduce.
+    """
+    from plinta.blocks.narrowing import narrowing_for
+    from plinta.blocks.submit import submit, submitted
+    from plinta.blocks.write import WriteDenied
+
+    if request.content_type != "application/json":
+        # §15.3: one content type for writes, so there is one thing to parse
+        # and one thing to protect.
+        return JsonResponse(
+            {"detail": "send application/json"}, status=415
+        )
+    try:
+        body = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"detail": "unreadable body"}, status=400)
+    if not isinstance(body, dict):
+        return JsonResponse({"detail": "expected an object"}, status=400)
+
+    _, slot, component = placement_of(request, pk, placement)
+    if not component.writes:
+        # The component says it cannot, which is not the same as this viewer
+        # may not: a chart refuses everyone, permission refuses someone.
+        return JsonResponse(
+            {"detail": f"{slot.block.component_type} does not write"}, status=405
+        )
+
+    record, values = submitted(body)
+    context = Q(**resolve_filters(slot.context_filter, request.user, None))
+    try:
+        written = submit(
+            slot.block,
+            request.user,
+            datasource=slot.block.data_source,
+            record=record,
+            values=values,
+            narrow=narrowing_for(slot.block, request.user, context),
+        )
+    except WriteDenied as exc:
+        # A refusal and a rejection are different answers: this one will not
+        # succeed however the values are changed.
+        return JsonResponse(
+            {"detail": str(exc), "fields": exc.denied_fields}, status=403
+        )
+    return JsonResponse(written, status=200 if written["errors"] is None else 422)
 
 
 def page_view(

@@ -392,6 +392,10 @@ def render_page(
                 # placement-scoped — so the URL is handed to the component
                 # rather than built by it.
                 data_url=f"/pages/{page.pk}/blocks/{placement.pk}/data/",
+                # The write half of the same conversation. Handed over
+                # unconditionally; a component that cannot write ignores it,
+                # and the endpoint refuses one in its name anyway.
+                write_url=f"/pages/{page.pk}/blocks/{placement.pk}/write/",
                 page=_page_number(query, prefix),
                 sort=_sort_param(query, prefix),
             )

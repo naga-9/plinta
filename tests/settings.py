@@ -34,6 +34,10 @@ STATIC_URL = "/static/"
 
 MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # A deployment runs it and the write endpoint depends on it, so the suite
+    # runs it too. The test client does not enforce it unless asked; the
+    # browser suite makes real requests and does.
+    "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "plinta.shell.middleware.LoginRequiredMiddleware",

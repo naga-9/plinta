@@ -117,6 +117,57 @@
         };
     }
 
+    /** The CSRF token Django set, for the write half. */
+    function token() {
+        var match = /(?:^|;\s*)csrftoken=([^;]*)/.exec(document.cookie);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    /**
+     * Send one write: a record, and the fields being written.
+     *
+     * The same shape whatever asked for it — a dragged card writing one
+     * field, a cell losing focus, a submitted form writing several. An
+     * adapter decides *when* a write has happened; what one looks like is
+     * decided here, once.
+     */
+    function saver(mount, url) {
+        return function save(record, values) {
+            return fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': token(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    record: record === undefined ? null : record,
+                    values: values || {}
+                })
+            }).then(function (response) {
+                return response.json().catch(function () {
+                    return {};
+                }).then(function (body) {
+                    if (response.ok) {
+                        return body;
+                    }
+                    // A rejection carries which fields were wrong and can be
+                    // answered by changing them; a refusal cannot. An adapter
+                    // needs to tell those apart to know whether to keep the
+                    // edit on screen.
+                    var error = new Error(
+                        body.detail || 'the server answered ' + response.status
+                    );
+                    error.status = response.status;
+                    error.refused = response.status === 403;
+                    error.fields = body.errors || body.fields || null;
+                    throw error;
+                });
+            });
+        };
+    }
+
     function mountOne(mount) {
         var name = mount.dataset.plintaMount;
         var adapter = adapters[name];
@@ -130,6 +181,7 @@
 
         var body = payload(mount);
         var fetchRows = loader(mount, mount.dataset.plintaUrl || '');
+        var sendWrite = saver(mount, mount.dataset.plintaWriteUrl || '');
 
         function fail(error) {
             if (error && error.name === 'AbortError') {
@@ -151,7 +203,13 @@
                         fail(error);
                         throw error;
                     });
-                }
+                },
+                // No `fail` around this one: a rejected write belongs beside
+                // the field that was rejected, which only the adapter knows
+                // where to find. Replacing the widget with an alert would
+                // throw away the edit the writer is still holding.
+                save: sendWrite,
+                writable: mount.dataset.plintaWriteUrl ? true : false
             });
         } catch (error) {
             fail(error);

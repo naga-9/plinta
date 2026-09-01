@@ -126,6 +126,12 @@ class Component:
     #: demanding a DataSource with no way to refuse.
     needs_data: ClassVar[bool] = True
 
+    #: Whether this component can send a write back. A chart has nowhere to
+    #: put an edit, so it says no and the endpoint refuses one in its name —
+    #: which is a different question from whether *this viewer* may write,
+    #: and that one is permission (§8.11).
+    writes: ClassVar[bool] = False
+
     def supports(self, mode: Mode) -> bool:
         """Whether this component can draw in ``mode``."""
         return self.supported_modes is None or mode in self.supported_modes

@@ -22,6 +22,10 @@ urlpatterns = [
     # filter are read from the row rather than trusted from the query string.
     path("pages/<int:pk>/blocks/<int:placement>/data/", views.block_data,
          name="block_data"),
+    # And the write half. The same placement, so a write cannot reach a card
+    # a read could not.
+    path("pages/<int:pk>/blocks/<int:placement>/write/", views.block_write,
+         name="block_write"),
     # A detail page: the record in the path, so the URL is shareable and the
     # page is what somebody sends a colleague.
     path("pages/<int:pk>-<slug:slug>/<str:record>/", views.page_view, name="record"),

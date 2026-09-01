@@ -1875,7 +1875,7 @@ Every mutation goes through it. The current implementation is fifteen stages for
 | 5 | compute `changes` — `{field: (before, after)}`, including M2M |
 | 6 | emit `object_written` |
 
-Deletes follow the same authorise-then-emit shape. There is no restore signal — §8.10.
+Deletes follow the same authorise-then-emit shape. There is no restore signal — §8.10. What calls any of this is §8.11, and it is not a table.
 
 **A denied field is refused, not dropped.** Writing a field the user may not change raises, naming every field refused, rather than saving the rest — a partial write reported as a success is the worse answer.
 
@@ -1965,6 +1965,10 @@ It does **not** own: the export endpoint (`contrib.export`, §14) or anything a 
 | `copy_to` vs `duplicate` | **separate verbs** — copy a shareable, duplicate a row |
 | `duplicate_page` | **deleted** — `copy_to` walks declared children |
 | Bulk write endpoints | **not in core** — a contrib importer loops the pipeline inside `events.batch()` |
+| The write endpoint's shape | **one row and a field dict**, placement-scoped — the same unit for a dragged kanban card, an edited table cell and a submitted form. Never one endpoint per component, which would make the table's shape everyone's |
+| Which components write | the **component** declares it can (a chart cannot); the **block** decides whether this viewer may |
+| A write's client half | **`save(record, values)` beside `load(params)`** — the client owns the URL, the CSRF token and the error path; the adapter owns when |
+| Denied vs invalid | **403 vs a field-keyed body** — refusing a write is not the same answer as failing to validate one |
 | Block addressing | **by id**; the by-name endpoints and their resolution order are removed |
 | `/export/`, `/pivot/export/` | **move to contrib** |
 | `/actions-inline/` | **deleted** with `actions` (ADR 0008 (§24)) |
@@ -2064,6 +2068,40 @@ Core's block API is then: list, search, data, edit-form, write, delete, duplicat
 
 
 ---
+
+### 8.11 The write endpoint is not a table endpoint
+
+**The pipeline is already component-neutral, and the endpoint in front of it must stay that way.** `write(instance, values, user, source=)` takes a row and a field dict — nothing about it is tabular. So does the endpoint:
+
+```
+POST /pages/<pk>/blocks/<placement>/write/
+{"record": "42", "values": {"state": "done"}}
+```
+
+Placement-scoped, mirroring the feed (§7.9): the placement knows the block, the view and the context filter, so the server reads them from the row rather than trusting the request.
+
+**One unit — a row and the fields being written — serves every component that writes:**
+
+| | writes |
+|---|---|
+| kanban | one field, when a card is dragged into a column — `priority`, `state` |
+| table | one field, when a cell is edited inline |
+| form / detail card | several fields, on submit |
+| chart, KPI, gauge | never |
+
+A per-component write endpoint would make three of those into three shapes for one operation, and the first of them would be table-shaped because the table is what gets built first. That is the mistake this section exists to prevent.
+
+**Whether a component can write is the component's declaration; whether this viewer may is the block's.** A chart has nowhere to put an edit, so it declares it cannot. Everything else is permission, which the pipeline already checks in both tiers plus per field.
+
+**Two gates, the same as reads.** The field must be one the DataSource exposes, and field permission must admit it. The first is the cheap one and the second is the real one; a write naming a path the datasource never exposed is refused before the model is touched.
+
+**A denied field raises; an invalid one answers.** `WriteDenied` is a 403 — refusing a write is not the same answer as failing to validate one. `write_or_errors` exists for the second and returns a field-keyed body.
+
+**The response carries the saved row**, because a write can change a column the database derived, and the widget that sent it has to redraw something.
+
+**The client half is symmetric with `load`.** The client owns the URL, the CSRF token, and the error path; the adapter owns *when* — drag end, cell blur, form submit. `save(record, values)` beside `load(params)`.
+
+**Status: the pipeline is built and tested (`plinta/blocks/write.py`, 185 lines) and nothing calls it.** No endpoint, no client, no component that writes. It is a declared-but-unused layer until one of the rows in that table exists.
 
 ## 9. Layer 8 — pages
 

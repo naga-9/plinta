@@ -127,10 +127,11 @@ def raw(row: Any, name: str, kind: str) -> Any:
     if kind == "relation":
         return getattr(row, f"{name}_id", None)
     if kind == "relations":
-        # A manager, not a value. Left alone it reaches JSON as one and the
-        # whole feed fails to serialise — so a column nothing can draw yet
-        # still breaks the page that carries it.
-        return sorted(getattr(row, name).values_list("pk", flat=True))
+        # A manager, not a value: left alone it reaches JSON as one and the
+        # whole feed fails to serialise. `.all()` rather than `values_list`,
+        # which would go back to the database once per row and undo the
+        # prefetch the column already asked for.
+        return [related.pk for related in getattr(row, name).all()]
     value = getattr(row, name, None)
     if isinstance(value, decimal.Decimal):
         return float(value)
@@ -268,7 +269,8 @@ def feed(component, config, user, *, datasource, narrow, asked) -> dict[str, Any
             # does nothing, and it costs a query to build.
             | (
                 picker(f, datasource.model, user)
-                if f.field_name in editable and kinds.get(f.field_name) == "relation"
+                if f.field_name in editable
+                and kinds.get(f.field_name) in ("relation", "relations")
                 else {}
             )
             for f in fields

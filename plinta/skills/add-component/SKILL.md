@@ -193,7 +193,9 @@ and is told it is not a boolean.
 choices. `picker` is `list` or `search`: a `list` arrives with its `options`
 already on the column, and a `search` asks `ctx.options(field, term)` as the
 writer types. Both read the same queryset the write resolves against, so a
-picker cannot offer what the save would refuse.
+picker cannot offer what the save would refuse. A `relations` column is the same
+picker taking several: a list of pks in, a list of pks out, and an empty list
+clears it.
 
 **Tell a refusal from a rejection.** `error.refused` is a 403 and will not
 succeed however the value changes; a 422 carries `error.fields` and will.

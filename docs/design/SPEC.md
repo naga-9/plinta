@@ -1795,7 +1795,10 @@ They are not `TableComponent` methods either. A table drawn on the server and th
 | `picker_mode` | **`auto` · `list` · `search`**, auto resolving to `list` at or under 100 rows. A short list travels with the column and costs no round trip; a long one asks the options endpoint as the writer types |
 | A picker's label | **`str(row)`**, the same as Django's `ModelChoiceField` — a model that reads well in the admin reads well here without being told twice |
 | A relation in a write's diff | **its pk**, as a many-to-many already was. A diff travels to listeners that store it, and a model instance cannot go in a JSONField |
-| Many-to-many | **written and read, not yet picked.** The pipeline already applies it and its raw value is a list of pks; what is missing is a control, and the column draws none rather than a wrong one. Additive when something needs it |
+| Many-to-many | **the same write, taking several.** One picker serves both — what may be chosen is one question, and only how many answers are taken differs. A list of pks in, a list of pks out, an empty list clears it |
+| A partly-choosable many-to-many | **refused whole.** Taking the permitted ones and dropping the rest reports a success for a write nobody asked for |
+| A collection column's cell | **`", ".join(str(row))`** — the same label the picker offers. A manager left alone renders as `auth.User.None` |
+| Reading a prefetched collection | **`.all()`, never `values_list`** — the second goes back to the database once per row and undoes the prefetch the column asked for |
 | A many-to-many's field permission | **enforced.** It is minted like every other column's and was subtracted from the denied set, so the grant was offered, listed and never consulted |
 
 

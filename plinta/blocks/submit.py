@@ -69,9 +69,7 @@ def coerced(datasource, values: dict[str, Any], user) -> dict[str, Any]:
     Raises:
         ValidationError: a relation value naming no row this viewer may pick.
     """
-    from django.core.exceptions import ValidationError
-
-    from plinta.datasources.choices import choosable
+    from plinta.datasources.choices import choosable, is_multiple
 
     model = datasource.model
     out: dict[str, Any] = {}
@@ -80,17 +78,49 @@ def coerced(datasource, values: dict[str, Any], user) -> dict[str, Any]:
         if rows is None or value in (None, ""):
             out[name] = value
             continue
-        try:
-            row = rows.filter(pk=value).first()
-        except (ValueError, TypeError):
-            # A pk the key cannot even be compared against — a label typed
-            # into a box that wanted an option. The lookup raises rather than
-            # matching nothing, so it is caught here and not at the database.
-            row = None
-        if row is None:
-            raise ValidationError({name: ["Select a valid option."]})
-        out[name] = row
+        if is_multiple(model, name):
+            out[name] = _many(rows, name, value)
+        else:
+            out[name] = _one(rows, name, value)
     return out
+
+
+def _one(rows, name: str, value: Any):
+    """The single row ``value`` names, from what may be chosen."""
+    from django.core.exceptions import ValidationError
+
+    try:
+        row = rows.filter(pk=value).first()
+    except (ValueError, TypeError):
+        # A pk the key cannot even be compared against — a label typed into a
+        # box that wanted an option. The lookup raises rather than matching
+        # nothing, so it is caught here and not at the database.
+        row = None
+    if row is None:
+        raise ValidationError({name: ["Select a valid option."]})
+    return row
+
+
+def _many(rows, name: str, value: Any):
+    """Every row ``value`` names — and an empty list clears the column.
+
+    All of them must be choosable, not merely some: taking the ones that
+    happened to be permitted would report a success for a write nobody asked
+    for, which is the same reason a denied field is refused and not dropped.
+    """
+    from django.core.exceptions import ValidationError
+
+    if not isinstance(value, (list, tuple)):
+        raise ValidationError({name: ["Select one or more options."]})
+    if not value:
+        return []
+    try:
+        found = list(rows.filter(pk__in=value))
+    except (ValueError, TypeError):
+        found = []
+    if len(found) != len({str(pk) for pk in value}):
+        raise ValidationError({name: ["Select valid options."]})
+    return found
 
 
 def submit(

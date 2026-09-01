@@ -28,13 +28,24 @@ LIMIT = 50
 
 
 def related_field(model, path: str):
-    """The relation at ``path``, or None where it is not one."""
+    """The forward relation at ``path``, or None where it is not one.
+
+    A many-to-many included: what may be chosen is the same question, and
+    only *how many* answers are taken differs. `is_multiple` says which.
+    """
     field = resolve_path(model, path)
     if field is None:
         return None
-    if getattr(field, "many_to_one", False) or getattr(field, "one_to_one", False):
-        return field
+    for kind in ("many_to_one", "one_to_one", "many_to_many"):
+        if getattr(field, kind, False):
+            return field
     return None
+
+
+def is_multiple(model, path: str) -> bool:
+    """Whether ``path`` takes several rows rather than one."""
+    field = related_field(model, path)
+    return bool(field is not None and getattr(field, "many_to_many", False))
 
 
 def choosable(model, path: str, user):

@@ -63,7 +63,9 @@ def test_a_fetching_widget_draws(page, live_server, signed_in, screen):
 def test_the_columns_are_the_ones_the_server_sent(page, live_server, signed_in, screen):
     open_page(page, live_server, screen)
     headers = page.locator(".tabulator-col-title").all_inner_texts()
-    assert [h.strip() for h in headers] == ["Title", "In print", "Region"]
+    assert [h.strip() for h in headers] == [
+        "Title", "In print", "Region", "Watchers",
+    ]
 
 
 def test_a_component_with_no_adapter_says_so(page, live_server, signed_in, screen):
@@ -311,7 +313,7 @@ def test_the_picker_offers_only_what_the_write_would_take(
     assert region.get("options") == []
 
     # And the write refuses the same row, rather than only the picker hiding it.
-    answer = page.evaluate("""async (pk) => {
+    answer = page.evaluate(r"""async (pk) => {
         var m = document.querySelector('[data-plinta-mount]');
         var token = /(?:^|;\s*)csrftoken=([^;]*)/.exec(document.cookie)[1];
         var r = await fetch(m.dataset.plintaWriteUrl, {
@@ -354,3 +356,76 @@ def test_sorting_an_editable_column_still_names_it(
     with page.expect_request(lambda r: "sort=title" in r.url) as asked:
         page.click(".tabulator-col-title:has-text('Title')")
     assert "_edit" not in asked.value.url
+
+
+# --- many-to-many -----------------------------------------------------------
+
+
+def test_a_many_to_many_is_a_picker_that_takes_several(
+    page, live_server, signed_in, screen
+):
+    from django.contrib.auth.models import User
+    from tests.testapp.models import Book
+
+    watcher = User.objects.create_user(username="bob", password="x")  # noqa: S106
+    open_page(page, live_server, screen)
+
+    column = page.evaluate("""async () => {
+        var m = document.querySelector('[data-plinta-mount]');
+        var r = await fetch(m.dataset.plintaUrl + '?page=1&size=1',
+                            {credentials: 'same-origin'});
+        var b = await r.json();
+        return b.columns.filter(function (c) { return c.name === 'watchers'; })[0];
+    }""")
+    assert column["type"] == "relations"
+    assert column["editable"] is True
+    assert column["picker"] == "list"
+    assert {"value": watcher.pk, "label": "bob"} in column["options"]
+
+    first = Book.objects.order_by("title").first()
+    cell_of(page, "watchers").click()
+    page.wait_for_selector(".tabulator-edit-list-item", timeout=15000)
+    page.click(".tabulator-edit-list-item:has-text('bob')")
+    # A multiselect list stays open so more can be chosen; it commits on the
+    # way out, not on Enter.
+    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
+        page.click(".tabulator-col-title:has-text('Title')")
+    assert answer.value.status == 200
+    assert list(
+        Book.objects.get(pk=first.pk).watchers.values_list("pk", flat=True)
+    ) == [watcher.pk]
+
+
+def test_a_many_to_many_cell_reads_as_names(page, live_server, signed_in, screen):
+    """A manager renders as `auth.User.None`, which is not a cell."""
+    from django.contrib.auth.models import User
+    from tests.testapp.models import Book
+
+    first = Book.objects.order_by("title").first()
+    first.watchers.set(
+        [
+            User.objects.create_user(username=name, password="x")  # noqa: S106
+            for name in ("bob", "cal")
+        ]
+    )
+    open_page(page, live_server, screen)
+    assert cell_of(page, "watchers").inner_text().strip() == "bob, cal"
+
+
+def test_a_page_of_many_to_many_cells_is_one_query_not_one_each(
+    page, live_server, signed_in, screen
+):
+    """`values_list` on a prefetched manager goes back to the database once
+    per row, which is how reading a column the page already fetched turns a
+    page into twenty queries."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from plinta.blocks.feed import raw
+    from tests.testapp.models import Book
+
+    rows = list(Book.objects.prefetch_related("watchers")[:10])
+    with CaptureQueriesContext(connection) as captured:
+        for row in rows:
+            raw(row, "watchers", "relations")
+    assert len(captured) == 0

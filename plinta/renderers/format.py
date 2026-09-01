@@ -54,6 +54,11 @@ def format_value(value: Any, field: DataSourceField | None = None) -> str:
 
     fmt = (getattr(field, "format", "") or "") if field is not None else ""
 
+    if isinstance(value, (list, tuple)):
+        # A collection column: its members, in the order the query gave them.
+        # `str(row)` for each, the same label a picker offers.
+        drawn = ", ".join(str(item) for item in value)
+        return affix(drawn, field) if drawn else EMPTY
     if isinstance(value, bool):
         return affix(format_boolean(value), field)
     if isinstance(value, datetime.datetime):

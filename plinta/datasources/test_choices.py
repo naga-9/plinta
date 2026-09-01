@@ -11,6 +11,7 @@ from django.contrib.contenttypes.models import ContentType
 from plinta.datasources.choices import (
     THRESHOLD,
     choosable,
+    is_multiple,
     mode_for,
     options,
     related_field,
@@ -50,10 +51,34 @@ def test_a_plain_column_is_not():
     assert related_field(Book, "title") is None
 
 
-def test_a_many_to_many_is_not_one_either():
-    """It is a different write — a list of pks, not a pk — so it is not
-    served by the same picker and says so by not being one."""
-    assert related_field(Book, "watchers") is None
+def test_a_many_to_many_is_one_too():
+    """What may be chosen is the same question; only how many answers are
+    taken differs."""
+    assert related_field(Book, "watchers") is not None
+    assert is_multiple(Book, "watchers") is True
+
+
+def test_a_foreign_key_takes_one():
+    assert is_multiple(Book, "region") is False
+
+
+def test_a_plain_column_takes_neither():
+    assert is_multiple(Book, "title") is False
+
+
+def test_a_many_to_manys_choices_come_from_its_own_model(db):
+    """`watchers` points at users, so users are what may be chosen."""
+    from django.contrib.auth.models import Permission
+
+    user = User.objects.create_user(username="ada", password="x")  # noqa: S106
+    permission, _ = Permission.objects.get_or_create(
+        codename="view_user",
+        content_type=ContentType.objects.get_for_model(User),
+        defaults={"name": "view_user"},
+    )
+    user.user_permissions.add(permission)
+    user = User.objects.get(pk=user.pk)
+    assert choosable(Book, "watchers", user).model is User
 
 
 def test_a_path_that_resolves_to_nothing_is_not_one():

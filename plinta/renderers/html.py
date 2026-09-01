@@ -33,6 +33,10 @@ def value_of(row: Any, path: str) -> Any:
     Traverses ``region__name``, and stops at the first missing or null step
     rather than raising: a null relation is an empty cell, not an error.
 
+    A column naming a **collection** — a many-to-many, a reverse accessor —
+    yields its rows, which `format_value` joins. Left as the manager it is,
+    the cell reads `auth.User.None`.
+
     A field with ``choices`` yields its **label**, through Django's own
     ``get_<field>_display``. A column showing `placed` where the model says
     "Placed" is showing the database's answer to a question the reader asked
@@ -48,6 +52,11 @@ def value_of(row: Any, path: str) -> Any:
             if callable(display):
                 return display()
         value = getattr(value, part, None)
+    if hasattr(value, "all") and hasattr(value, "model"):
+        # A many-to-many or a reverse accessor. `.all()` and not `.values_list`
+        # so a prefetched page is read from its cache rather than asking again
+        # per row — both are already prefetched by `derive`.
+        return list(value.all())
     return value
 
 

@@ -29,7 +29,9 @@
         date: 'date',
         datetime: 'datetime',
         time: 'time',
-        relation: 'list'
+        relation: 'list',
+        // The same picker, taking more than one answer.
+        relations: 'list'
     };
 
     /**
@@ -41,16 +43,21 @@
      * would refuse.
      */
     function pickerParams(column, ask) {
+        var params = column.type === 'relations'
+            // A many-to-many takes several, and clearing it is a write like
+            // any other — so the list must be emptiable.
+            ? { multiselect: true, clearable: true }
+            : {};
         if (column.picker === 'list') {
-            return { values: column.options || [] };
+            params.values = column.options || [];
+            return params;
         }
-        return {
-            autocomplete: true,
-            filterRemote: true,
-            valuesLookup: function (cell, filterTerm) {
-                return ask(column.name, filterTerm);
-            }
+        params.autocomplete = true;
+        params.filterRemote = true;
+        params.valuesLookup = function (cell, filterTerm) {
+            return ask(column.name, filterTerm);
         };
+        return params;
     }
 
     /** A plinta column as Tabulator wants it. */

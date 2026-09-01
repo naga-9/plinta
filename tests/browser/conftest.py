@@ -52,9 +52,11 @@ def viewer(db):
         "view_book_region",
         "change_book_region",
     )
-    # The picker's own model: a related row nobody may see is not one they
+    # The pickers' own models: a related row nobody may see is not one they
     # may be asked to choose.
     grant(user, Region, "view_region")
+    grant(user, User, "view_user")
+    grant(user, Book, "view_book_watchers", "change_book_watchers")
     for model in CONFIG_MODELS:
         grant(user, model, f"view_{model._meta.model_name}")
     return user
@@ -94,7 +96,13 @@ def screen(viewer):
     DataSourceField.objects.create(
         data_source=source, field_name="region", label="Region", editable=True
     )
-    sync_model(Book, {"title": True, "in_print": False, "region": True})
+    DataSourceField.objects.create(
+        data_source=source, field_name="watchers", label="Watchers", editable=True
+    )
+    sync_model(
+        Book,
+        {"title": True, "in_print": False, "region": True, "watchers": True},
+    )
 
     section = MenuSection.objects.create(name="Reference")
     group = MenuGroup.objects.create(section=section, name="Catalog")

@@ -352,3 +352,110 @@ def test_a_relation_may_only_be_set_to_a_row_the_viewer_may_see(
     assert out["errors"]["region"]
     book.refresh_from_db()
     assert book.region.name == "North"
+
+
+# --- many-to-many -----------------------------------------------------------
+#
+# The same write as a foreign key, with the count as the only difference: a
+# list of pks rather than one. Which is why it goes through `coerced` and the
+# pipeline unchanged and needed no second path.
+
+
+@pytest.fixture
+def with_watchers(source, writer):
+    from django.contrib.auth.models import Permission
+
+    DataSourceField.objects.create(
+        data_source=source, field_name="watchers", label="Watchers", editable=True
+    )
+    sync_model(
+        Book,
+        {"title": True, "in_print": True, "region__name": False, "watchers": True},
+    )
+    grant(writer, Book, "view_book_watchers", "change_book_watchers")
+    permission, _ = Permission.objects.get_or_create(
+        codename="view_user",
+        content_type=ContentType.objects.get_for_model(User),
+        defaults={"name": "view_user"},
+    )
+    writer.user_permissions.add(permission)
+    return source
+
+
+@pytest.fixture
+def watchers(db):
+    return [
+        User.objects.create_user(username=name, password="x")  # noqa: S106
+        for name in ("bob", "cal")
+    ]
+
+
+def test_several_rows_are_written(block, with_watchers, writer, book, watchers):
+    fresh = User.objects.get(pk=writer.pk)
+    out = submit(
+        block, fresh, datasource=with_watchers, record=book.pk,
+        values={"watchers": [w.pk for w in watchers]},
+    )
+    assert out["errors"] is None
+    assert sorted(book.watchers.values_list("pk", flat=True)) == sorted(
+        w.pk for w in watchers
+    )
+
+
+def test_an_empty_list_clears_them(block, with_watchers, writer, book, watchers):
+    fresh = User.objects.get(pk=writer.pk)
+    book.watchers.set(watchers)
+    out = submit(
+        block, fresh, datasource=with_watchers, record=book.pk,
+        values={"watchers": []},
+    )
+    assert out["errors"] is None
+    assert book.watchers.count() == 0
+
+
+def test_all_of_them_must_be_choosable(block, with_watchers, writer, book, watchers):
+    """Not merely some.
+
+    Taking the permitted ones and dropping the rest would report a success
+    for a write nobody asked for — the same reason a denied field is refused
+    rather than dropped.
+    """
+    fresh = User.objects.get(pk=writer.pk)
+    out = submit(
+        block, fresh, datasource=with_watchers, record=book.pk,
+        values={"watchers": [watchers[0].pk, 9999]},
+    )
+    assert out["errors"]["watchers"]
+    assert book.watchers.count() == 0
+
+
+def test_a_single_value_where_several_are_wanted_is_a_rejection(
+    block, with_watchers, writer, book, watchers
+):
+    fresh = User.objects.get(pk=writer.pk)
+    out = submit(
+        block, fresh, datasource=with_watchers, record=book.pk,
+        values={"watchers": watchers[0].pk},
+    )
+    assert out["errors"]["watchers"]
+
+
+def test_the_raw_value_is_a_list_of_pks(block, with_watchers, writer, book, watchers):
+    fresh = User.objects.get(pk=writer.pk)
+    out = submit(
+        block, fresh, datasource=with_watchers, record=book.pk,
+        values={"watchers": [watchers[0].pk]},
+    )
+    assert out["row"]["_edit"]["watchers"] == [watchers[0].pk]
+
+
+def test_the_cell_reads_as_a_list_of_names(
+    block, with_watchers, writer, book, watchers
+):
+    """`auth.User.None` is what a manager renders as."""
+    fresh = User.objects.get(pk=writer.pk)
+    out = submit(
+        block, fresh, datasource=with_watchers, record=book.pk,
+        values={"watchers": [w.pk for w in watchers]},
+    )
+    assert out["row"]["watchers"] == "bob, cal"

@@ -35,6 +35,9 @@
                     ? column.filter || 'input'
                     : false,
             resizable: config.resizable !== false,
+            // An editor only where the server said this viewer may write, so
+            // a cell never offers an edit the write would refuse.
+            editor: column.editable ? 'input' : false,
             width: column.width || undefined,
             hozAlign: column.align,
             variableHeight: !!column.wrap
@@ -55,6 +58,16 @@
             out[f.field] = f.value;
         });
         return out;
+    }
+
+    /** Put a cell back to what it was, and say why it would not stick. */
+    function reject(cell, error) {
+        cell.restoreOldValue();
+        var message = (error.fields && error.fields[cell.getField()])
+            ? error.fields[cell.getField()].join(' ')
+            : error.message;
+        cell.getElement().setAttribute('title', message);
+        cell.getElement().classList.add('pl-tabulator__cell--rejected');
     }
 
     window.plinta.registerAdapter('table_tabulator', {
@@ -117,6 +130,34 @@
             }
 
             var table = new window.Tabulator(el, options);
+
+            if (ctx.writable) {
+                // `on`, not an option: the callback was a constructor option
+                // in Tabulator 4 and is an event from 5 onwards, and passing
+                // it as an option is ignored without a word — the edit lands
+                // in the grid, nothing is sent, and the row reverts on the
+                // next fetch.
+                //
+                // One cell, one field, one row: the same write a dragged card
+                // sends, which is why neither the endpoint nor the client has
+                // any notion of a cell.
+                table.on('cellEdited', function (cell) {
+                    var values = {};
+                    values[cell.getField()] = cell.getValue();
+                    ctx.save(cell.getRow().getData()._record, values)
+                        .then(function (body) {
+                            // The saved row, because the write may have moved
+                            // a column the database derived.
+                            cell.getRow().update(body.values);
+                            cell.getElement().classList.remove(
+                                'pl-tabulator__cell--rejected'
+                            );
+                        })
+                        .catch(function (error) {
+                            reject(cell, error);
+                        });
+                });
+            }
         }
     });
 })();

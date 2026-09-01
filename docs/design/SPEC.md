@@ -1712,8 +1712,8 @@ The wire format is **vendor-neutral**. v1's endpoint returned `data` and `last_p
 
 ```json
 {
-  "columns": [{"name", "label", "type", "align", "sortable", "filterable", "filter", "wrap", "width"}],
-  "rows":    [{"<column name>": "<formatted value, or markup>"}],
+  "columns": [{"name", "label", "type", "align", "sortable", "filterable", "filter", "editable", "wrap", "width"}],
+  "rows":    [{"_record": 42, "<column name>": "<formatted value, or markup>"}],
   "page":    {"number", "count", "total", "size"},
   "applied": {"sort": ["-title"], "filters": {"title": "ariel"}}
 }
@@ -1726,6 +1726,10 @@ The wire format is **vendor-neutral**. v1's endpoint returned `data` and `last_p
 **`applied` reports what survived, never what was asked.** A sort or filter naming a column the viewer may not see is dropped silently; a client drawing its own request would otherwise show an arrow on a column that is not sorted.
 
 **A cell is markup where the column declares a field renderer** (§7.8) — a chip, a link, a progress bar — and text otherwise. An adapter that draws HTML gets the same cell a server-rendered table would.
+
+**A row carries its own identity, under `_record`.** A write names the row it is writing, so a feed whose rows had no identity could be read from and never written to. Underscored because it shares the namespace with the columns, and a field path names a model field.
+
+**`editable` is per viewer, not per column.** Two people opening the same card get different answers, so it is computed from the viewer's change permissions rather than read off the field — and only when the component declares it writes, since working it out costs a permission read a chart would pay for nothing.
 
 **Two flags, two jobs.** `filterable` is the server's gate: whether this column may be filtered at all. `filter` is the column's declared control (`DataSourceField.header_filter`) — which box the header draws, when the block draws boxes at all. A control on a column the server will not filter is a control that does nothing.
 
@@ -1774,6 +1778,8 @@ They are not `TableComponent` methods either. A table drawn on the server and th
 | The filter lookup | **chosen from the column's type**; v1 took it from the query string and validated only the head of the traversal |
 | A value a column cannot hold | **narrows to nothing** — it came from a text box, so it is not a 500 |
 | `filterable` vs `header_filter` | **the server's gate** vs **the column's control** — two decisions, two fields |
+| Row identity | **`_record`** in the row, so a feed can be written back to; a field path never starts with an underscore |
+| `editable` on a column | **per viewer**, computed from change permissions — and only when the component declares `writes`, so a chart does not pay a permission read |
 
 
 ## 8. Layer 7 — blocks

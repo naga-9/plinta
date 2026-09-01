@@ -141,3 +141,61 @@ def test_the_pages_own_filters_travel_with_the_request(
         ".filter(b => /^[0-9]+$/.test(b.dataset.page)).length"
     )
     assert numbered == 2  # 12 books in print over pages of 10, not 25
+
+
+# --- writing ----------------------------------------------------------------
+
+
+def test_an_edited_cell_reaches_the_database(page, live_server, signed_in, screen):
+    """The whole chain, and the only test that covers all of it: an editor
+    drawn because the server said the column was writable, a POST carrying
+    the CSRF token Django set, the pipeline, and the row coming back."""
+    from tests.testapp.models import Book
+
+    open_page(page, live_server, screen)
+    cell = rows(page).first.locator('[tabulator-field="title"]')
+    cell.click()  # one click opens the editor; a second would close it
+    editor = cell.locator("input")
+    editor.wait_for(timeout=15000)
+    editor.fill("Rewritten")
+    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
+        editor.press("Enter")
+    assert answer.value.status == 200
+    assert Book.objects.filter(title="Rewritten").count() == 1
+
+
+def test_a_column_the_viewer_may_not_write_offers_no_editor(
+    page, live_server, signed_in, screen
+):
+    """`in_print` is visible and not editable, so it never opens.
+
+    An editor on a cell the server would refuse is a promise the page cannot
+    keep, and the writer only finds out after typing.
+    """
+    open_page(page, live_server, screen)
+    # The writable one opens, so this is not passing because nothing opens.
+    rows(page).first.locator('[tabulator-field="title"]').click()
+    assert rows(page).first.locator('[tabulator-field="title"] input').count() == 1
+
+    cell = rows(page).first.locator('[tabulator-field="in_print"]')
+    cell.click()
+    assert cell.locator("input").count() == 0
+
+
+def test_a_rejected_edit_goes_back(page, live_server, signed_in, screen):
+    """The value returns and the cell says why, rather than showing something
+    the database does not hold."""
+    from tests.testapp.models import Book
+
+    open_page(page, live_server, screen)
+    cell = rows(page).first.locator('[tabulator-field="title"]')
+    cell.click()
+    editor = cell.locator("input")
+    editor.wait_for(timeout=15000)
+    editor.fill("x" * 500)
+    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
+        editor.press("Enter")
+    assert answer.value.status == 422
+    page.wait_for_selector(".pl-tabulator__cell--rejected", timeout=15000)
+    assert cell.inner_text().strip() == "Book 00"
+    assert not Book.objects.filter(title__startswith="xxx").exists()

@@ -9,5 +9,12 @@
 }
 
 .pl-tabulator > .pl-alert {
-    margin: var(--pl-space-3, 0.75rem);
+    margin: var(--pl-space-3);
+}
+
+/* A cell whose edit the server would not take. The value is already back to
+ * what it was; this says so, and the reason is on the element's title. */
+.pl-tabulator__cell--rejected {
+    outline: 2px solid var(--pl-danger);
+    outline-offset: -2px;
 }

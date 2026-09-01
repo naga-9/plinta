@@ -155,6 +155,40 @@ register_script("plinta/heatmap/adapter.js", order=310)
 and let the adapter read which it was given: rows in the payload mean it pages
 what it has, their absence means it asks.
 
+## If it writes, declare it and use `ctx.save`
+
+`writes = True` on the component, and render `data-plinta-write-url` from
+`context["write_url"]`. The client then hands your adapter `ctx.save`.
+
+```js
+ctx.save(row._record, {priority: 'high'})
+   .then(function (body) { redraw(body.values); })
+   .catch(function (error) {
+       if (error.refused) { /* 403: it will never be accepted */ }
+       else { /* 422: error.fields names what to fix */ }
+   });
+```
+
+**One row and a field dict, whatever your widget calls it** — a dragged card,
+an edited cell, a submitted form. Do not invent a write shape for your
+component; there is one, and it is the reason a kanban and a table share an
+endpoint.
+
+**Only offer an edit where the column says `editable`.** It is per viewer and
+arrives with the columns. An editor on a cell the server would refuse is a
+promise the page cannot keep, and the writer finds out only after typing.
+
+**Tell a refusal from a rejection.** `error.refused` is a 403 and will not
+succeed however the value changes; a 422 carries `error.fields` and will.
+Putting a cell back on the second one throws away an edit the writer could
+have fixed.
+
+**A vendor's callback may be an option in one major version and an event in
+the next.** Tabulator's `cellEdited` moved from constructor option to
+`table.on()` in v5, and passing it the old way is ignored silently: the edit
+lands in the grid, nothing is sent, and the row reverts on the next fetch.
+This is what the browser test is for.
+
 ## If it draws rows, use `components.tabular`
 
 Ordering, paging and column filtering are free functions there, shared with the

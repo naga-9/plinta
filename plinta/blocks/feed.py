@@ -28,6 +28,11 @@ COLUMN_PREFIX = "f."
 #: needs to pick a comparator and an alignment.
 NUMERIC = {"number"}
 
+#: A row carries its own identity under this key, because a write names the
+#: row it is writing. Underscored so it cannot collide with a column: a field
+#: path names a model field, and a leading underscore is not one anybody has.
+RECORD = "_record"
+
 
 def requested(query) -> dict[str, Any]:
     """What the client asked for: paging, ordering and column filters."""
@@ -61,13 +66,18 @@ def _int(value: Any, fallback: int) -> int:
     return number if number > 0 else fallback
 
 
-def column(field: Any) -> dict[str, Any]:
+def column(field: Any, *, editable: bool = False) -> dict[str, Any]:
     """One column, as an adapter needs to draw its header.
 
-    `sortable` and `filterable` are what let an adapter draw the right
-    control: a filter box on a column that cannot be filtered is a control
-    that does nothing, and a sorter needs to know whether it is comparing text
-    or numbers.
+    `sortable`, `filterable` and `editable` are what let an adapter draw the
+    right control: a filter box on a column that cannot be filtered is a
+    control that does nothing, an editor on one that cannot be written is a
+    promise the server will break, and a sorter needs to know whether it is
+    comparing text or numbers.
+
+    ``editable`` is per **viewer**, not per column — two people opening the
+    same card get different answers — so it is passed in rather than read off
+    the field.
     """
     kind = getattr(field, "sorter", "") or "string"
     return {
@@ -80,6 +90,7 @@ def column(field: Any) -> dict[str, Any]:
         # Which control the header draws, when the widget draws one at all.
         # Blank means the column offers no box of its own.
         "filter": getattr(field, "header_filter", "") or "",
+        "editable": editable,
         "wrap": getattr(field, "format", "") == "textarea",
         "width": getattr(field, "width", None),
     }
@@ -109,6 +120,16 @@ def feed(component, config, user, *, datasource, narrow, asked) -> dict[str, Any
         config, user, datasource=datasource, narrow=narrow
     )
 
+    # Only asked when the component can act on the answer: working out what
+    # this viewer may write costs a permission read, and a chart would pay it
+    # to be told about editors it will never draw.
+    if getattr(component, "writes", False):
+        from plinta.blocks.submit import writable
+
+        editable = set(writable(datasource, user))
+    else:
+        editable = set()
+
     # The sort is honoured after the columns are known, because which columns
     # the viewer may see is what decides which may be sorted on. Nothing asked
     # for leaves the block's own ordering in place.
@@ -119,9 +140,14 @@ def feed(component, config, user, *, datasource, narrow, asked) -> dict[str, Any
     page = paged(rows, size, asked["page"])
 
     return {
-        "columns": [column(f) for f in fields],
+        "columns": [
+            column(f, editable=f.field_name in editable) for f in fields
+        ],
         "rows": [
-            {f.field_name: cell(row, f, user) for f in fields}
+            {
+                RECORD: row.pk,
+                **{f.field_name: cell(row, f, user) for f in fields},
+            }
             for row in page.object_list
         ],
         "page": {

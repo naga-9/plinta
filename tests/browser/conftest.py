@@ -41,7 +41,15 @@ def grant(user, model, *codenames):
 @pytest.fixture
 def viewer(db):
     user = User.objects.create_user(username="ada", password="secret")  # noqa: S106
-    grant(user, Book, "view_book", "view_book_title", "view_book_in_print")
+    grant(
+        user,
+        Book,
+        "view_book",
+        "change_book",
+        "view_book_title",
+        "view_book_in_print",
+        "change_book_title",
+    )
     for model in CONFIG_MODELS:
         grant(user, model, f"view_{model._meta.model_name}")
     return user
@@ -71,11 +79,12 @@ def screen(viewer):
         label="Title",
         sorter=Sorter.STRING,
         filterable=True,
+        editable=True,
     )
     DataSourceField.objects.create(
         data_source=source, field_name="in_print", label="In print"
     )
-    sync_model(Book, {"title": False, "in_print": False})
+    sync_model(Book, {"title": True, "in_print": False})
 
     section = MenuSection.objects.create(name="Reference")
     group = MenuGroup.objects.create(section=section, name="Catalog")
@@ -87,7 +96,7 @@ def screen(viewer):
         component_type="table_tabulator",
         data_source=source,
         owner=viewer,
-        config={"page_size": PAGE_SIZE, "header_filters": True},
+        config={"page_size": PAGE_SIZE, "header_filters": True, "editable": True},
     )
     placement = PageBlock.objects.create(
         page=page, block=block, column=0, row=0, width=12, height=6

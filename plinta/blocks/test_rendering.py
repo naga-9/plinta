@@ -368,3 +368,127 @@ def test_a_view_the_viewer_may_not_see_falls_through():
     views = [View(1, is_default=True)]
     assert chosen_view(views, Viewer(), None, placement_default=999).pk == 1
     assert chosen_view(views, Viewer(), "999").pk == 1
+
+
+# --- which default wins -----------------------------------------------------
+#
+# The ordering principle is v1's: the more personal mark wins. v1 had the
+# viewer's own default above the public one for that reason, and v2 slots the
+# placement's default between them.
+
+
+def test_a_viewers_own_default_beats_a_placements(db):
+    """Somebody arranging a page says where a *newcomer* starts. Above a
+    person's own default it would silently stop being theirs on any card an
+    author had configured."""
+    from django.contrib.auth.models import User
+
+    ada = User.objects.create_user(username="ada", password="x")  # noqa: S106
+    block = Block.objects.create(name="b", component_type="table_plinta", owner=ada)
+    mine = SavedView.objects.create(
+        block=block, name="Mine", owner=ada, is_default=True, config={}
+    )
+    theirs = SavedView.objects.create(
+        block=block, name="Card's", owner=None, config={}
+    )
+
+    assert chosen_view([mine, theirs], ada, None, theirs.pk) == mine
+
+
+def test_a_placements_default_beats_a_public_one(db):
+    """It is the more specific of the two marks nobody made personally."""
+    from django.contrib.auth.models import User
+
+    ada = User.objects.create_user(username="ada", password="x")  # noqa: S106
+    block = Block.objects.create(name="b", component_type="table_plinta", owner=ada)
+    public = SavedView.objects.create(
+        block=block, name="Everyone's", owner=None, is_default=True, config={}
+    )
+    card = SavedView.objects.create(block=block, name="Card's", owner=None, config={})
+
+    assert chosen_view([public, card], ada, None, card.pk) == card
+
+
+def test_what_was_asked_for_beats_every_default(db):
+    from django.contrib.auth.models import User
+
+    ada = User.objects.create_user(username="ada", password="x")  # noqa: S106
+    block = Block.objects.create(name="b", component_type="table_plinta", owner=ada)
+    mine = SavedView.objects.create(
+        block=block, name="Mine", owner=ada, is_default=True, config={}
+    )
+    other = SavedView.objects.create(block=block, name="Other", owner=ada, config={})
+
+    assert chosen_view([mine, other], ada, str(other.pk), mine.pk) == other
+
+
+# --- one default per owner --------------------------------------------------
+
+
+def test_marking_a_default_clears_the_previous_one(db):
+    """Moved, not refused: "make this my default" is a request to move it."""
+    from django.contrib.auth.models import User
+
+    ada = User.objects.create_user(username="ada", password="x")  # noqa: S106
+    block = Block.objects.create(name="b", component_type="table_plinta", owner=ada)
+    first = SavedView.objects.create(
+        block=block, name="First", owner=ada, is_default=True, config={}
+    )
+    SavedView.objects.create(
+        block=block, name="Second", owner=ada, is_default=True, config={}
+    )
+
+    first.refresh_from_db()
+    assert first.is_default is False
+
+
+def test_a_public_default_and_a_private_one_coexist(db):
+    """Two different marks: everyone's, and mine."""
+    from django.contrib.auth.models import User
+
+    ada = User.objects.create_user(username="ada", password="x")  # noqa: S106
+    block = Block.objects.create(name="b", component_type="table_plinta", owner=ada)
+    public = SavedView.objects.create(
+        block=block, name="Everyone's", owner=None, is_default=True, config={}
+    )
+    mine = SavedView.objects.create(
+        block=block, name="Mine", owner=ada, is_default=True, config={}
+    )
+
+    public.refresh_from_db()
+    mine.refresh_from_db()
+    assert public.is_default and mine.is_default
+
+
+def test_another_persons_default_is_untouched(db):
+    from django.contrib.auth.models import User
+
+    ada = User.objects.create_user(username="ada", password="x")  # noqa: S106
+    bob = User.objects.create_user(username="bob", password="x")  # noqa: S106
+    block = Block.objects.create(name="b", component_type="table_plinta", owner=ada)
+    hers = SavedView.objects.create(
+        block=block, name="Hers", owner=ada, is_default=True, config={}
+    )
+    SavedView.objects.create(
+        block=block, name="His", owner=bob, is_default=True, config={}
+    )
+
+    hers.refresh_from_db()
+    assert hers.is_default is True
+
+
+def test_two_public_defaults_cannot_both_stand(db):
+    """`owner = None` is one owner, not none."""
+    from django.contrib.auth.models import User
+
+    ada = User.objects.create_user(username="ada", password="x")  # noqa: S106
+    block = Block.objects.create(name="b", component_type="table_plinta", owner=ada)
+    first = SavedView.objects.create(
+        block=block, name="One", owner=None, is_default=True, config={}
+    )
+    SavedView.objects.create(
+        block=block, name="Two", owner=None, is_default=True, config={}
+    )
+
+    first.refresh_from_db()
+    assert first.is_default is False

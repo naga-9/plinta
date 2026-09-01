@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.core.validators import RegexValidator
-from django.db import models
+from django.db import models, transaction
 
 NAME_VALIDATOR = RegexValidator(
     regex=r"^[a-z][a-z0-9_-]*$",
@@ -186,6 +186,28 @@ class SavedView(models.Model):
                 name="unique_public_view_name_per_block",
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        """Save, and leave at most one default per block per owner.
+
+        Cleared rather than refused. "Make this my default" is a request to
+        *move* the default, so a constraint that raised would make the obvious
+        act an error and leave every caller clearing the old one by hand — and
+        one of them would forget, which is a block with two defaults and a
+        first-one-wins that depends on row order.
+
+        Here rather than in the editor because the admin, a seeder and a
+        fixture all write this field, and an invariant enforced in one path is
+        an invariant on one path.
+        """
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            if self.is_default:
+                # `owner=None` is the public default, and there is one of
+                # those too — Django reads a None here as IS NULL.
+                SavedView.objects.filter(
+                    block_id=self.block_id, owner=self.owner, is_default=True
+                ).exclude(pk=self.pk).update(is_default=False)
 
     def __str__(self) -> str:
         return f"{self.block.name}: {self.name}"

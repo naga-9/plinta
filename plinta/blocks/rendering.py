@@ -98,18 +98,25 @@ def chosen_view(
     asked: str | None,
     placement_default: int | None = None,
 ) -> SavedView | None:
-    """The view in force, in order of how deliberate the choice was.
+    """The view in force, in order of how **personal** the mark was.
 
     1. what the viewer asked for, now
-    2. the **placement's** default — this card, on this page
-    3. the viewer's own default for the block
+    2. the viewer's own default for this block
+    3. the **placement's** default — this card, on this page
     4. a public default
     5. none, and the block's own config applies
 
-    Every step is a mark somebody made, and the later ones are older and less
-    specific. Step 2 is why two placements of one block act independently: a
-    view belongs to a block, but which one a card opens on belongs to the
-    card.
+    The ordering principle is v1's and it is worth stating: the more personal
+    mark wins. v1 had steps 1, 2 and 4 and put a person's own default above
+    the public one for exactly this reason.
+
+    Step 3 is v2's, and it is why two placements of one block act
+    independently: a view belongs to a block, so `is_default` follows it onto
+    every page, while which view a *card* opens on belongs to the card. It
+    sits below step 2 because somebody arranging a page is saying where a
+    newcomer starts, not overruling a person who has already chosen — placed
+    above it, "my default" would silently stop being mine on any card an
+    author had configured.
 
     Chosen from ``views`` rather than fetched, so it costs no query and a view
     the viewer may not see is simply not found — including one a placement
@@ -119,15 +126,21 @@ def chosen_view(
         for view in views:
             if str(view.pk) == str(asked):
                 return view
+
+    mine = getattr(user, "pk", None)
+    defaults = [v for v in views if v.is_default]
+
+    own = [v for v in defaults if v.owner_id == mine]
+    if own:
+        return own[0]
+
     if placement_default:
         for view in views:
             if view.pk == placement_default:
                 return view
-    mine = getattr(user, "pk", None)
-    defaults = [v for v in views if v.is_default]
-    own = [v for v in defaults if v.owner_id == mine]
+
     public = [v for v in defaults if v.owner_id is None]
-    return (own or public or [None])[0]
+    return (public or [None])[0]
 
 
 def merge(base: dict[str, Any], delta: dict[str, Any] | None) -> dict[str, Any]:

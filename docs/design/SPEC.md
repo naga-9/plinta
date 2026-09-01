@@ -3007,6 +3007,20 @@ The override is registered on `ComponentConfig`, and `overrides_for` walks the M
 
 **Submitted as a form, answered with a redirect.** Saving changes what the card shows, so the page redraws for the reason §7.12 gives, and the redirect carries *this placement's* view parameter so the other card keeps its own.
 
+**Which default wins, and why in that order.** Five steps, ordered by how *personal* the mark was:
+
+1. what the viewer asked for, now
+2. the viewer's own default for this block — `is_default`, `owner = them`
+3. the **placement's** default — `PageBlock.default_view`
+4. a public default — `is_default`, `owner = None`
+5. none, and the block's own config applies
+
+Steps 1, 2 and 4 are v1's, and v1's own ordering is the principle: it put a person's default above the public one, so the more personal mark wins. Step 3 is v2's, because `is_default` belongs to a **block** and therefore follows it onto every page, while which view a *card* opens on belongs to the card — which is what lets two placements of one block act independently (§8.2).
+
+It sits **below** the viewer's own default deliberately. Somebody arranging a page is saying where a newcomer starts, not overruling a person who has already chosen; placed above, "my default" would silently stop being mine on any card an author had configured, on some pages and not others.
+
+**One default per block per owner, and `owner = None` is an owner.** Enforced on the model, so the admin and a seeder obey it too, and by *clearing* the previous one rather than refusing the new: "make this my default" is a request to move the default, so a constraint that raised would make the obvious act an error and leave every caller clearing the old one by hand. v1 did the same thing at its save path; v2 does it at the model because there are more paths.
+
 **Publishing is `change_savedview_owner`** — one field, `owner = None`, and a field permission is the only thing that can gate one (§6.1b). Without the permission the control is not drawn and a submitted `public` is refused rather than ignored.
 
 ### 12.4 The page composer

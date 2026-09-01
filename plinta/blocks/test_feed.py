@@ -82,3 +82,29 @@ def test_long_text_says_it_wraps():
 
 def test_a_width_travels():
     assert column(Field("title", width=120))["width"] == 120
+
+
+# --- what a column holds ----------------------------------------------------
+
+
+def test_kind_reads_the_model_not_the_sort_hint():
+    """`sorter` says how to compare a column; a kind says what it holds, and
+    an editor needs the second. They part company at exactly the three that
+    need an editor which is not a text box."""
+    from plinta.blocks.feed import kind_of
+    from tests.testapp.models import Book
+
+    assert kind_of(Book, "title", "string") == "string"
+    assert kind_of(Book, "in_print", "string") == "boolean"
+    assert kind_of(Book, "region", "string") == "relation"
+    assert kind_of(Book, "watchers", "string") == "relations"
+    assert kind_of(Book, "id", "string") == "number"
+
+
+def test_a_path_that_is_no_model_field_keeps_the_sort_hint():
+    """An annotation or a property is readable and never editable, so the
+    hint is all it needs."""
+    from plinta.blocks.feed import kind_of
+    from tests.testapp.models import Book
+
+    assert kind_of(Book, "nonesuch", "number") == "number"

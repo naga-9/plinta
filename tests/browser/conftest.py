@@ -49,6 +49,8 @@ def viewer(db):
         "view_book_title",
         "view_book_in_print",
         "change_book_title",
+        "view_book_region",
+        "change_book_region",
     )
     for model in CONFIG_MODELS:
         grant(user, model, f"view_{model._meta.model_name}")
@@ -84,7 +86,12 @@ def screen(viewer):
     DataSourceField.objects.create(
         data_source=source, field_name="in_print", label="In print"
     )
-    sync_model(Book, {"title": True, "in_print": False})
+    # A boolean and a relation, both editable: the two that a text box got
+    # wrong, so the suite has one of each rather than three strings.
+    DataSourceField.objects.create(
+        data_source=source, field_name="region", label="Region", editable=True
+    )
+    sync_model(Book, {"title": True, "in_print": False, "region": True})
 
     section = MenuSection.objects.create(name="Reference")
     group = MenuGroup.objects.create(section=section, name="Catalog")

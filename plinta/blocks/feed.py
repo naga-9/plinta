@@ -13,6 +13,8 @@ around a shape named after one library.
 """
 from __future__ import annotations
 
+import datetime
+import decimal
 from typing import Any
 
 from plinta.components.tabular import filtered, ordered, paged, sort_asked
@@ -32,6 +34,35 @@ NUMERIC = {"number"}
 #: row it is writing. Underscored so it cannot collide with a column: a field
 #: path names a model field, and a leading underscore is not one anybody has.
 RECORD = "_record"
+
+#: And its **unformatted** values, for the columns it may edit.
+#:
+#: A cell is formatted for reading — `No`, `£8.75`, a chip — and none of those
+#: can be edited: an editor seeded with `£8.75` sends `£8.75` back, and one
+#: seeded with `No` sends the word. So an editable column travels twice, once
+#: to read and once to change.
+EDIT = "_edit"
+
+#: What a column *holds*, which is not what `sorter` answers. `sorter` says
+#: how to compare a column; this says what kind of value it is, which is what
+#: decides an editor. They agree for text and numbers and part company at
+#: booleans, dates and relations — the three that need an editor that is not
+#: a text box.
+KINDS = {
+    "AutoField": "number",
+    "BigAutoField": "number",
+    "BigIntegerField": "number",
+    "BooleanField": "boolean",
+    "DateField": "date",
+    "DateTimeField": "datetime",
+    "DecimalField": "number",
+    "FloatField": "number",
+    "IntegerField": "number",
+    "PositiveIntegerField": "number",
+    "PositiveSmallIntegerField": "number",
+    "SmallIntegerField": "number",
+    "TimeField": "time",
+}
 
 
 def requested(query) -> dict[str, Any]:
@@ -66,7 +97,61 @@ def _int(value: Any, fallback: int) -> int:
     return number if number > 0 else fallback
 
 
-def column(field: Any, *, editable: bool = False) -> dict[str, Any]:
+def kind_of(model, path: str, fallback: str) -> str:
+    """What the column at ``path`` holds.
+
+    ``fallback`` is the sort hint, used where the path resolves to no model
+    field — an annotation, a property, a reverse accessor. Those are readable
+    and never editable, so a sort hint is all they need.
+    """
+    from plinta.datasources.services import resolve_path
+
+    field = resolve_path(model, path)
+    if field is None:
+        return fallback
+    if getattr(field, "many_to_one", False) or getattr(field, "one_to_one", False):
+        return "relation"
+    if getattr(field, "many_to_many", False):
+        return "relations"
+    return KINDS.get(type(field).__name__, "string")
+
+
+def raw(row: Any, name: str, kind: str) -> Any:
+    """One value as the field holds it, ready to seed an editor.
+
+    JSON has no date and no Decimal, so both are sent in a form the browser
+    can read back and the server can parse: a relation as the pk it is
+    written by, a date as ISO-8601.
+    """
+    if kind == "relation":
+        return getattr(row, f"{name}_id", None)
+    value = getattr(row, name, None)
+    if isinstance(value, decimal.Decimal):
+        return float(value)
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    return value
+
+
+def row_payload(row: Any, fields: list, user, editable: set[str],
+                kinds: dict[str, str]) -> dict[str, Any]:
+    """One row, as both halves of the conversation send it.
+
+    The feed sends a page of these and a write answers with one, so a widget
+    refreshes an edited row with exactly what it drew it from.
+    """
+    payload: dict[str, Any] = {RECORD: row.pk}
+    payload.update({f.field_name: cell(row, f, user) for f in fields})
+    if editable:
+        payload[EDIT] = {
+            f.field_name: raw(row, f.field_name, kinds.get(f.field_name, "string"))
+            for f in fields
+            if f.field_name in editable
+        }
+    return payload
+
+
+def column(field: Any, *, editable: bool = False, kind: str = "") -> dict[str, Any]:
     """One column, as an adapter needs to draw its header.
 
     `sortable`, `filterable` and `editable` are what let an adapter draw the
@@ -79,7 +164,7 @@ def column(field: Any, *, editable: bool = False) -> dict[str, Any]:
     same card get different answers — so it is passed in rather than read off
     the field.
     """
-    kind = getattr(field, "sorter", "") or "string"
+    kind = kind or getattr(field, "sorter", "") or "string"
     return {
         "name": field.field_name,
         "label": field.label,
@@ -130,6 +215,13 @@ def feed(component, config, user, *, datasource, narrow, asked) -> dict[str, Any
     else:
         editable = set()
 
+    kinds = {
+        f.field_name: kind_of(
+            datasource.model, f.field_name, getattr(f, "sorter", "") or "string"
+        )
+        for f in fields
+    }
+
     # The sort is honoured after the columns are known, because which columns
     # the viewer may see is what decides which may be sorted on. Nothing asked
     # for leaves the block's own ordering in place.
@@ -141,13 +233,15 @@ def feed(component, config, user, *, datasource, narrow, asked) -> dict[str, Any
 
     return {
         "columns": [
-            column(f, editable=f.field_name in editable) for f in fields
+            column(
+                f,
+                editable=f.field_name in editable,
+                kind=kinds.get(f.field_name, ""),
+            )
+            for f in fields
         ],
         "rows": [
-            {
-                RECORD: row.pk,
-                **{f.field_name: cell(row, f, user) for f in fields},
-            }
+            row_payload(row, fields, user, editable, kinds)
             for row in page.object_list
         ],
         "page": {

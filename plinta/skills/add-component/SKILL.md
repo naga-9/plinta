@@ -178,6 +178,21 @@ endpoint.
 arrives with the columns. An editor on a cell the server would refuse is a
 promise the page cannot keep, and the writer finds out only after typing.
 
+**Edit the raw value, not the formatted one.** A cell is formatted for reading
+— `No`, `£8.75`, a chip — and an editor seeded with `£8.75` sends `£8.75`
+back. An editable column carries its unformatted value under `_edit`; seed
+from there and display from the column.
+
+**Pick the editor from `type`, which is what the column holds** — `string`,
+`number`, `boolean`, `date`, `datetime`, `time`, `relation`, `relations`. Not
+from `sorter`, which only says how to compare it: reading the sort hint gives
+every column a text box, and a boolean cell then offers the word `No` back
+and is told it is not a boolean.
+
+**A relation is written by its pk.** Sending a label raises out of the
+assignment, which is a 422 and not a crash — but it is still a write that was
+never going to work, so draw a picker or draw nothing.
+
 **Tell a refusal from a rejection.** `error.refused` is a 403 and will not
 succeed however the value changes; a 422 carries `error.fields` and will.
 Putting a cell back on the second one throws away an edit the writer could

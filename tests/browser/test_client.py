@@ -22,8 +22,25 @@ def rows(page):
     return page.locator(".tabulator-row")
 
 
+def cell_of(page, name, index=0):
+    """One cell by *column* name.
+
+    An editable column is bound to `_edit.<name>` inside the grid, because a
+    formatted value cannot seed the editor that writes it back. Which of the
+    two a column uses is the adapter's business, so a test asks for the
+    column and takes whichever is there.
+    """
+    row = rows(page).nth(index)
+    for selector in (f'[tabulator-field="{name}"]',
+                     f'[tabulator-field="_edit.{name}"]'):
+        found = row.locator(selector)
+        if found.count():
+            return found
+    return row.locator(f'[tabulator-field="{name}"]')
+
+
 def first_title(page):
-    return rows(page).first.locator('[tabulator-field="title"]').inner_text()
+    return cell_of(page, "title").inner_text()
 
 
 # --- mounting ---------------------------------------------------------------
@@ -46,7 +63,7 @@ def test_a_fetching_widget_draws(page, live_server, signed_in, screen):
 def test_the_columns_are_the_ones_the_server_sent(page, live_server, signed_in, screen):
     open_page(page, live_server, screen)
     headers = page.locator(".tabulator-col-title").all_inner_texts()
-    assert [h.strip() for h in headers] == ["Title", "In print"]
+    assert [h.strip() for h in headers] == ["Title", "In print", "Region"]
 
 
 def test_a_component_with_no_adapter_says_so(page, live_server, signed_in, screen):
@@ -82,7 +99,7 @@ def test_paging_asks_the_server(page, live_server, signed_in, screen):
     with page.expect_request(lambda r: "page=2" in r.url):
         page.click(".tabulator-page[data-page='2']")
     page.wait_for_function(
-        "() => document.querySelector('.tabulator-row [tabulator-field=\"title\"]')"
+        "() => document.querySelector('.tabulator-row [tabulator-field$=\"title\"]')"
         ".textContent.trim() !== 'Book 00'",
         timeout=15000,
     )
@@ -97,7 +114,7 @@ def test_sorting_asks_the_server(page, live_server, signed_in, screen):
     with page.expect_request(lambda r: "sort=-title" in r.url):
         page.click(".tabulator-col-title:has-text('Title')")
     page.wait_for_function(
-        "() => document.querySelector('.tabulator-row [tabulator-field=\"title\"]')"
+        "() => document.querySelector('.tabulator-row [tabulator-field$=\"title\"]')"
         ".textContent.trim() === 'Book %02d'" % (BOOKS - 1),
         timeout=15000,
     )
@@ -111,9 +128,13 @@ def test_a_column_filter_narrows_on_the_server(page, live_server, signed_in, scr
     with page.expect_request(lambda r: "f.title=" in r.url):
         page.locator(".tabulator-header-filter input").press_sequentially("Book 1")
     page.wait_for_function(
-        "() => document.querySelectorAll('.tabulator-row').length === 10 "
-        "&& document.querySelector('.tabulator-row [tabulator-field=\"title\"]')"
-        ".textContent.trim() === 'Book 10'",
+        # The cell is briefly absent while the grid redraws, so the guard
+        # is not politeness: without it the predicate throws, and a
+        # throwing predicate fails the wait instead of retrying it.
+        "() => { var c = document.querySelector("
+        "'.tabulator-row [tabulator-field$=\"title\"]');"
+        " return document.querySelectorAll('.tabulator-row').length === 10"
+        " && c && c.textContent.trim() === 'Book 10'; }",
         timeout=15000,
     )
     assert first_title(page) == "Book 10"
@@ -153,7 +174,7 @@ def test_an_edited_cell_reaches_the_database(page, live_server, signed_in, scree
     from tests.testapp.models import Book
 
     open_page(page, live_server, screen)
-    cell = rows(page).first.locator('[tabulator-field="title"]')
+    cell = cell_of(page, "title")
     cell.click()  # one click opens the editor; a second would close it
     editor = cell.locator("input")
     editor.wait_for(timeout=15000)
@@ -174,10 +195,10 @@ def test_a_column_the_viewer_may_not_write_offers_no_editor(
     """
     open_page(page, live_server, screen)
     # The writable one opens, so this is not passing because nothing opens.
-    rows(page).first.locator('[tabulator-field="title"]').click()
-    assert rows(page).first.locator('[tabulator-field="title"] input').count() == 1
+    cell_of(page, "title").click()
+    assert cell_of(page, "title").locator("input").count() == 1
 
-    cell = rows(page).first.locator('[tabulator-field="in_print"]')
+    cell = cell_of(page, "in_print")
     cell.click()
     assert cell.locator("input").count() == 0
 
@@ -188,7 +209,7 @@ def test_a_rejected_edit_goes_back(page, live_server, signed_in, screen):
     from tests.testapp.models import Book
 
     open_page(page, live_server, screen)
-    cell = rows(page).first.locator('[tabulator-field="title"]')
+    cell = cell_of(page, "title")
     cell.click()
     editor = cell.locator("input")
     editor.wait_for(timeout=15000)
@@ -199,3 +220,68 @@ def test_a_rejected_edit_goes_back(page, live_server, signed_in, screen):
     page.wait_for_selector(".pl-tabulator__cell--rejected", timeout=15000)
     assert cell.inner_text().strip() == "Book 00"
     assert not Book.objects.filter(title__startswith="xxx").exists()
+
+
+def test_a_boolean_gets_a_tick_not_a_text_box(page, live_server, signed_in, screen):
+    """What shipped first gave every editable column a text box, so a cell
+    reading `No` offered the word back and was told it was not a boolean.
+
+    `in_print` is not editable here, so this checks the mapping itself: a
+    column whose kind is boolean must not be offered an `input`.
+    """
+    open_page(page, live_server, screen)
+    kinds = page.evaluate("""async () => {
+        var m = document.querySelector('[data-plinta-mount]');
+        var r = await fetch(m.dataset.plintaUrl + '?page=1&size=1',
+                            {credentials: 'same-origin'});
+        var b = await r.json();
+        return b.columns.map(function (c) { return [c.name, c.type]; });
+    }""")
+    assert ["in_print", "boolean"] in kinds
+    assert ["region", "relation"] in kinds
+    assert ["title", "string"] in kinds
+
+
+def test_a_relation_offers_no_editor_until_it_has_a_picker(
+    page, live_server, signed_in, screen
+):
+    """`region` is editable and a relation. A text box would send a label,
+    which raised out of the assignment and answered 500 — so it draws none
+    rather than one that cannot work.
+    """
+    open_page(page, live_server, screen)
+    cell = cell_of(page, "region")
+    cell.click()
+    assert cell.locator("input").count() == 0
+
+
+def test_an_edited_cell_sends_the_value_not_the_formatting(
+    page, live_server, signed_in, screen
+):
+    """The editor is seeded from the unformatted value, so what goes back is
+    what the field holds — not the string the cell was displaying."""
+    from tests.testapp.models import Book
+
+    open_page(page, live_server, screen)
+    cell = cell_of(page, "title")
+    cell.click()
+    editor = cell.locator("input")
+    editor.wait_for(timeout=15000)
+    assert editor.input_value() == "Book 00"
+    editor.fill("Edited")
+    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
+        editor.press("Enter")
+    assert answer.value.json()["row"]["_edit"]["title"] == "Edited"
+    assert Book.objects.filter(title="Edited").exists()
+
+
+def test_sorting_an_editable_column_still_names_it(
+    page, live_server, signed_in, screen
+):
+    """An editable column is bound to `_edit.<name>` inside the grid, and the
+    server knows only `<name>` — so a sort naming the grid's spelling would be
+    dropped without a word."""
+    open_page(page, live_server, screen)
+    with page.expect_request(lambda r: "sort=title" in r.url) as asked:
+        page.click(".tabulator-col-title:has-text('Title')")
+    assert "_edit" not in asked.value.url

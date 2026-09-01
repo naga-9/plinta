@@ -1713,7 +1713,8 @@ The wire format is **vendor-neutral**. v1's endpoint returned `data` and `last_p
 ```json
 {
   "columns": [{"name", "label", "type", "align", "sortable", "filterable", "filter", "editable", "wrap", "width"}],
-  "rows":    [{"_record": 42, "<column name>": "<formatted value, or markup>"}],
+  "rows":    [{"_record": 42, "<column name>": "<formatted value, or markup>",
+               "_edit": {"<editable column>": "<the value the field holds>"}}],
   "page":    {"number", "count", "total", "size"},
   "applied": {"sort": ["-title"], "filters": {"title": "ariel"}}
 }
@@ -1728,6 +1729,10 @@ The wire format is **vendor-neutral**. v1's endpoint returned `data` and `last_p
 **A cell is markup where the column declares a field renderer** (§7.8) — a chip, a link, a progress bar — and text otherwise. An adapter that draws HTML gets the same cell a server-rendered table would.
 
 **A row carries its own identity, under `_record`.** A write names the row it is writing, so a feed whose rows had no identity could be read from and never written to. Underscored because it shares the namespace with the columns, and a field path names a model field.
+
+**An editable column travels twice: formatted to read, raw to change.** A cell is formatted for reading — `No`, `£8.75`, a chip — and none of those can be edited. An editor seeded with `£8.75` sends `£8.75` back and one seeded with `No` sends the word, which is what the table did before `_edit` existed. Only editable columns carry it, and only relations and dates are converted: a relation as the pk it is written by, a date as ISO-8601, because JSON has neither.
+
+**A column's `type` is what it holds, not how it sorts.** `sorter` answers "how do I compare this"; `type` answers "what kind of value is this", read from the model field. They agree for text and numbers and part company at booleans, dates and relations — which are exactly the three needing an editor that is not a text box. Reading the sort hint instead is why every editable column got one.
 
 **`editable` is per viewer, not per column.** Two people opening the same card get different answers, so it is computed from the viewer's change permissions rather than read off the field — and only when the component declares it writes, since working it out costs a permission read a chart would pay for nothing.
 
@@ -1780,6 +1785,10 @@ They are not `TableComponent` methods either. A table drawn on the server and th
 | `filterable` vs `header_filter` | **the server's gate** vs **the column's control** — two decisions, two fields |
 | Row identity | **`_record`** in the row, so a feed can be written back to; a field path never starts with an underscore |
 | `editable` on a column | **per viewer**, computed from change permissions — and only when the component declares `writes`, so a chart does not pay a permission read |
+| A column's `type` | **what it holds**, from the model field — not `sorter`, which says how to compare it. An editor is chosen from the first and cannot be chosen from the second |
+| An editable column's value | sent **twice**: formatted under the column name, raw under `_edit`. A formatted cell cannot seed the editor that writes it back |
+| How a relation is written | **by pk**, resolved server-side so a pk naming nothing is a rejection with a field on it, never an integrity error |
+| A value a field cannot hold | **422 naming the field, never a 500** — assigning a relation a label raises out of `setattr` before validation runs, and that has to be caught |
 
 
 ## 8. Layer 7 — blocks
@@ -2103,7 +2112,7 @@ A per-component write endpoint would make three of those into three shapes for o
 
 **A denied field raises; an invalid one answers.** `WriteDenied` is a 403 — refusing a write is not the same answer as failing to validate one. `write_or_errors` exists for the second and returns a field-keyed body.
 
-**The response carries the saved row**, because a write can change a column the database derived, and the widget that sent it has to redraw something.
+**The response carries the saved row, in the same shape a feed row has** — `_record`, the formatted columns, and `_edit`. A write can change a column the database derived, and a widget refreshing an edited row should be able to use exactly what it drew the row from.
 
 **The client half is symmetric with `load`.** The client owns the URL, the CSRF token, and the error path; the adapter owns *when* — drag end, cell blur, form submit. `save(record, values)` beside `load(params)`.
 

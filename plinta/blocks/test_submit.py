@@ -127,7 +127,11 @@ def test_the_saved_row_comes_back(block, source, writer, book):
         block, writer, datasource=source, record=book.pk, values={"title": "Crow"}
     )
     assert out["record"] == book.pk
-    assert out["values"]["title"] == "Crow"
+    assert out["row"]["title"] == "Crow"
+    assert out["row"]["_record"] == book.pk
+    # And the unformatted value beside it, because a formatted cell cannot
+    # seed the editor that writes it back.
+    assert out["row"]["_edit"]["title"] == "Crow"
 
 
 def test_a_column_the_viewer_may_not_see_is_not_returned(block, source, book):
@@ -137,8 +141,8 @@ def test_a_column_the_viewer_may_not_see_is_not_returned(block, source, book):
     out = submit(
         block, reader, datasource=source, record=book.pk, values={"title": "Crow"}
     )
-    assert "title" in out["values"]
-    assert "in_print" not in out["values"]
+    assert "title" in out["row"]
+    assert "in_print" not in out["row"]
 
 
 def test_an_invalid_value_answers_rather_than_raising(block, source, writer, book):
@@ -244,3 +248,74 @@ def test_a_body_names_its_record():
 def test_a_body_with_no_values_writes_nothing():
     assert submitted({"record": "7"}) == ("7", {})
     assert submitted({"record": "7", "values": "nonsense"}) == ("7", {})
+
+
+# --- values that are not text -----------------------------------------------
+#
+# The table shipped able to edit text and nothing else: every editable column
+# got a text box, a boolean answered "'Yes' must be either True or False", and
+# a relation raised ValueError out of setattr and returned a 500. These are
+# the three.
+
+
+@pytest.fixture
+def with_region(source, writer):
+    DataSourceField.objects.create(
+        data_source=source, field_name="region", label="Region", editable=True
+    )
+    sync_model(
+        Book, {"title": True, "in_print": True, "region__name": False, "region": True}
+    )
+    grant(writer, Book, "view_book_region", "change_book_region")
+    return source
+
+
+def test_a_relation_is_written_by_pk(block, with_region, writer, book):
+    south = Region.objects.create(name="South")
+    out = submit(
+        block, writer, datasource=with_region, record=book.pk,
+        values={"region": south.pk},
+    )
+    book.refresh_from_db()
+    assert out["errors"] is None
+    assert book.region == south
+
+
+def test_a_relation_naming_no_row_is_a_rejection(block, with_region, writer, book):
+    out = submit(
+        block, with_region and writer, datasource=with_region, record=book.pk,
+        values={"region": 9999},
+    )
+    assert out["errors"]["region"]
+    book.refresh_from_db()
+    assert book.region.name == "North"
+
+
+def test_a_relation_given_a_label_is_a_rejection_not_a_crash(
+    block, with_region, writer, book
+):
+    """`setattr` raises ValueError before any validation runs, so without a
+    guard a viewer typing into the wrong box gets a 500."""
+    out = submit(
+        block, writer, datasource=with_region, record=book.pk,
+        values={"region": "South"},
+    )
+    assert out["errors"]["region"]
+
+
+def test_a_boolean_is_written_as_one(block, source, writer, book):
+    out = submit(
+        block, writer, datasource=source, record=book.pk, values={"in_print": False}
+    )
+    assert out["errors"] is None
+    # And the raw value comes back, which is what seeds the editor next time —
+    # not the "No" the cell displays.
+    assert out["row"]["_edit"]["in_print"] is False
+
+
+def test_a_relations_raw_value_is_its_pk(block, with_region, writer, book):
+    out = submit(
+        block, writer, datasource=with_region, record=book.pk,
+        values={"region": book.region_id},
+    )
+    assert out["row"]["_edit"]["region"] == book.region_id

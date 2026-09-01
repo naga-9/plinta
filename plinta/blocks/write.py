@@ -124,7 +124,15 @@ def write(
     before = _before(instance, list(values), m2m)
 
     for name, value in plain.items():
-        setattr(instance, name, value)
+        try:
+            setattr(instance, name, value)
+        except (ValueError, TypeError) as exc:
+            # Assigning a relation something that is not one raises here,
+            # before any validation runs — so without this a viewer typing
+            # into the wrong box gets a 500 rather than being told which
+            # field they got wrong. A value the field cannot hold is a
+            # rejection like any other.
+            raise ValidationError({name: [str(exc)]}) from exc
     # Through the model layer, never around it: full_clean runs the field
     # validators, the model's own clean, and its constraints.
     instance.full_clean(exclude=[f.name for f in model._meta.many_to_many])

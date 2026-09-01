@@ -17,14 +17,40 @@
         return;
     }
 
+    //: The editor each kind of value gets. A text box for everything was
+    //: what shipped first: a boolean cell reading "No" offered the word back
+    //: and was told it was not a boolean, and a relation sent its label and
+    //: raised out of the assignment. A relation has no entry yet — a picker
+    //: needs the options, which is still to come — so it draws none rather
+    //: than one that cannot work.
+    var EDITORS = {
+        string: 'input',
+        number: 'number',
+        boolean: 'tickCross',
+        date: 'date',
+        datetime: 'datetime',
+        time: 'time'
+    };
+
     /** A plinta column as Tabulator wants it. */
     function toColumn(column, config) {
+        var editor = column.editable ? EDITORS[column.type] : false;
         return {
-            field: column.name,
+            // An editable column is read from `_edit`, which carries the
+            // value the field holds. The cell shows the formatted one, and a
+            // formatted value cannot be edited: an editor seeded with "£8.75"
+            // sends "£8.75" back.
+            field: editor ? '_edit.' + column.name : column.name,
             title: column.label,
             // Values arrive formatted, and a column declaring a field renderer
-            // sends markup — so the cell is HTML either way.
-            formatter: 'html',
+            // sends markup — so the cell is HTML either way. An editable
+            // column reads its display value back off the row, since its own
+            // field now points at the unformatted one.
+            formatter: editor
+                ? function (cell) {
+                      return cell.getRow().getData()[column.name];
+                  }
+                : 'html',
             sorter: column.type === 'number' ? 'number' : 'string',
             headerSort: column.sortable !== false,
             // The block says whether headers filter at all; the column says
@@ -37,17 +63,28 @@
             resizable: config.resizable !== false,
             // An editor only where the server said this viewer may write, so
             // a cell never offers an edit the write would refuse.
-            editor: column.editable ? 'input' : false,
+            editor: editor || false,
             width: column.width || undefined,
             hozAlign: column.align,
             variableHeight: !!column.wrap
         };
     }
 
+    /**
+     * The column's own name, whatever the grid reads it from.
+     *
+     * An editable column is bound to `_edit.<name>`, and the server knows
+     * only `<name>` — so sorting or filtering one would name a column the
+     * server has never heard of and be dropped without a word.
+     */
+    function plain(field) {
+        return String(field || '').replace(/^_edit\./, '');
+    }
+
     /** Tabulator's sort array, in the client's spelling. */
     function toSort(sorters) {
         return (sorters || []).map(function (s) {
-            return (s.dir === 'desc' ? '-' : '') + s.field;
+            return (s.dir === 'desc' ? '-' : '') + plain(s.field);
         });
     }
 
@@ -55,7 +92,7 @@
     function toFilters(filters) {
         var out = {};
         (filters || []).forEach(function (f) {
-            out[f.field] = f.value;
+            out[plain(f.field)] = f.value;
         });
         return out;
     }
@@ -143,12 +180,14 @@
                 // any notion of a cell.
                 table.on('cellEdited', function (cell) {
                     var values = {};
-                    values[cell.getField()] = cell.getValue();
+                    // `_edit.title` is where the grid keeps it; `title` is
+                    // what the server calls it.
+                    values[plain(cell.getField())] = cell.getValue();
                     ctx.save(cell.getRow().getData()._record, values)
                         .then(function (body) {
                             // The saved row, because the write may have moved
                             // a column the database derived.
-                            cell.getRow().update(body.values);
+                            cell.getRow().update(body.row);
                             cell.getElement().classList.remove(
                                 'pl-tabulator__cell--rejected'
                             );

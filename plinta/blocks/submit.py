@@ -55,6 +55,49 @@ def writable(datasource, user) -> dict[str, Any]:
     }
 
 
+def coerced(datasource, values: dict[str, Any]) -> dict[str, Any]:
+    """``values`` as the model wants them.
+
+    One conversion, and it is the relations: a write names a related row by
+    its **pk**, because that is what a picker has and what survives JSON. The
+    row is fetched here so a pk that names nothing is a rejection with a
+    field on it rather than an integrity error from the database.
+
+    Which related rows may be chosen is not settled here — a picker offering
+    only permitted options, and this validating against the same list, is
+    `editor_queryset_filter`'s job and is still to come.
+
+    Raises:
+        ValidationError: a relation value that names no row.
+    """
+    from django.core.exceptions import ValidationError
+
+    from plinta.datasources.services import resolve_path
+
+    model = datasource.model
+    out: dict[str, Any] = {}
+    for name, value in values.items():
+        field = resolve_path(model, name)
+        relation = field is not None and (
+            getattr(field, "many_to_one", False)
+            or getattr(field, "one_to_one", False)
+        )
+        if not relation or value in (None, ""):
+            out[name] = value
+            continue
+        try:
+            row = field.related_model._default_manager.filter(pk=value).first()
+        except (ValueError, TypeError):
+            # A pk the key cannot even be compared against — a label typed
+            # into a box that wanted an option. The lookup raises rather than
+            # matching nothing, so it is caught here and not at the database.
+            row = None
+        if row is None:
+            raise ValidationError({name: ["Select a valid option."]})
+        out[name] = row
+    return out
+
+
 def submit(
     block,
     user,
@@ -66,15 +109,17 @@ def submit(
 ) -> dict[str, Any]:
     """Apply ``values`` to ``record``, or create a row when there is none.
 
-    Returns ``{"record", "values", "errors"}``. ``values`` is the saved row
-    read back, because a write can change a column the database derived and
-    the widget that sent it has to redraw something.
+    Returns ``{"record", "row", "errors"}``. ``row`` is the saved record read
+    back in the same shape a feed row has, because a write can change a column
+    the database derived and the widget that sent it has to redraw something.
 
     Raises:
         WriteDenied: the column is not one this viewer may write, or the row
             is not one they may reach. A 403 at the endpoint.
     """
-    from plinta.blocks.feed import cell
+    from django.core.exceptions import ValidationError
+
+    from plinta.blocks.feed import kind_of, row_payload
     from plinta.datasources.services import get_available_fields, get_queryset
 
     allowed = writable(datasource, user)
@@ -101,15 +146,28 @@ def submit(
         if instance is None:
             raise WriteDenied("no such record here")
 
+    try:
+        prepared = coerced(datasource, values)
+    except ValidationError as exc:
+        return {"record": record, "row": None, "errors": exc.message_dict}
+
     saved, errors = write_or_errors(
-        instance, values, user, source=f"block:{block.name}"
+        instance, prepared, user, source=f"block:{block.name}"
     )
     if errors is not None:
-        return {"record": record, "values": {}, "errors": errors}
+        return {"record": record, "row": None, "errors": errors}
 
     fields = get_available_fields(datasource, user)
+    kinds = {
+        f.field_name: kind_of(
+            datasource.model, f.field_name, getattr(f, "sorter", "") or "string"
+        )
+        for f in fields
+    }
     return {
         "record": saved.pk,
-        "values": {f.field_name: cell(saved, f, user) for f in fields},
+        # The same shape the feed sends, so a widget refreshes an edited row
+        # with exactly what it drew it from.
+        "row": row_payload(saved, fields, user, set(allowed), kinds),
         "errors": None,
     }

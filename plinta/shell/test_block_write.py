@@ -113,7 +113,7 @@ def test_a_write_saves_and_answers_with_the_row(client, screen):
     assert response.status_code == 200
     body = response.json()
     assert body["errors"] is None
-    assert body["values"]["title"] == "Crow"
+    assert body["row"]["title"] == "Crow"
     book.refresh_from_db()
     assert book.title == "Crow"
 

@@ -1699,7 +1699,40 @@ def label_chips(value, *, obj, field, user) -> str: ...
 
 `expand_for_table` and `expand_color` are dropped with `expand_columns`.
 
-### 7.9 Decisions
+### 7.9 The feed: what a fetching widget receives
+
+The wire format is **vendor-neutral**. v1's endpoint returned `data` and `last_page`, which are Tabulator's own parameter names, so every other adapter worked around a shape named after one library.
+
+```json
+{
+  "columns": [{"name", "label", "type", "align", "sortable", "filterable", "filter", "wrap", "width"}],
+  "rows":    [{"<column name>": "<formatted value, or markup>"}],
+  "page":    {"number", "count", "total", "size"},
+  "applied": {"sort": ["-title"], "filters": {"title": "ariel"}}
+}
+```
+
+**A request names its column filters `f.<column>`.** Namespaced so they cannot collide with `page`, `size`, `sort`, `tab` or `view`, or be mistaken for the page's own filter bar.
+
+**Columns travel on every response, not just the first.** Which columns a viewer gets depends on the viewer — a saved view is a per-viewer delta — so a grid holding its first set would show stale headers after a view change.
+
+**`applied` reports what survived, never what was asked.** A sort or filter naming a column the viewer may not see is dropped silently; a client drawing its own request would otherwise show an arrow on a column that is not sorted.
+
+**A cell is markup where the column declares a field renderer** (§7.8) — a chip, a link, a progress bar — and text otherwise. An adapter that draws HTML gets the same cell a server-rendered table would.
+
+**Two flags, two jobs.** `filterable` is the server's gate: whether this column may be filtered at all. `filter` is the column's declared control (`DataSourceField.header_filter`) — which box the header draws, when the block draws boxes at all. A control on a column the server will not filter is a control that does nothing.
+
+### 7.10 Ordering, paging and column filtering are shared, not a component method
+
+They live in `components.tabular` as free functions, not on the `Component` contract: a chart and a KPI have neither, and a contract every component must answer but few need is a contract that lies.
+
+They are not `TableComponent` methods either. A table drawn on the server and the same table drawn by a vendor both order and page, and the two must agree about what page two holds — a row appearing on both pages, or on neither, is the failure. One implementation, two callers, is how they cannot drift.
+
+**The lookup is chosen from the column's type, never sent by the client.** v1 took it from the query string, and validated only the *head* of the traversal — so `author__user__password__startswith` was a search box, and `__regex` was a denial of service.
+
+**A column filter passes two gates:** it must name a column **the viewer was given** (the same list the columns were drawn from), and that column must be `filterable`. A value the column cannot hold narrows to nothing rather than raising — it came from a text box, so a bad value is a normal event, not a 500.
+
+### 7.11 Decisions
 
 | Item | Decision |
 |---|---|
@@ -1724,6 +1757,14 @@ def label_chips(value, *, obj, field, user) -> str: ...
 | `core.js` | **split along the package layout**; two contrib concerns move out |
 | JS file placement | mirrors the package layout — adapters with components, contrib JS with its app |
 | Import-boundary test | **extended to JS** |
+| Widget wire format | **vendor-neutral** — `columns` / `rows` / `page` / `applied`, never one library's parameter names |
+| Column filter parameters | **`f.<column>`** — namespaced, so they cannot collide with the reserved names |
+| Columns on every response | **yes** — a saved view changes them per viewer, so a cached set goes stale |
+| What the response echoes | **`applied`**, what survived the gates — never what was asked |
+| Ordering, paging, column filtering | **`components.tabular`**, free functions — shared by the server-rendered table and the feed, so the two cannot disagree about page two |
+| The filter lookup | **chosen from the column's type**; v1 took it from the query string and validated only the head of the traversal |
+| A value a column cannot hold | **narrows to nothing** — it came from a text box, so it is not a 500 |
+| `filterable` vs `header_filter` | **the server's gate** vs **the column's control** — two decisions, two fields |
 
 
 ## 8. Layer 7 — blocks

@@ -388,6 +388,10 @@ def render_page(
                 & Q(**resolve_filters(placement.context_filter, user, record)),
                 query=query,
                 param_prefix=prefix,
+                # Only the page knows which placement this is, and the feed is
+                # placement-scoped — so the URL is handed to the component
+                # rather than built by it.
+                data_url=f"/pages/{page.pk}/blocks/{placement.pk}/data/",
                 page=_page_number(query, prefix),
                 sort=_sort_param(query, prefix),
             )

@@ -95,6 +95,73 @@ response instead of eight round trips.
 A block may override your default, for the genuine exception: a five-row related
 table on a detail page, or a chart with 50,000 points.
 
+## If it fetches, write an adapter
+
+Core ships **one client** for every fetching component. It finds the mount,
+reads its payload, builds the request, fetches, and owns loading and error.
+Your adapter turns columns and rows into a widget and decides *when* to ask.
+Do not write a `fetch` call.
+
+Render a mount, and the payload beside it:
+
+```python
+return format_html(
+    '<div class="pl-heatmap" data-plinta-mount="heatmap_d3" '
+    'data-plinta-url="{}"><script type="application/json">{}</script></div>',
+    context.get("data_url", ""),
+    mark_safe(escaped_json({"config": config.model_dump()})),
+)
+```
+
+`data_url` arrives in the render context. Escape `<`, `>` and `&` in the JSON:
+a `</script>` inside a string closes the tag it sits in.
+
+Then register the glue, in a script your package ships:
+
+```js
+window.plinta.registerAdapter('heatmap_d3', {
+    mount: function (el, ctx) {
+        // ctx.config, ctx.columns, ctx.rows, ctx.page, ctx.load
+        ctx.load({page: 1, size: 50, sort: ['-title'], filters: {region: 'North'}})
+           .then(function (body) { draw(el, body.rows); });
+    }
+});
+```
+
+`load(params)` is the hinge. **The client owns the URL, the parameter names and
+the errors; you own the timing.** A grid calls it on every page and sort change;
+a chart calls it once and never again.
+
+Order the assets so the adapter loads last — after the vendor, and after core's
+client, since it registers with one and calls into the other:
+
+```python
+register_script("plinta/heatmap/d3.min.js", order=300)
+register_script("plinta/heatmap/adapter.js", order=310)
+```
+
+**Support both modes if you can.** `supported_modes = {Mode.INLINE, Mode.FETCH}`
+and let the adapter read which it was given: rows in the payload mean it pages
+what it has, their absence means it asks.
+
+## If it draws rows, use `components.tabular`
+
+Ordering, paging and column filtering are free functions there, shared with the
+server-rendered table so the two cannot disagree about what page two holds.
+Subclass `TabularConfig` for `page_size` and `sort`:
+
+```python
+from plinta.components.tabular import TabularConfig, filtered, ordered, paged
+
+class HeatmapConfig(TabularConfig):
+    buckets: int = 5
+```
+
+**Never take a lookup or a field path from the query string.** `filtered()`
+gates both — a filter may only name a column the viewer was given, and only one
+the author marked `filterable`. v1 validated the head of the traversal alone,
+which made `owner__password__startswith` a search box.
+
 ## Escape your output
 
 Your HTML is inserted as markup. Use a template, or `format_html` — never an
@@ -221,6 +288,12 @@ raises rather than replacing, so two packages cannot silently fight over
 **Ship everything with the package** — the template, the assets, the front-end
 adapter and its vendor library. A component whose JavaScript lives in core is
 not a plugin.
+
+**That includes a stylesheet for your own classes.** A `pl-` class with no rule
+renders unstyled and nothing fails, so the audit checks every class the package
+emits against core's stylesheet *plus your package's own* — never a sibling's,
+since the two install independently. Ship a `.css` beside your assets and
+register it; a `.min.css` is read as a vendor's and skipped.
 
 **Do not import another component.** Components do not compose sideways; a page
 places two blocks.

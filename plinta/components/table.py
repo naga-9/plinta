@@ -8,25 +8,20 @@ than asserted.
 """
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 from urllib.parse import urlencode
 
-from django.core.paginator import Page, Paginator
-from pydantic import Field
+from django.core.paginator import Page
 
-from plinta.components.base import Component, ComponentConfig, Mode, Padding
+from plinta.components.base import Component, Mode, Padding
 from plinta.components.registry import register_component
+from plinta.components.tabular import Sort, TabularConfig, ordered, paged, sort_asked
 from plinta.renderers.registry import get as get_renderer
 
-
-class Sort(ComponentConfig):
-    """One ordering, applied in the order the list gives them."""
-
-    field: str
-    direction: Literal["asc", "desc"] = "asc"
+__all__ = ["Sort", "TableComponent", "TableConfig"]
 
 
-class TableConfig(ComponentConfig):
+class TableConfig(TabularConfig):
     """A table's stored configuration.
 
     Which columns appear is **not** here: that comes from the DataSource's
@@ -39,8 +34,8 @@ class TableConfig(ComponentConfig):
     # carries one and `block.html` draws it in the card header. A component
     # drawing its own would put two inside one card, free to disagree — and
     # this one was declared and read by nothing.
-    page_size: int = Field(default=50, gt=0)
-    sort: list[Sort] = Field(default_factory=list)
+    #
+    # `page_size` and `sort` come from `TabularConfig`.
     #: CSS length, passed through to the widget. Empty lets it decide.
     height: str = ""
     #: A column whose value links to the row's detail page.
@@ -95,48 +90,23 @@ class TableComponent(Component):
         return self.ordered(rows, config), fields
 
     def ordered(self, rows, config: TableConfig):
-        """``rows`` in the order the config asks for, and never in none.
-
-        Paging an unordered queryset is not merely untidy: the database may
-        return rows in a different order for each LIMIT/OFFSET, so a row can
-        appear on two pages and another on none.
-        """
-        ordering = [
-            f"-{s.field}" if s.direction == "desc" else s.field for s in config.sort
-        ]
-        if ordering:
-            return rows.order_by(*ordering)
-        return rows if rows.ordered else rows.order_by("pk")
+        """``rows`` in the order the config asks for."""
+        return ordered(rows, config.sort)
 
     def page(self, rows, config: TableConfig, number: int = 1) -> Page:
-        """One page of ``rows``, and what a pager needs to draw itself.
-
-        Django's `Paginator`, so an out-of-range or unparseable page number
-        lands on the last page rather than raising on a link someone typed.
-        """
-        paginator = Paginator(rows, config.page_size)
-        return paginator.get_page(number)
+        """One page of ``rows``, and what a pager needs to draw itself."""
+        return paged(rows, config.page_size, number)
 
     def requested_sort(self, config: TableConfig, context: dict) -> TableConfig:
         """The config, with a sort the viewer asked for replacing the block's.
 
-        One column, because a heading is one click. A `-` prefix means
-        descending, which is Django's own spelling and so is what a reader
-        already knows.
+        One column, because a heading is one click — the widget that fetches
+        can send several, and `sort_asked` takes as many as it is given.
         """
-        asked = (context.get("sort") or "").strip()
-        if not asked:
+        sort = sort_asked([context.get("sort") or ""], context.get("fields"))
+        if not sort:
             return config
-        field = asked.lstrip("-")
-        # A column the viewer may not see is not a column they may sort by:
-        # ordering on it would leak its values through the row order.
-        permitted = {f.field_name for f in context.get("fields") or []}
-        if permitted and field not in permitted:
-            return config
-        direction = "desc" if asked.startswith("-") else "asc"
-        return config.model_copy(
-            update={"sort": [Sort(field=field, direction=direction)]}
-        )
+        return config.model_copy(update={"sort": sort[:1]})
 
     def navigation(self, config: TableConfig, page, context: dict) -> dict:
         """The links this table is navigated by, built from the current query.

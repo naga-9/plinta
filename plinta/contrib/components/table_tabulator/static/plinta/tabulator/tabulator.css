@@ -1,0 +1,13 @@
+/* The mount, not the grid.
+ *
+ * Tabulator draws its own rows, borders and cells, so this styles only the
+ * element it is handed: somewhere to put a grid that has not loaded yet, and
+ * the error the client shows in its place when one does not.
+ */
+.pl-tabulator {
+    min-height: 8rem;
+}
+
+.pl-tabulator > .pl-alert {
+    margin: var(--pl-space-3, 0.75rem);
+}

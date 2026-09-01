@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from plinta.components.tabular import filtered, ordered, paged, sort_asked
+
 #: What a request may ask for beyond the column filters.
 RESERVED = {"page", "size", "sort", "tab", "view"}
 
@@ -75,6 +77,9 @@ def column(field: Any) -> dict[str, Any]:
         "align": "right" if kind in NUMERIC else "left",
         "sortable": True,
         "filterable": bool(getattr(field, "filterable", False)),
+        # Which control the header draws, when the widget draws one at all.
+        # Blank means the column offers no box of its own.
+        "filter": getattr(field, "header_filter", "") or "",
         "wrap": getattr(field, "format", "") == "textarea",
         "width": getattr(field, "width", None),
     }
@@ -96,24 +101,22 @@ def cell(row: Any, field: Any, user) -> Any:
 def feed(component, config, user, *, datasource, narrow, asked) -> dict[str, Any]:
     """Rows, columns and paging for one block, as the client wants them.
 
-    Ordering and paging are the component's own — the same methods a
+    Ordering and paging come from `components.tabular`, which is also what a
     server-rendered table uses — so a fetching table and an inline one cannot
-    disagree about what page two is.
+    disagree about what page two holds.
     """
     rows, fields = component.get_data(
         config, user, datasource=datasource, narrow=narrow
     )
 
     # The sort is honoured after the columns are known, because which columns
-    # the viewer may see is what decides which may be sorted on.
-    config = component.requested_sort(
-        config, {"sort": ",".join(asked["sort"]), "fields": fields}
-    )
-    rows = component.ordered(rows, config)
+    # the viewer may see is what decides which may be sorted on. Nothing asked
+    # for leaves the block's own ordering in place.
+    sort = sort_asked(asked["sort"], fields) or list(getattr(config, "sort", []))
+    rows = ordered(filtered(rows, asked["filters"], fields), sort)
 
     size = asked["size"] or getattr(config, "page_size", 50)
-    page = component.page(rows, config.model_copy(update={"page_size": size}),
-                          asked["page"])
+    page = paged(rows, size, asked["page"])
 
     return {
         "columns": [column(f) for f in fields],
@@ -132,9 +135,12 @@ def feed(component, config, user, *, datasource, narrow, asked) -> dict[str, Any
         # request would show an arrow on a column that is not sorted.
         "applied": {
             "sort": [
-                f"-{s.field}" if s.direction == "desc" else s.field
-                for s in config.sort
+                f"-{s.field}" if s.direction == "desc" else s.field for s in sort
             ],
-            "filters": asked["filters"],
+            "filters": {
+                name: value
+                for name, value in asked["filters"].items()
+                if name in {f.field_name for f in fields if f.filterable}
+            },
         },
     }

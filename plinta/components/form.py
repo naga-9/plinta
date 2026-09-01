@@ -77,29 +77,57 @@ class FormComponent(Component):
     #: Room to read, unlike a table whose cells carry their own padding.
     padding = Padding.DEFAULT
 
-    def fields_for(self, config: FormConfig, user, *, datasource) -> list:
-        """The columns this viewer may write, in the order the config asks.
+    def fields_for(self, config: FormConfig, user, *, datasource) -> list[tuple]:
+        """The columns this viewer may **see**, and which of them they may
+        change.
 
-        Writable and not merely visible: a form drawing a field the save would
-        refuse is a promise it cannot keep, and the writer only finds out
-        after typing.
+        Both, because a form is how a record is read as well as written. Drawn
+        from the writable ones alone, a viewer holding `view` and not `change`
+        gets an empty card and no way to tell it apart from a record with
+        nothing in it.
+
+        Editable and merely visible are then different things in the markup:
+        a control the save would refuse is a promise the page cannot keep, so
+        a field they may not change is shown and not offered.
         """
-        from plinta.datasources.services import writable_fields
+        from plinta.datasources.services import get_available_fields, writable_fields
 
-        allowed = writable_fields(datasource, user)
-        chosen = [name for name in (config.columns or []) if name in allowed]
-        return [allowed[name] for name in (chosen or sorted(allowed))]
+        visible = {f.field_name: f for f in get_available_fields(datasource, user)}
+        writable = writable_fields(datasource, user)
+        chosen = [name for name in (config.columns or []) if name in visible]
+        return [
+            (visible[name], name in writable)
+            for name in (chosen or list(visible))
+        ]
 
-    def control(self, field: Any, record: Any, kind: str, options: list) -> dict:
-        """One field, as the template draws it."""
+    def control(
+        self,
+        field: Any,
+        record: Any,
+        kind: str,
+        options: list,
+        *,
+        editable: bool = True,
+        user=None,
+    ) -> dict:
+        """One field, as the template draws it.
+
+        A read-only field carries its **formatted** value — `Yes`, `£8.75`,
+        `bob, cal` — because nothing is going to edit it and that is what a
+        person reads. An editable one carries the raw value, which is what an
+        editor has to be seeded with.
+        """
+        from plinta.renderers.html import cell
         from plinta.renderers.values import raw
 
         return {
             "name": field.field_name,
             "label": field.label or field.field_name,
             "kind": kind,
+            "editable": editable,
             "control": CONTROLS.get(kind, "text"),
             "value": raw(record, field.field_name, kind) if record else None,
+            "display": cell(record, field, user) if record else "",
             "options": options,
             "help": getattr(field, "help_text", "") or "",
         }
@@ -123,11 +151,24 @@ class FormComponent(Component):
             record = None
 
         controls = []
-        for field in self.fields_for(config, user, datasource=datasource):
+        for field, editable in self.fields_for(config, user, datasource=datasource):
             kind = kind_of(model, field.field_name, "string")
-            drawn = picker_for(field, model, user) if kind.startswith("relation") else {}
+            # The choices cost a query, so they are only fetched for a control
+            # that offers a choice.
+            drawn = (
+                picker_for(field, model, user)
+                if editable and kind.startswith("relation")
+                else {}
+            )
             controls.append(
-                self.control(field, record, kind, drawn.get("options") or [])
+                self.control(
+                    field,
+                    record,
+                    kind,
+                    drawn.get("options") or [],
+                    editable=editable,
+                    user=user,
+                )
             )
 
         from plinta.components.layouts import get as layout_for
@@ -143,6 +184,9 @@ class FormComponent(Component):
                 # a form the same way it renames everything else.
                 "cls": classes(),
                 "controls": controls,
+                # No editable field means nothing to submit, and a Save button
+                # that cannot save is worse than none.
+                "writable": any(c["editable"] for c in controls),
                 "record": getattr(record, "pk", None),
                 "config": config,
                 "write_url": context.get("write_url", ""),

@@ -59,10 +59,14 @@ yourself.
 
 ## What to expect
 
-**A control may draw nothing.** Which fields a form has depends on the viewer:
-a column they hold no change permission for is not drawn, and `{% control %}`
-renders empty rather than failing. Write the layout for the fullest case and
-let it thin out.
+**A control may be read-only, or draw nothing at all.** Which fields a form has
+depends on the viewer. A column they may see but not change is *shown* — the
+formatted value where the input would be — and one they may not see is not
+drawn at all, with `{% control %}` rendering empty rather than failing. Write
+the layout for the fullest case and let it thin out.
+
+That is also all there is to "view mode": the same block and the same layout,
+read by somebody holding `view` and not `change`.
 
 **A field you never place is simply absent** from the form. That is a choice
 your layout makes, so make it on purpose.

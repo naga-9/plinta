@@ -4,7 +4,13 @@ lands in. {% endcomment %}
 <div class="{{ cls.field }}" data-plinta-field="{{ control.name }}">
     <label class="{{ cls.label }}" for="pl-form-{{ control.name }}">{{ control.label }}</label>
 
-    {% if control.control == "checkbox" %}
+    {% if not control.editable %}
+        {% comment %} Shown, not offered. No `data-kind`, which is what the
+        adapter collects by — so a field the save would refuse cannot be sent
+        by accident, whatever a layout does with it. {% endcomment %}
+        <div class="{{ cls.readonly }}">{{ control.display|default:"&mdash;" }}</div>
+
+    {% elif control.control == "checkbox" %}
         <input class="{{ cls.checkbox }}" type="checkbox" id="pl-form-{{ control.name }}"
                name="{{ control.name }}" data-kind="{{ control.kind }}"
                {% if control.value %}checked{% endif %}>

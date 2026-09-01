@@ -14,9 +14,11 @@ A layout arranges controls; it cannot break saving.
 
     {% include body %}
 
-    <div class="{{ cls.form_actions }}">
-        <button type="submit" class="{{ cls.btn }} {{ cls.btn_primary }}">{{ config.submit_label }}</button>
-        <span class="{{ cls.form_status }}" data-plinta-status
-              data-saved-text="{{ config.saved_text }}" hidden></span>
-    </div>
+    {% if writable %}
+        <div class="{{ cls.form_actions }}">
+            <button type="submit" class="{{ cls.btn }} {{ cls.btn_primary }}">{{ config.submit_label }}</button>
+            <span class="{{ cls.form_status }}" data-plinta-status
+                  data-saved-text="{{ config.saved_text }}" hidden></span>
+        </div>
+    {% endif %}
 </form>

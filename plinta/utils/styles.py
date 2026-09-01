@@ -96,6 +96,7 @@ DEFAULT: dict[str, str] = {
     "select_sm": "pl-select--sm",
     "textarea": "pl-textarea",
     "checkbox": "pl-checkbox",
+    "readonly": "pl-readonly",
     "help": "pl-help",
     "error": "pl-error",
     # buttons

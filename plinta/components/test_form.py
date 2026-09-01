@@ -276,3 +276,75 @@ def test_an_unregistered_layout_stacks_rather_than_breaking(writer, source, book
     out = drawn(FormConfig(layout="nonesuch"), writer, source, book)
     assert 'name="title"' in out
     assert 'data-plinta-mount="form_plinta"' in out
+
+
+# --- view as well as edit ---------------------------------------------------
+#
+# A form is how a record is read as well as written. Drawn from the writable
+# fields alone, a viewer holding `view` and not `change` got an empty card and
+# no way to tell it from a record with nothing in it.
+
+
+@pytest.fixture
+def reader(db):
+    """May see every column and change none of them."""
+    user = User.objects.create_user(username="rob", password="x")  # noqa: S106
+    return grant(
+        user,
+        Book,
+        "view_book",
+        "view_book_title",
+        "view_book_in_print",
+        "view_book_region",
+    )
+
+
+def test_a_reader_sees_the_record(reader, source, book):
+    out = drawn(FormConfig(), reader, source, book)
+    assert "Ariel" in out
+    assert "Title" in out
+
+
+def test_a_reader_is_offered_nothing(reader, source, book):
+    """Shown, not offered. And no `data-kind`, which is what the adapter
+    collects by — so a field the save would refuse cannot be sent by
+    accident, whatever a layout does with it."""
+    out = drawn(FormConfig(), reader, source, book)
+    assert "data-kind" not in out
+    assert "<input" not in out
+    assert "<select" not in out
+
+
+def test_a_reader_gets_no_save_button(reader, source, book):
+    """A button that cannot save is worse than no button."""
+    out = drawn(FormConfig(), reader, source, book)
+    assert 'type="submit"' not in out
+
+
+def test_a_read_only_field_shows_the_formatted_value(reader, source, book):
+    """`Yes`, not `True`: nothing is going to edit it, so it reads as a person
+    reads it — the same value the table would show."""
+    out = drawn(FormConfig(), reader, source, book)
+    assert "Yes" in out       # in_print
+    assert "North" in out     # the region's label, not its pk
+
+
+def test_a_partly_writable_form_offers_only_that_part(writer, source, book):
+    """The ordinary case: some fields editable, the rest shown."""
+    writer.user_permissions.remove(
+        Permission.objects.get(codename="change_book_title")
+    )
+    out = drawn(FormConfig(), User.objects.get(pk=writer.pk), source, book)
+    assert 'data-kind="string"' not in out          # title is shown only
+    assert 'name="in_print"' in out                 # and this is still offered
+    assert 'type="submit"' in out
+    assert "Ariel" in out
+
+
+def test_a_field_the_viewer_may_not_see_is_still_absent(writer, source, book):
+    """Visible is the floor. Nothing here widens what `datasources` allows."""
+    writer.user_permissions.remove(
+        Permission.objects.get(codename="view_book_in_print")
+    )
+    out = drawn(FormConfig(), User.objects.get(pk=writer.pk), source, book)
+    assert "In print" not in out

@@ -575,3 +575,29 @@ def test_a_form_draws_no_field_the_viewer_may_not_write(
     open_detail(page, live_server, detail)
     assert page.locator('.pl-form [name="title"]').count() == 0
     assert page.locator('.pl-form [name="region"]').count() == 1
+
+
+def test_a_reader_sees_the_record_and_is_offered_nothing(
+    page, live_server, signed_in, detail, viewer
+):
+    """The view half of one form.
+
+    Drawn from the writable fields alone, a viewer holding `view` and not
+    `change` got an empty card and no way to tell it from a record with
+    nothing in it.
+    """
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+    from tests.testapp.models import Book
+
+    content_type = ContentType.objects.get_for_model(Book)
+    for codename in ("change_book_title", "change_book_region",
+                     "change_book_watchers"):
+        viewer.user_permissions.remove(
+            Permission.objects.get(codename=codename, content_type=content_type)
+        )
+
+    record = open_detail(page, live_server, detail)
+    assert record.title in page.locator(".pl-form").inner_text()
+    assert page.locator(".pl-form [data-kind]").count() == 0
+    assert page.locator('.pl-form button[type="submit"]').count() == 0

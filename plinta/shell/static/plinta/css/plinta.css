@@ -977,3 +977,11 @@ hr {
 }
 
 .pl-form__status--saved { color: var(--pl-success); }
+
+/* A field shown and not offered: the value where the control would be, so a
+ * read-only form still reads as a form rather than as a broken one. */
+.pl-readonly {
+    padding: var(--pl-space-2) 0;
+    color: var(--pl-fg);
+    min-height: 1.5rem;
+}

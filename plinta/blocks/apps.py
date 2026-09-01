@@ -56,6 +56,9 @@ class BlocksConfig(AppConfig):
             permission="plinta_blocks.add_savedview",
             order=15,
         )
+        from plinta.utils.assets import register_script
+
+        register_script("plinta/js/view-default.js", order=200)
         # The declared-dependency checks, registered wherever plinta is.
         from plinta.utils import checks as _dependency_checks  # noqa: F401
         # Imported for their side effects: registering the policies that make

@@ -61,7 +61,8 @@ def viewer(db):
         grant(user, model, f"view_{model._meta.model_name}")
     # Saving views, and publishing one: two different acts (§6.1b).
     grant(user, SavedView, "add_savedview", "change_savedview",
-          "delete_savedview", "change_savedview_name")
+          "delete_savedview", "change_savedview_name",
+          "change_savedview_is_default")
     return user
 
 

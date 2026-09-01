@@ -70,6 +70,16 @@ def may_publish(user) -> bool:
     return user.has_perm("plinta_blocks.change_savedview_owner")
 
 
+def may_default(user) -> bool:
+    """Whether this viewer may mark a view as one to open on.
+
+    `is_default` is a field, so a field permission is what gates it — the same
+    mechanism as publishing, and the reason `SavedView` is registered as a
+    DataSource at all (§6.1b).
+    """
+    return user.has_perm("plinta_blocks.change_savedview_is_default")
+
+
 def save(
     block,
     user,
@@ -78,25 +88,36 @@ def save(
     values: dict[str, Any],
     view: SavedView | None = None,
     public: bool = False,
+    default: bool = False,
 ) -> SavedView:
     """Create or update a view over ``block``, storing only what differs.
 
+    ``default`` marks it the one to open on. Which default that is follows
+    ``public``: a shared view's is everyone's, a personal view's is this
+    viewer's own. One field, two meanings, decided by who owns the row — and
+    the model keeps at most one of each.
+
     Raises:
-        PermissionError: publishing without `change_savedview_owner`. A
-            personal view needs nothing beyond seeing the block.
+        PermissionError: publishing without `change_savedview_owner`, or
+            defaulting without `change_savedview_is_default`. A personal view
+            that is neither needs nothing beyond seeing the block.
     """
     if public and not may_publish(user):
         raise PermissionError("may not publish a view to everyone")
+    if default and not may_default(user):
+        raise PermissionError("may not set a default view")
 
     owner = None if public else user
     config = delta(values, block.config or {})
 
     if view is None:
         return SavedView.objects.create(
-            block=block, name=name, owner=owner, config=config
+            block=block, name=name, owner=owner, config=config,
+            is_default=default,
         )
     view.name = name
     view.config = config
+    view.is_default = default
     if public != (view.owner_id is None):
         # Changing who owns it is the publish, and is gated above.
         view.owner = owner

@@ -48,6 +48,12 @@
         if (window.plinta && window.plinta.mount) {
             window.plinta.mount(box);
         }
+        // And anything else that wires markup says so here rather than
+        // guessing when the fetch finished. A script that listened for the
+        // *click* would run before the answer arrived.
+        document.dispatchEvent(
+            new CustomEvent('plinta:content', { detail: { root: box } })
+        );
     }
 
     function open(url) {

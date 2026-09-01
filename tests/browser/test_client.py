@@ -818,3 +818,42 @@ def test_editing_an_existing_view_updates_it(page, live_server, signed_in, scree
     assert view.name == "Renamed"
     assert view.config == {"page_size": 7}
     assert SavedView.objects.count() == 1, "updated, not duplicated"
+
+
+def test_the_default_label_says_which_default(page, live_server, signed_in, screen):
+    """`is_default` means "mine" on a personal view and "everyone's" on a
+    shared one. The form says which, rather than leaving it to be found out."""
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector('dialog [name="is_default"]', timeout=15000)
+
+    personal = page.locator('dialog [data-plinta-default-scope="personal"]')
+    shared = page.locator('dialog [data-plinta-default-scope="shared"]')
+    # No publish permission here, so there is no shared case to describe.
+    assert personal.is_visible()
+    assert not shared.is_visible()
+
+
+def test_the_label_follows_the_shared_box(page, live_server, signed_in, screen, viewer):
+    """Tick "everyone can see this" and the default stops being yours."""
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+    from plinta.blocks.models import SavedView
+
+    viewer.user_permissions.add(
+        Permission.objects.get_or_create(
+            codename="change_savedview_owner",
+            content_type=ContentType.objects.get_for_model(SavedView),
+            defaults={"name": "change_savedview_owner"},
+        )[0]
+    )
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector('dialog [name="is_default"]', timeout=15000)
+
+    personal = page.locator('dialog [data-plinta-default-scope="personal"]')
+    shared = page.locator('dialog [data-plinta-default-scope="shared"]')
+    assert personal.is_visible() and not shared.is_visible()
+
+    page.check('dialog [name="public"]')
+    assert shared.is_visible() and not personal.is_visible()

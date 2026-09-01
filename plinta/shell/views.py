@@ -429,6 +429,7 @@ def block_views(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
             "controls": saved_views.controls(component, block, request.user, chosen),
             "columns": saved_views.column_choices(block, request.user, chosen),
             "may_publish": saved_views.may_publish(request.user),
+            "may_default": saved_views.may_default(request.user),
             "may_delete": chosen is not None and can(request.user, "delete", chosen),
             "action": f"/pages/{pk}/blocks/{placement}/views/",
             "errors": {},
@@ -482,6 +483,7 @@ def _save_view(request: HttpRequest, page, slot, component, mine):
                 "controls": saved_views.controls(component, block, request.user, view),
                 "columns": saved_views.column_choices(block, request.user, view),
                 "may_publish": saved_views.may_publish(request.user),
+                "may_default": saved_views.may_default(request.user),
                 "may_delete": view is not None and can(request.user, "delete", view),
                 "action": request.path,
                 "errors": errors,
@@ -502,6 +504,7 @@ def _save_view(request: HttpRequest, page, slot, component, mine):
             values=overridden,
             view=view,
             public=bool(request.POST.get("public")),
+            default=bool(request.POST.get("is_default")),
         )
     except PermissionError as exc:
         return HttpResponseForbidden(str(exc))

@@ -401,3 +401,80 @@ def test_someone_elses_view_is_not_deletable(client, may_save):
         "view": str(view.pk), "action": "delete",
     }).status_code == 404
     assert SavedView.objects.filter(pk=view.pk).exists()
+
+
+def test_the_default_control_needs_its_field_permission(client, may_save):
+    """`is_default` is a field, so a field permission gates it — the same
+    mechanism as publishing (§6.1b)."""
+    page, placement, _, _ = may_save
+    body = client.get(views_url(page, placement)).content.decode()
+    assert 'name="is_default"' not in body
+
+
+def test_with_the_permission_it_is_offered_and_says_whose_default(client, may_save):
+    """One field, two meanings, decided by who owns the row — so the form
+    says which rather than leaving it to be discovered."""
+    page, placement, _, ada = may_save
+    grant(ada, SavedView, "change_savedview_is_default")
+    client.force_login(User.objects.get(pk=ada.pk))
+
+    body = client.get(views_url(page, placement)).content.decode()
+    assert 'name="is_default"' in body
+    assert "Yours" in body
+
+
+def test_the_shared_case_is_not_described_to_somebody_who_cannot_publish(
+    client, may_save
+):
+    """There is no shared case for them: the box that would cause it is not
+    drawn either."""
+    page, placement, _, ada = may_save
+    grant(ada, SavedView, "change_savedview_is_default")
+    client.force_login(User.objects.get(pk=ada.pk))
+
+    body = client.get(views_url(page, placement)).content.decode()
+    assert 'data-plinta-default-scope="shared"' not in body
+    assert 'name="public"' not in body
+
+
+def test_somebody_who_can_publish_is_told_both(client, may_save):
+    page, placement, _, ada = may_save
+    grant(ada, SavedView, "change_savedview_is_default", "change_savedview_owner")
+    client.force_login(User.objects.get(pk=ada.pk))
+
+    body = client.get(views_url(page, placement)).content.decode()
+    assert 'data-plinta-default-scope="personal"' in body
+    assert 'data-plinta-default-scope="shared"' in body
+
+
+def test_marking_a_default_without_the_permission_is_refused(client, may_save):
+    page, placement, _, _ = may_save
+    response = client.post(views_url(page, placement), {
+        "name": "Mine", "is_default": "on",
+    })
+    assert response.status_code == 403
+    assert not SavedView.objects.exists()
+
+
+def test_a_personal_default_is_saved(client, may_save):
+    page, placement, _, ada = may_save
+    grant(ada, SavedView, "change_savedview_is_default")
+    client.force_login(User.objects.get(pk=ada.pk))
+
+    client.post(views_url(page, placement), {"name": "Mine", "is_default": "on"})
+    view = SavedView.objects.get()
+    assert view.is_default is True
+    assert view.owner is not None, "personal, so it is this viewer's default"
+
+
+def test_a_shared_default_is_everyones(client, may_save):
+    page, placement, _, ada = may_save
+    grant(ada, SavedView, "change_savedview_is_default", "change_savedview_owner")
+    client.force_login(User.objects.get(pk=ada.pk))
+
+    client.post(views_url(page, placement), {
+        "name": "Everyone's", "is_default": "on", "public": "on",
+    })
+    view = SavedView.objects.get()
+    assert view.is_default is True
+    assert view.owner is None

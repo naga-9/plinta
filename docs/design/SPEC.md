@@ -1141,6 +1141,22 @@ So the flag returns for a different reason than the one rejected. It is **surfac
 
 Per-field API flags stay rejected: field permissions already answer that question, and a second mechanism would drift.
 
+### 6.1b When plinta registers one of its own models
+
+A DataSource over a consumer's model exists so plinta can draw it. A DataSource over one of **plinta's own** models exists for a different reason, and confusing the two leads to the wrong answer both ways.
+
+**The rule: a plinta model gets a DataSource when a specific field on it needs its own permission — not to get a screen.**
+
+Field permissions are generated from `DataSourceField` rows and from nothing else (§5.7). So a column with no DSF row has no permission, and there is no other way to mint one. When plinta needs to gate a single field of its own, registering the model is the mechanism, and the screen is incidental.
+
+`FilterSet` is the case that establishes it: `change_filterset_owner` is what gates *may this person publish a filter set to everyone*, and without the DataSource that permission does not exist and any owner may set `owner = None`.
+
+**`SavedView` is the same species** — user-owned, shareable, `owner = None` meaning public, the same `Owner | Public | InstancePerm` policy — so it is registered for the same reason and mints `change_savedview_owner`.
+
+**The configuration models are not**, and this is not an inconsistency. `DataSource`, `DataSourceField`, `Block`, `Page`, `PageBlock` and `PageFilter` are edited through the authoring screens (§12), which derive a form from a component's **pydantic schema** — something a DataSource-backed table cannot do, since it draws model columns and would render a config as a JSON textarea. They also have nothing to share: a Block is owned and gated as a whole, not field by field.
+
+So the two questions are separate. *Is this model shareable, with a field that decides who sees it?* → register it. *Is this model configuration a person edits?* → an authoring screen. `SavedView` and `FilterSet` are the only ones answering yes to the first, which is why they are the only plinta models with DataSources.
+
 ### 6.2 `DataSourceField` options
 
 | Option | Used | Decision | Note |
@@ -4699,6 +4715,8 @@ Each was removed for a reason that does not expire.
 | `recompute_siblings` flag | The behaviour becomes unconditional, so the flag has nothing to gate |
 | `edit_modal_block` | A block edits its own DataSource's records, never another's |
 | `editor_queryset_filter` | An arbitrary ORM filter in configuration, unenforced on write |
+
+**One rule added while building the write path (§6.1b):** a plinta model gets a DataSource when a **field** on it needs a permission, never to get a screen. `FilterSet` and `SavedView` qualify; the configuration models do not.
 | `StaffOnly` rule, and `is_staff` as a grant | A Django flag acting as a permission |
 | `DenyAll` rule | Unused; the deny path is a constant |
 | `object_restored` signal, `record_restore` | A restore is an update, and it names the field and both values |

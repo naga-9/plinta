@@ -34,6 +34,10 @@ dependencies = [
 [project.optional-dependencies]
 # Standalone test suite — `pip install -e .[test]` then `pytest`.
 test = ["pytest>=8", "pytest-django>=4.8"]
+# The browser suite — `pip install -e .[browser]`, then `playwright install
+# chromium`, then `pytest -c pytest-browser.ini`. Separate because it pulls a
+# browser down: the three other suites must stay installable without one.
+browser = ["pytest-playwright>=0.5"]
 # Dev tooling — `pip install -e .[dev]` then `ruff check .`.
 dev = ["ruff>=0.6"]
 

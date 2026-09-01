@@ -61,6 +61,8 @@
         mount: function (el, ctx) {
             var config = ctx.config || {};
             var local = !!ctx.rows;
+            //: The column set the header is currently drawn from.
+            var drawn = null;
 
             var options = {
                 layout: 'fitColumns',
@@ -94,7 +96,15 @@
                             // Columns come every time, because they vary by
                             // viewer: a saved view changes them, so a grid
                             // holding its first set would show stale headers.
-                            if (body.columns) {
+                            // Redrawn only when they actually changed, though
+                            // — setColumns rebuilds the header, which discards
+                            // the sort direction and the filter boxes with it.
+                            // Doing it on every response means a second click
+                            // on a column starts from ascending again and
+                            // descending is unreachable.
+                            var signature = JSON.stringify(body.columns || []);
+                            if (body.columns && signature !== drawn) {
+                                drawn = signature;
                                 table.setColumns(
                                     body.columns.map(function (c) {
                                         return toColumn(c, config);

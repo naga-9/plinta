@@ -12,10 +12,11 @@
 //                ask for more
 //
 // `load()` is the hinge. The client owns the URL, the parameter names and the
-// errors; the adapter owns the timing. Tabulator's ajaxRequestFunc delegates
-// to load(), so Tabulator decides when page three is needed while the client
-// still decides how it is asked for. A chart's adapter calls load() once and
-// never again. Both get the same parameter building and the same error path.
+// errors; the adapter owns the timing. A grid asks again for every page, sort
+// and filter its viewer changes; a chart asks once and never again. Both get
+// the same parameter building and the same error path, and neither is named
+// here — a client that knows one widget is one every other widget works
+// around.
 
 (function () {
     'use strict';

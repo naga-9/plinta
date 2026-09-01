@@ -1634,6 +1634,13 @@ Two known limits, both solved natively when they bite:
 
 **Format is cheap to change; architecture is not.** Modules-versus-globals is a find-and-replace. The client/adapter boundary (§7.4) is structural, and that is where the care belongs.
 
+**Refinement, taken when the client landed: the cross-package seam is a global registry, not an import.** ES modules stay the default for a self-contained file — `theme-toggle.js` and `tokens.js` are ones. The client and its adapters are not, for two reasons:
+
+- **An adapter would have to name core's static URL to import from it.** Under `ManifestStaticFilesStorage` that path is hashed and changes per build, so a contrib package would need core's URL machinery to write an import line. `window.plinta.registerAdapter` asks it to know a *name* instead — which is what every other plugin seam in plinta already asks (a component key, a renderer key, a widget key).
+- **Module scripts all execute after classic deferred ones**, so a mixed set loses the ordering the asset registry controls. `register_script(order=)` decides when an adapter runs relative to its vendor; that guarantee only holds while they are the same kind of script.
+
+So the seam is a global by design, and the registry's `module=True` remains available for anything self-contained. This is not the import map being deferred — an import map does not solve either point above.
+
 ### 7.6 The client is a consolidation, not new code
 
 Its pieces already exist, scattered across three places:
@@ -1752,11 +1759,13 @@ They are not `TableComponent` methods either. A table drawn on the server and th
 | Per-widget fetch/error/loading code | **→ one shared client** |
 | `serialize_for_table` / `table_select_related` | **→ registered field renderer** |
 | `expand_for_table` / `expand_color` | **dropped** |
-| Module format | **ES modules** — already the practice; import map when bare specifiers or hashed storage bite |
+| Module format | **ES modules** for a self-contained file; the **client/adapter seam is a global registry** — an import would make a contrib package construct core's hashed static URL, and modules all run after classic deferred scripts, which loses the registry's load order |
 | The shared client | a **consolidation** of `fetch-helpers.js` + three `core.js` exports + four duplicated widget paths |
 | `core.js` | **split along the package layout**; two contrib concerns move out |
 | JS file placement | mirrors the package layout — adapters with components, contrib JS with its app |
-| Import-boundary test | **extended to JS** |
+| Import-boundary test | **extended to JS** — core JS names no vendor, only the client calls `fetch`, only core defines `window.plinta` |
+| Browser suite | a **fourth suite** — `pytest-browser.ini`, Playwright and a real Chromium, declared as the `browser` extra so the other three install without one |
+| Why a real browser and not jsdom | deferred-script timing and `readyState` are the browser's own semantics; jsdom does not model them, and the mount-order bug lived exactly there |
 | Widget wire format | **vendor-neutral** — `columns` / `rows` / `page` / `applied`, never one library's parameter names |
 | Column filter parameters | **`f.<column>`** — namespaced, so they cannot collide with the reserved names |
 | Columns on every response | **yes** — a saved view changes them per viewer, so a cached set goes stale |

@@ -185,3 +185,76 @@ def test_the_walk_catches_every_import_form(tmp_path):
 )
 def test_package_of(module, expected):
     assert _package_of(module) == expected
+
+
+# --- the same boundaries, in JavaScript -------------------------------------
+#
+# The front end has the same two rules and no import statements to read them
+# from: the client and its adapters meet through a global registry, not
+# through imports (§7.5). So the boundary is checked against what a file
+# *names* rather than what it imports.
+
+#: Core's own scripts. Everything else under `plinta/` belongs to a package.
+CORE_JS = CORE / "shell" / "static" / "plinta" / "js"
+
+#: A vendor's bundle is not ours to hold to these rules.
+VENDORED = (".min.js",)
+
+#: Naming one of these in core would be core knowing a contrib package exists.
+VENDORS = ("Tabulator", "TomSelect", "Plotly", "jsGantt", "Flexmonster")
+
+
+def _scripts(root: pathlib.Path) -> list[pathlib.Path]:
+    if not root.exists():
+        return []
+    return [p for p in root.rglob("*.js") if not p.name.endswith(VENDORED)]
+
+
+@pytest.mark.parametrize(
+    "path", _scripts(CORE_JS), ids=lambda p: p.name if hasattr(p, "name") else str(p)
+)
+def test_core_js_names_no_vendor(path: pathlib.Path):
+    """The JS half of "no core module imports contrib".
+
+    A client that special-cases Tabulator is a client every other adapter
+    works around.
+    """
+    body = path.read_text(encoding="utf-8")
+    for vendor in VENDORS:
+        assert vendor not in body, (
+            f"{path.name} names {vendor}, so core knows a contrib package "
+            f"exists. The component ships its own adapter."
+        )
+
+
+@pytest.mark.parametrize(
+    "path", _scripts(CONTRIB), ids=lambda p: p.name if hasattr(p, "name") else str(p)
+)
+def test_only_the_client_fetches(path: pathlib.Path):
+    """The point of one client: an adapter owns *when* to ask, never how.
+
+    An adapter calling `fetch` itself is one that has its own URL building,
+    its own error path and its own loading state — which is the duplication
+    the client exists to delete.
+    """
+    body = path.read_text(encoding="utf-8")
+    assert "fetch(" not in body, (
+        f"{path.name} calls fetch. Ask through the `load` it is handed, so "
+        f"the parameter names and the error path stay in one place."
+    )
+
+
+@pytest.mark.parametrize(
+    "path", _scripts(CONTRIB), ids=lambda p: p.name if hasattr(p, "name") else str(p)
+)
+def test_a_package_does_not_define_the_namespace(path: pathlib.Path):
+    """`window.plinta` is core's to define; a package only reads from it.
+
+    A contrib file assigning into it could replace `registerAdapter` for
+    everyone, which is the sideways coupling the Python rule forbids.
+    """
+    body = path.read_text(encoding="utf-8")
+    for assignment in ("window.plinta =", "window.plinta.registerAdapter ="):
+        assert assignment not in body, (
+            f"{path.name} assigns {assignment.strip(' =')}, which core owns."
+        )

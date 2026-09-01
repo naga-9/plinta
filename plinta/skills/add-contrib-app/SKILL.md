@@ -145,7 +145,10 @@ app makes the contract fiction — which is why there isn't one.
 
 **Test in the contrib suite** (`pytest -c pytest-contrib.ini`). Core's suite
 installs no contrib app, deliberately: a core test that passes only because
-your app is installed is a core test that is wrong.
+your app is installed is a core test that is wrong. If your app ships JavaScript
+that draws something, add a browser test too (`pytest -c pytest-browser.ini`) —
+a real Chromium against a live server, which is the only thing that sees script
+order and whether the page actually drew.
 
 ## Verifying
 

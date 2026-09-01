@@ -132,6 +132,17 @@ window.plinta.registerAdapter('heatmap_d3', {
 the errors; you own the timing.** A grid calls it on every page and sort change;
 a chart calls it once and never again.
 
+**Do not call `fetch` yourself** — the boundary test fails a contrib script that
+does. Your own fetch means your own URL building, your own error path and your
+own loading state, which is the duplication the client exists to delete.
+
+**Write a classic script, not a module.** The seam is `window.plinta`, on
+purpose: importing from core's client would make your package construct core's
+static URL, which is hashed under `ManifestStaticFilesStorage`. Module scripts
+also all run after classic deferred ones, which would lose the load order
+`register_script(order=)` gives you. Use `module=True` only for a file that
+stands alone.
+
 Order the assets so the adapter loads last — after the vendor, and after core's
 client, since it registers with one and calls into the other:
 
@@ -318,3 +329,11 @@ The second is worth writing for every component: it is the one property a
 component can accidentally break, by querying instead of calling `get_data`.
 
 Use the `component_registry` fixture so a test's registration does not leak.
+
+**If it fetches, add a browser test.** `pytest -c pytest-browser.ini` drives a
+real Chromium against a live server; `tests/browser/` has the fixtures. Python
+tests cannot see the half that broke first — script order, deferred execution,
+and whether the widget drew anything — and jsdom does not model those either.
+The client once mounted before any adapter had registered, and every fetching
+component on every page said it had no adapter while the whole Python suite
+stayed green.

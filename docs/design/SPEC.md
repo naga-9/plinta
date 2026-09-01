@@ -1787,7 +1787,11 @@ They are not `TableComponent` methods either. A table drawn on the server and th
 | `filterable` vs `header_filter` | **the server's gate** vs **the column's control** — two decisions, two fields |
 | Row identity | **`_record`** in the row, so a feed can be written back to; a field path never starts with an underscore |
 | `editable` on a column | **per viewer**, computed from change permissions — and only when the component declares `writes`, so a chart does not pay a permission read |
-| A column's `type` | **what it holds**, from the model field — not `sorter`, which says how to compare it. An editor is chosen from the first and cannot be chosen from the second |
+| A column's `type` | **what it holds**, from the model field — not `sorter`, which says how to compare it. `datasources.kinds` answers it once for everything that must match the data: which editor to draw, which lookup to filter with, how to send the value at all |
+| A column filter's lookup | **from the kind.** Read from `sorter`, every non-text filter compiled to `icontains` — not a lookup a boolean or a relation has — so it raised, was caught, and matched nothing: filtering by region emptied the table and read as "there is no data" |
+| Filtering a relation | **by the pk a picker offers**, and the header draws that picker. A name typed at it matches nothing |
+| Filtering a many-to-many | **the same, made `distinct`.** The join multiplies rows, so without it a record with two watchers appears twice on the page and the count overstates the total |
+| A boolean filter's spelling | **`true`/`1`/`yes` and their opposites**, coerced before the query: Django's own `to_python` refuses a lowercase `true`, which is what our controls send |
 | An editable column's value | sent **twice**: formatted under the column name, raw under `_edit`. A formatted cell cannot seed the editor that writes it back |
 | How a relation is written | **by pk**, resolved server-side so a pk naming nothing is a rejection with a field on it, never an integrity error |
 | A value a field cannot hold | **422 naming the field, never a 500** — assigning a relation a label raises out of `setattr` before validation runs, and that has to be caught |

@@ -128,7 +128,10 @@ def test_a_column_filter_narrows_on_the_server(page, live_server, signed_in, scr
     # Typed, not filled: the widget listens for key events, and setting the
     # value straight onto the element fires none of them.
     with page.expect_request(lambda r: "f.title=" in r.url):
-        page.locator(".tabulator-header-filter input").press_sequentially("Book 1")
+        page.locator(
+            ".tabulator-col:has(.tabulator-col-title:text-is('Title')) "
+            ".tabulator-header-filter input"
+        ).press_sequentially("Book 1")
     page.wait_for_function(
         # The cell is briefly absent while the grid redraws, so the guard
         # is not politeness: without it the predicate throws, and a
@@ -429,3 +432,62 @@ def test_a_page_of_many_to_many_cells_is_one_query_not_one_each(
         for row in rows:
             raw(row, "watchers", "relations")
     assert len(captured) == 0
+
+
+def test_filtering_by_a_relation_uses_the_picker(page, live_server, signed_in, screen):
+    """A relation is filtered by choosing one, not by typing its name.
+
+    Every non-text column filter used to compile to `icontains` — not a
+    lookup a relation has — so it matched nothing, and filtering by region
+    emptied the table and read as "there is no data".
+    """
+    open_page(page, live_server, screen)
+    header = page.locator(
+        ".tabulator-col:has(.tabulator-col-title:text-is('Region')) "
+        ".tabulator-header-filter"
+    )
+    header.click()
+    page.wait_for_selector(".tabulator-edit-list-item", timeout=15000)
+    with page.expect_response(lambda r: "f.region=" in r.url) as answer:
+        page.click(".tabulator-edit-list-item:has-text('South')")
+
+    # Asserted on the answer, not the grid: the rows from the unfiltered load
+    # are still on screen until it arrives, so reading the DOM first passes or
+    # fails on timing.
+    body = answer.value.json()
+    assert body["page"]["total"] == BOOKS // 2
+    assert all(row["region"] == "South" for row in body["rows"])
+
+    page.wait_for_function(
+        "() => { var c = document.querySelector("
+        "'.tabulator-row [tabulator-field$=\"region\"]');"
+        " return c && c.textContent.trim() === 'South'; }",
+        timeout=15000,
+    )
+
+
+def test_filtering_by_a_many_to_many_shows_each_row_once(
+    page, live_server, signed_in, screen
+):
+    """The join multiplies rows: without `distinct` a record with two
+    watchers appears twice and the count overstates the total."""
+    from django.contrib.auth.models import User
+    from tests.testapp.models import Book
+
+    bob = User.objects.create_user(username="bob", password="x")  # noqa: S106
+    cal = User.objects.create_user(username="cal", password="x")  # noqa: S106
+    watched = Book.objects.order_by("title").first()
+    watched.watchers.set([bob, cal])
+
+    open_page(page, live_server, screen)
+    header = page.locator(
+        ".tabulator-col:has(.tabulator-col-title:text-is('Watchers')) "
+        ".tabulator-header-filter"
+    )
+    header.click()
+    page.wait_for_selector(".tabulator-edit-list-item", timeout=15000)
+    with page.expect_response(lambda r: "f.watchers=" in r.url) as answer:
+        page.click(".tabulator-edit-list-item:has-text('bob')")
+    body = answer.value.json()
+    assert body["page"]["total"] == 1
+    assert [row["title"] for row in body["rows"]] == [watched.title]

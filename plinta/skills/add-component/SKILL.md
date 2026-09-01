@@ -189,6 +189,10 @@ from `sorter`, which only says how to compare it: reading the sort hint gives
 every column a text box, and a boolean cell then offers the word `No` back
 and is told it is not a boolean.
 
+**And the same for a header filter.** A column carrying `picker` is filtered
+by choosing, not by typing — the server matches the pk, so a name typed at it
+matches nothing. `sorter` is a display decision and answers neither question.
+
 **A relation is written by its pk**, and the column tells you how to offer the
 choices. `picker` is `list` or `search`: a `list` arrives with its `options`
 already on the column, and a `search` asks `ctx.options(field, term)` as the

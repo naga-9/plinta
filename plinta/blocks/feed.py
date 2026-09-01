@@ -19,6 +19,7 @@ from typing import Any
 
 from plinta.components.tabular import filtered, ordered, paged, sort_asked
 from plinta.datasources.choices import THRESHOLD, choosable as choices
+from plinta.datasources.kinds import kind_of
 
 #: What a request may ask for beyond the column filters.
 RESERVED = {"page", "size", "sort", "tab", "view"}
@@ -43,28 +44,6 @@ RECORD = "_record"
 #: seeded with `No` sends the word. So an editable column travels twice, once
 #: to read and once to change.
 EDIT = "_edit"
-
-#: What a column *holds*, which is not what `sorter` answers. `sorter` says
-#: how to compare a column; this says what kind of value it is, which is what
-#: decides an editor. They agree for text and numbers and part company at
-#: booleans, dates and relations — the three that need an editor that is not
-#: a text box.
-KINDS = {
-    "AutoField": "number",
-    "BigAutoField": "number",
-    "BigIntegerField": "number",
-    "BooleanField": "boolean",
-    "DateField": "date",
-    "DateTimeField": "datetime",
-    "DecimalField": "number",
-    "FloatField": "number",
-    "IntegerField": "number",
-    "PositiveIntegerField": "number",
-    "PositiveSmallIntegerField": "number",
-    "SmallIntegerField": "number",
-    "TimeField": "time",
-}
-
 
 def requested(query) -> dict[str, Any]:
     """What the client asked for: paging, ordering and column filters."""
@@ -96,25 +75,6 @@ def _int(value: Any, fallback: int) -> int:
     except (TypeError, ValueError):
         return fallback
     return number if number > 0 else fallback
-
-
-def kind_of(model, path: str, fallback: str) -> str:
-    """What the column at ``path`` holds.
-
-    ``fallback`` is the sort hint, used where the path resolves to no model
-    field — an annotation, a property, a reverse accessor. Those are readable
-    and never editable, so a sort hint is all they need.
-    """
-    from plinta.datasources.services import resolve_path
-
-    field = resolve_path(model, path)
-    if field is None:
-        return fallback
-    if getattr(field, "many_to_one", False) or getattr(field, "one_to_one", False):
-        return "relation"
-    if getattr(field, "many_to_many", False):
-        return "relations"
-    return KINDS.get(type(field).__name__, "string")
 
 
 def raw(row: Any, name: str, kind: str) -> Any:
@@ -264,12 +224,13 @@ def feed(component, config, user, *, datasource, narrow, asked) -> dict[str, Any
                 editable=f.field_name in editable,
                 kind=kinds.get(f.field_name, ""),
             )
-            # A picker only where the viewer may actually write the column:
-            # offering choices for one they cannot change is a control that
-            # does nothing, and it costs a query to build.
+            # A picker where the column may be written *or* filtered, and
+            # nowhere else: both need the same list of choices, and building
+            # it for a column offering neither control costs a query to say
+            # nothing.
             | (
                 picker(f, datasource.model, user)
-                if f.field_name in editable
+                if (f.field_name in editable or f.filterable)
                 and kinds.get(f.field_name) in ("relation", "relations")
                 else {}
             )

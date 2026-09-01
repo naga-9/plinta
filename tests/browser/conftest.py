@@ -94,10 +94,12 @@ def screen(viewer):
     # A boolean and a relation, both editable: the two that a text box got
     # wrong, so the suite has one of each rather than three strings.
     DataSourceField.objects.create(
-        data_source=source, field_name="region", label="Region", editable=True
+        data_source=source, field_name="region", label="Region",
+        editable=True, filterable=True,
     )
     DataSourceField.objects.create(
-        data_source=source, field_name="watchers", label="Watchers", editable=True
+        data_source=source, field_name="watchers", label="Watchers",
+        editable=True, filterable=True,
     )
     sync_model(
         Book,

@@ -22,12 +22,32 @@ from pydantic import Field
 
 from plinta.components.base import ComponentConfig
 
-#: How a column is searched, by what kind of value it holds. Chosen here and
-#: never sent by the client: v1 took the lookup from the query string, which
-#: bought a viewer `__regex` for a denial of service and
+#: How a column is searched, by what it **holds** — never by `sorter`, which
+#: says how to compare it. Read from the sort hint, every non-text column
+#: compiled to `icontains`, which is not a lookup a boolean or a relation has:
+#: the filter raised, was caught, and matched nothing. Filtering by region
+#: emptied the table and read as "there is no data".
+#:
+#: Chosen here and never sent by the client: v1 took the lookup from the query
+#: string, which bought a viewer `__regex` for a denial of service and
 #: `author__user__password__startswith` for a search.
-LOOKUPS = {"number": "exact", "date": "exact"}
+LOOKUPS = {
+    "number": "exact",
+    "boolean": "exact",
+    "date": "exact",
+    "datetime": "date",
+    "time": "exact",
+    # A relation is filtered by the pk a picker offers, on either side of the
+    # count: `region=3` and `watchers=3` are both the row having that one.
+    "relation": "exact",
+    "relations": "exact",
+}
 DEFAULT_LOOKUP = "icontains"
+
+#: What `true` means when it arrives as text. Django's own `to_python` refuses
+#: a lowercase one, which is what our own controls send.
+TRUE = {"true", "1", "yes", "on", "t"}
+FALSE = {"false", "0", "no", "off", "f"}
 
 
 class Sort(ComponentConfig):
@@ -92,6 +112,18 @@ def sort_asked(asked: list[str], fields: Any) -> list[Sort]:
     return out
 
 
+def as_boolean(value: Any) -> Any:
+    """``value`` as a boolean, or unchanged where it says neither."""
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in TRUE:
+        return True
+    if text in FALSE:
+        return False
+    return value
+
+
 def filtered(rows: Any, asked: dict[str, Any], fields: Any) -> Any:
     """``rows`` narrowed by the per-column filters a viewer typed.
 
@@ -105,6 +137,8 @@ def filtered(rows: Any, asked: dict[str, Any], fields: Any) -> Any:
     nothing rather than raising. The request came from a text box, so a bad
     value is a normal event, not a server error.
     """
+    from plinta.datasources.kinds import MULTIPLE, kind_of
+
     allowed = {
         f.field_name: f for f in fields or [] if getattr(f, "filterable", False)
     }
@@ -112,10 +146,18 @@ def filtered(rows: Any, asked: dict[str, Any], fields: Any) -> Any:
         field = allowed.get(name)
         if field is None or value in (None, "", []):
             continue
-        lookup = LOOKUPS.get(getattr(field, "sorter", "") or "", DEFAULT_LOOKUP)
+        kind = kind_of(rows.model, name, getattr(field, "sorter", "") or "string")
+        lookup = LOOKUPS.get(kind, DEFAULT_LOOKUP)
+        if kind == "boolean":
+            value = as_boolean(value)
         suffix = "" if lookup == "exact" else f"__{lookup}"
         try:
             narrowed = rows.filter(Q(**{f"{name}{suffix}": value}))
+            if kind in MULTIPLE:
+                # The join multiplies the rows, so without this a record with
+                # two watchers appears twice on the page and the count says
+                # there are more of them than there are.
+                narrowed = narrowed.distinct()
             # Evaluated here, because a value the column cannot hold raises at
             # the first read and not at the call that built the query.
             narrowed.exists()

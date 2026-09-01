@@ -60,6 +60,20 @@
         return params;
     }
 
+    /**
+     * The same choices, for filtering rather than writing.
+     *
+     * One at a time whatever the column holds: the server matches a single
+     * pk on either side of the count, and "rows watched by either of these"
+     * is a different question from the one a header filter asks.
+     */
+    function filterParams(column, ask) {
+        var params = pickerParams(column, ask);
+        params.multiselect = false;
+        params.clearable = true;
+        return params;
+    }
+
     /** A plinta column as Tabulator wants it. */
     function toColumn(column, config, ask) {
         var editor = column.editable ? EDITORS[column.type] : false;
@@ -86,8 +100,14 @@
             // so no control is offered that does nothing.
             headerFilter:
                 config.header_filters && column.filterable
-                    ? column.filter || 'input'
+                    ? (column.picker ? 'list' : column.filter || 'input')
                     : false,
+            // A relation is filtered by choosing one, not by typing its name:
+            // the server matches the pk a picker offers, and a name typed at
+            // it matches nothing.
+            headerFilterParams: column.picker
+                ? filterParams(column, ask)
+                : undefined,
             resizable: config.resizable !== false,
             // An editor only where the server said this viewer may write, so
             // a cell never offers an edit the write would refuse.

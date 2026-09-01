@@ -15,7 +15,7 @@ from plinta.components.tabular import (
     sort_asked,
 )
 from plinta.datasources.models import DataSource, DataSourceField, Sorter
-from tests.testapp.models import Book
+from tests.testapp.models import Book, Region
 
 
 @pytest.fixture
@@ -154,3 +154,81 @@ def test_a_value_the_column_cannot_hold_finds_nothing(books, fields):
     read — so the try wraps the call and the evaluation together.
     """
     assert filtered(books, {"id": "cheap"}, fields).count() == 0
+
+
+# --- filtering a column that is not text ------------------------------------
+#
+# The lookup used to come from `sorter`, so every one of these compiled to
+# `icontains` — not a lookup a boolean or a relation has. The filter raised,
+# was caught, and matched nothing: filtering by region emptied the table and
+# read as "there is no data".
+
+
+@pytest.fixture
+def typed(db):
+    """Columns of each kind, all filterable."""
+    source = DataSource.objects.create(
+        name="typed",
+        label="Typed",
+        content_type=ContentType.objects.get_for_model(Book),
+    )
+    for name in ("title", "in_print", "region", "watchers"):
+        DataSourceField.objects.create(
+            data_source=source, field_name=name, label=name, filterable=True
+        )
+    return list(source.fields.all())
+
+
+@pytest.fixture
+def catalogue(db):
+    from django.contrib.auth.models import User
+
+    north = Region.objects.create(name="North")
+    south = Region.objects.create(name="South")
+    bob = User.objects.create_user(username="bob", password="x")  # noqa: S106
+    cal = User.objects.create_user(username="cal", password="x")  # noqa: S106
+    first = Book.objects.create(title="Ariel", in_print=True, region=north)
+    second = Book.objects.create(title="Crow", in_print=False, region=south)
+    first.watchers.set([bob, cal])
+    second.watchers.set([bob])
+    return {"north": north, "bob": bob, "first": first, "second": second}
+
+
+def test_a_boolean_column_filters(typed, catalogue):
+    rows = filtered(Book.objects.all(), {"in_print": "true"}, typed)
+    assert [b.title for b in rows] == ["Ariel"]
+
+
+def test_a_boolean_takes_the_spelling_our_own_controls_send(typed, catalogue):
+    """Django's `to_python` refuses a lowercase `true`, which is ours."""
+    for text in ("true", "True", "1", "yes"):
+        assert filtered(Book.objects.all(), {"in_print": text}, typed).count() == 1
+    for text in ("false", "False", "0", "no"):
+        assert filtered(Book.objects.all(), {"in_print": text}, typed).count() == 1
+
+
+def test_a_relation_filters_by_pk(typed, catalogue):
+    rows = filtered(Book.objects.all(), {"region": catalogue["north"].pk}, typed)
+    assert [b.title for b in rows] == ["Ariel"]
+
+
+def test_a_many_to_many_filters_by_pk(typed, catalogue):
+    rows = filtered(Book.objects.all(), {"watchers": catalogue["bob"].pk}, typed)
+    assert sorted(b.title for b in rows) == ["Ariel", "Crow"]
+
+
+def test_a_many_to_many_filter_does_not_double_a_row(typed, catalogue):
+    """The join multiplies rows: without `distinct` a record with two
+    watchers appears twice on the page and the count overstates the total."""
+    both = list(catalogue["first"].watchers.values_list("pk", flat=True))
+    rows = filtered(
+        Book.objects.all(), {"watchers": both[0]}, typed
+    ) | filtered(Book.objects.all(), {"watchers": both[1]}, typed)
+    assert filtered(
+        Book.objects.all(), {"watchers": both[0]}, typed
+    ).filter(title="Ariel").count() == 1
+    assert rows.distinct().filter(title="Ariel").count() == 1
+
+
+def test_a_text_column_still_matches_partially(typed, catalogue):
+    assert filtered(Book.objects.all(), {"title": "rie"}, typed).count() == 1

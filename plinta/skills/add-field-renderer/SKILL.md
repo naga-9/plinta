@@ -60,10 +60,27 @@ def shout(value, **kw):
 
 | | |
 |---|---|
-| `value` | the column's own value, already traversed |
+| `value` | the column's own value, already traversed. A **collection** column — a many-to-many, a reverse accessor — arrives as a **list of rows**, not a manager, so a renderer iterates it and never queries |
 | `obj` | the whole row — the reason a renderer can show more than one field |
 | `field` | the `DataSourceField`, for `decimals`, `prefix`, a label |
 | `user` | the viewer, when the cell varies by them |
+
+## A collection column is a list
+
+`watchers`, `labels`, anything many-valued: `value` is the rows themselves,
+already prefetched by the column that named them.
+
+```python
+@register_field_renderer("chips")
+def chips(value, **kw):
+    return format_html_join(" ", "<span class='pl-chip'>{}</span>",
+                            ((str(row),) for row in value or []))
+```
+
+**Do not call `.all()` or `.values_list()` on it** — it is a list, and reaching
+for a queryset on a prefetched relation is what turns a page of twenty rows
+into twenty-one queries. Unrendered, such a column reads as `auth.User.None`,
+which is what a manager's `str()` is; that is why it is unwrapped for you.
 
 ## Output is trusted
 

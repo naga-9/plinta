@@ -87,3 +87,8 @@ def test_it_places_the_fields(form_layout_registry):
 ```
 
 Use the `form_layout_registry` fixture so a test's registration does not leak.
+
+## Related
+
+- `make-records-editable` — what has to be true before a form has any fields
+- `add-component` — a widget that writes something a form does not

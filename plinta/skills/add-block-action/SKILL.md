@@ -63,8 +63,24 @@ go down because one control could not decide whether to draw.
 {{ slot.views }}       the block's saved views, already permission-filtered
 {{ slot.view }}        the one in force
 {{ slot.param }}       this placement's query-string prefix, "b3_"
+{{ slot.form_url }}    where this card opens a record's form
 {{ cls }}              the style vocabulary
 ```
+
+**To open a record's form, carry the URL and nothing else:**
+
+```html
+<button type="button" data-plinta-open-form="{{ slot.form_url }}">Add</button>
+```
+
+Core's dialog is listening for that attribute anywhere on the page, so your
+action never learns what a modal is. No `?record=` is a create; core's
+`add_record` action is exactly this and nothing more.
+
+**Use `data-plinta-open-form`, never the attribute a mount carries for the
+same URL.** The listener matches with `closest`, which walks *upwards*: share
+a name with the mount and every click inside the card opens a form, including
+the clicks meant for the widget.
 
 **Prefix every parameter you own with `slot.param`.** Two of the same block on
 one page must act independently — it is why sorting, paging and the view

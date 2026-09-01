@@ -5,6 +5,13 @@ description: Add a way of drawing a filter control — a searching multi-select,
 
 # Add a filter widget
 
+**This is the page's filter bar, not a column header.** The two are different
+filters and only one is a widget: the bar is `PageFilter` rows drawn by
+registered widgets, and a column header's box is the widget library's own,
+driven by `DataSourceField.filterable` and the column's kind. A relation
+filters by choosing from its picker in either, but nothing you register here
+appears in a header.
+
 Core draws five — `input_plinta`, `boolean_plinta`, `select_plinta`,
 `multiselect_plinta`, `daterange_plinta`. A sixth is registered, and a
 `PageFilter` chooses it by name.

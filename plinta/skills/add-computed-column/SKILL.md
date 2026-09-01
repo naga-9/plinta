@@ -34,6 +34,13 @@ already chosen and ordered the rows. So it cannot sort, cannot filter, cannot
 paginate correctly, and costs a query per row if it touches a relation. An
 annotation is part of the query. That is the whole distinction.
 
+**A computed column is never editable.** It resolves to no model field, so
+there is nothing to write to — `editable` on one mints a permission that can
+never be honoured. It is also why `sorter` matters more here than elsewhere:
+for a real column, what it *holds* is read from the model and `sorter` only
+says how to compare it, but an annotation has no model field to read, so the
+sort hint is all a filter or an alignment has to go on. Set it.
+
 Use a property when the value is only ever read on one object you already have.
 
 ## Anything Django expresses

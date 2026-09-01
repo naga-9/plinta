@@ -26,6 +26,10 @@ urlpatterns = [
     # a read could not.
     path("pages/<int:pk>/blocks/<int:placement>/write/", views.block_write,
          name="block_write"),
+    # What a relation column may be set to, when there are too many to send
+    # with the columns.
+    path("pages/<int:pk>/blocks/<int:placement>/options/<str:field>/",
+         views.block_options, name="block_options"),
     # A detail page: the record in the path, so the URL is shareable and the
     # page is what somebody sends a colleague.
     path("pages/<int:pk>-<slug:slug>/<str:record>/", views.page_view, name="record"),

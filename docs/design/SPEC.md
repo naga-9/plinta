@@ -1249,6 +1249,8 @@ Not to be confused with `datasources/api.py::fields_search`, which searches `Dat
 
 `editor_queryset_filter` narrows *which value you may pick*, not what you may edit, so it is legitimate in principle. It goes because it is an arbitrary ORM filter dict living in configuration — the same thing rejected for queryset modifiers, which must be registered names — and because it is applied on three read paths and **nowhere on write**, so it constrains the dropdown but not the save. If picker-narrowing is wanted later it returns as a *registered named filter*.
 
+**Built, and the narrowing needed no configuration at all.** `datasources.choices` answers what a relation may be set to with the rows the viewer may **view** — the same question `datasources` answers for every other queryset. The picker offers that list and the write resolves against it, which is what makes the original failure impossible rather than unlikely: a pk that was never on offer is refused, so narrowing the dropdown narrows the save by construction. A deployment must therefore grant `view` on the models its pickers point at, exactly as Django's admin requires for its own.
+
 **`picker_mode` values.** `auto` · `list` · `search`. `auto` is the default and picks `list` under 100 rows, `search` above it.
 
 ### 6.8 Additions
@@ -1789,6 +1791,10 @@ They are not `TableComponent` methods either. A table drawn on the server and th
 | An editable column's value | sent **twice**: formatted under the column name, raw under `_edit`. A formatted cell cannot seed the editor that writes it back |
 | How a relation is written | **by pk**, resolved server-side so a pk naming nothing is a rejection with a field on it, never an integrity error |
 | A value a field cannot hold | **422 naming the field, never a 500** — assigning a relation a label raises out of `setattr` before validation runs, and that has to be caught |
+| What a relation may be set to | **the rows the viewer may view** — no configuration. `editor_queryset_filter` was dropped for narrowing three read paths and no write; the picker and the write now resolve against one queryset, so neither can offer what the other refuses |
+| `picker_mode` | **`auto` · `list` · `search`**, auto resolving to `list` at or under 100 rows. A short list travels with the column and costs no round trip; a long one asks the options endpoint as the writer types |
+| A picker's label | **`str(row)`**, the same as Django's `ModelChoiceField` — a model that reads well in the admin reads well here without being told twice |
+| A relation in a write's diff | **its pk**, as a many-to-many already was. A diff travels to listeners that store it, and a model instance cannot go in a JSONField |
 
 
 ## 8. Layer 7 — blocks

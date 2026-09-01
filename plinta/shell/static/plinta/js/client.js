@@ -168,6 +168,36 @@
         };
     }
 
+    /**
+     * What a relation column may be set to, for a picker that searches.
+     *
+     * Here and not in the adapter for the same reason `load` is: an adapter
+     * that fetches has its own URL building and its own error path, and the
+     * boundary test refuses one.
+     */
+    function lookup(url) {
+        return function options(field, term) {
+            if (!url) {
+                return Promise.resolve([]);
+            }
+            return fetch(
+                url + encodeURIComponent(field) + '/?q=' +
+                    encodeURIComponent(term || ''),
+                {
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }
+            ).then(function (response) {
+                if (!response.ok) {
+                    throw new Error('the server answered ' + response.status);
+                }
+                return response.json();
+            }).then(function (body) {
+                return body.options || [];
+            });
+        };
+    }
+
     function mountOne(mount) {
         var name = mount.dataset.plintaMount;
         var adapter = adapters[name];
@@ -182,6 +212,7 @@
         var body = payload(mount);
         var fetchRows = loader(mount, mount.dataset.plintaUrl || '');
         var sendWrite = saver(mount, mount.dataset.plintaWriteUrl || '');
+        var askOptions = lookup(mount.dataset.plintaOptionsUrl || '');
 
         function fail(error) {
             if (error && error.name === 'AbortError') {
@@ -209,6 +240,7 @@
                 // where to find. Replacing the widget with an alert would
                 // throw away the edit the writer is still holding.
                 save: sendWrite,
+                options: askOptions,
                 writable: mount.dataset.plintaWriteUrl ? true : false
             });
         } catch (error) {

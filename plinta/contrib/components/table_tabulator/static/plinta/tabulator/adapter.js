@@ -20,20 +20,41 @@
     //: The editor each kind of value gets. A text box for everything was
     //: what shipped first: a boolean cell reading "No" offered the word back
     //: and was told it was not a boolean, and a relation sent its label and
-    //: raised out of the assignment. A relation has no entry yet — a picker
-    //: needs the options, which is still to come — so it draws none rather
-    //: than one that cannot work.
+    //: raised out of the assignment. A relation gets a picker instead, built
+    //: below, because what it may be set to is a list and not a string.
     var EDITORS = {
         string: 'input',
         number: 'number',
         boolean: 'tickCross',
         date: 'date',
         datetime: 'datetime',
-        time: 'time'
+        time: 'time',
+        relation: 'list'
     };
 
+    /**
+     * What a relation editor is given: the choices, or a way to ask for them.
+     *
+     * A short list came with the column and costs no round trip. A long one
+     * could not, so the picker asks as the writer types — and asks the same
+     * endpoint the write resolves against, so it cannot offer what the save
+     * would refuse.
+     */
+    function pickerParams(column, ask) {
+        if (column.picker === 'list') {
+            return { values: column.options || [] };
+        }
+        return {
+            autocomplete: true,
+            filterRemote: true,
+            valuesLookup: function (cell, filterTerm) {
+                return ask(column.name, filterTerm);
+            }
+        };
+    }
+
     /** A plinta column as Tabulator wants it. */
-    function toColumn(column, config) {
+    function toColumn(column, config, ask) {
         var editor = column.editable ? EDITORS[column.type] : false;
         return {
             // An editable column is read from `_edit`, which carries the
@@ -64,6 +85,9 @@
             // An editor only where the server said this viewer may write, so
             // a cell never offers an edit the write would refuse.
             editor: editor || false,
+            editorParams: editor === 'list'
+                ? pickerParams(column, ask)
+                : undefined,
             width: column.width || undefined,
             hozAlign: column.align,
             variableHeight: !!column.wrap
@@ -113,12 +137,15 @@
             var local = !!ctx.rows;
             //: The column set the header is currently drawn from.
             var drawn = null;
+            //: How a searching picker asks. The client owns the request; the
+            //: adapter owns when one is needed.
+            var ask = ctx.options;
 
             var options = {
                 layout: 'fitColumns',
                 placeholder: config.empty_text || 'No records',
                 columns: (ctx.columns || []).map(function (c) {
-                    return toColumn(c, config);
+                    return toColumn(c, config, ask);
                 }),
                 pagination: true,
                 paginationSize: config.page_size || 50
@@ -157,7 +184,7 @@
                                 drawn = signature;
                                 table.setColumns(
                                     body.columns.map(function (c) {
-                                        return toColumn(c, config);
+                                        return toColumn(c, config, ask);
                                     })
                                 );
                             }

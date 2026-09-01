@@ -297,6 +297,37 @@ def block_write(request: HttpRequest, pk: int, placement: int) -> JsonResponse:
     return JsonResponse(written, status=200 if written["errors"] is None else 422)
 
 
+@login_required
+def block_options(
+    request: HttpRequest, pk: int, placement: int, field: str
+) -> JsonResponse:
+    """What one relation column may be set to, for a picker that searches.
+
+    A short list travels with the columns and never reaches here; this is for
+    the ones too long to send, which is the only reason the endpoint exists.
+
+    The same queryset the write resolves against, so the picker cannot offer
+    what the save would refuse, nor hide what it would accept.
+    """
+    from plinta.blocks.submit import writable
+    from plinta.datasources.choices import choosable, options
+
+    _, slot, component = placement_of(request, pk, placement)
+    if not component.writes or field not in writable(slot.block.data_source,
+                                                     request.user):
+        # Not editable here is not "no options": it is a column nobody should
+        # be asking about, and answering would say what the rows are to
+        # somebody who may not change them.
+        raise Http404("that column is not editable here")
+
+    rows = choosable(slot.block.data_source.model, field, request.user)
+    if rows is None:
+        raise Http404("that column is not a relation")
+    return JsonResponse(
+        {"options": options(rows, search=request.GET.get("q", ""))}
+    )
+
+
 def page_view(
     request: HttpRequest, pk: int, slug: str = "", record: str | None = None
 ) -> HttpResponse:

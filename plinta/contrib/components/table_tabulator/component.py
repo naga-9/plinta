@@ -94,10 +94,12 @@ class TabulatorComponent(Component):
 
         return format_html(
             '<div class="pl-tabulator" data-plinta-mount="table_tabulator" '
-            'data-plinta-url="{}" data-plinta-write-url="{}" style="{}">'
+            'data-plinta-url="{}" data-plinta-write-url="{}" '
+            'data-plinta-options-url="{}" style="{}">'
             '<script type="application/json">{}</script></div>',
             context.get("data_url", ""),
             context.get("write_url", "") if config.editable else "",
+            context.get("options_url", "") if config.editable else "",
             f"height: {config.height}" if config.height else "",
             # `</script>` inside a string would close the tag it sits in.
             mark_safe(

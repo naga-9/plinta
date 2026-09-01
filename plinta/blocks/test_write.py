@@ -280,3 +280,40 @@ def test_a_delete_announces_the_pk(writer, listen):
     listen(signals.object_deleted, lambda sender, **kw: seen.update(kw))
     delete(book, writer)
     assert seen["pk"] == pk
+
+
+def test_a_relation_is_diffed_as_a_pk(db):
+    """The diff describes a write and travels to listeners, some storing it.
+
+    A model instance does not go into a JSON column. One that tried raised
+    inside the atomic block; the listener swallowed it as designed, and the
+    write was rolled back anyway — so the endpoint answered 200 with the new
+    value while the database kept the old one. Core installs no listeners, so
+    only a suite that does could see it.
+    """
+    from django.contrib.auth.models import Permission, User
+    from django.contrib.contenttypes.models import ContentType
+
+    from plinta.permissions.fields import sync_model
+    from tests.testapp.models import Book, Region
+
+    user = User.objects.create_user(username="ada", password="x")  # noqa: S106
+    sync_model(Book, {"region": True})
+    for model, codes in ((Book, ("change_book", "change_book_region")),):
+        content_type = ContentType.objects.get_for_model(model)
+        for code in codes:
+            permission, _ = Permission.objects.get_or_create(
+                codename=code, content_type=content_type, defaults={"name": code}
+            )
+            user.user_permissions.add(permission)
+
+    north = Region.objects.create(name="North")
+    south = Region.objects.create(name="South")
+    book = Book.objects.create(title="Ariel", region=north)
+
+    _, changes = write(book, {"region": south}, user)
+    assert changes["region"] == (north.pk, south.pk)
+
+    import json
+
+    json.dumps(changes)  # a listener that stores it must be able to

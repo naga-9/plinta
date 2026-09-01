@@ -55,38 +55,33 @@ def writable(datasource, user) -> dict[str, Any]:
     }
 
 
-def coerced(datasource, values: dict[str, Any]) -> dict[str, Any]:
+def coerced(datasource, values: dict[str, Any], user) -> dict[str, Any]:
     """``values`` as the model wants them.
 
     One conversion, and it is the relations: a write names a related row by
-    its **pk**, because that is what a picker has and what survives JSON. The
-    row is fetched here so a pk that names nothing is a rejection with a
-    field on it rather than an integrity error from the database.
+    its **pk**, because that is what a picker has and what survives JSON.
 
-    Which related rows may be chosen is not settled here — a picker offering
-    only permitted options, and this validating against the same list, is
-    `editor_queryset_filter`'s job and is still to come.
+    Resolved through the **same list the picker offers**, so a pk that was
+    never on offer is refused. Fetching by pk alone would let a viewer assign
+    a related row they cannot see by typing its number, which is the failure
+    `editor_queryset_filter` had — it narrowed the dropdown and not the save.
 
     Raises:
-        ValidationError: a relation value that names no row.
+        ValidationError: a relation value naming no row this viewer may pick.
     """
     from django.core.exceptions import ValidationError
 
-    from plinta.datasources.services import resolve_path
+    from plinta.datasources.choices import choosable
 
     model = datasource.model
     out: dict[str, Any] = {}
     for name, value in values.items():
-        field = resolve_path(model, name)
-        relation = field is not None and (
-            getattr(field, "many_to_one", False)
-            or getattr(field, "one_to_one", False)
-        )
-        if not relation or value in (None, ""):
+        rows = choosable(model, name, user)
+        if rows is None or value in (None, ""):
             out[name] = value
             continue
         try:
-            row = field.related_model._default_manager.filter(pk=value).first()
+            row = rows.filter(pk=value).first()
         except (ValueError, TypeError):
             # A pk the key cannot even be compared against — a label typed
             # into a box that wanted an option. The lookup raises rather than
@@ -147,7 +142,7 @@ def submit(
             raise WriteDenied("no such record here")
 
     try:
-        prepared = coerced(datasource, values)
+        prepared = coerced(datasource, values, user)
     except ValidationError as exc:
         return {"record": record, "row": None, "errors": exc.message_dict}
 

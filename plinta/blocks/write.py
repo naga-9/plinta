@@ -48,6 +48,26 @@ def _m2m_value(instance: Model, name: str) -> list[Any]:
     return sorted(getattr(instance, name).values_list("pk", flat=True))
 
 
+def _relations(model: type[Model]) -> set[str]:
+    """The forward relations, whose diff is recorded as a pk."""
+    return {f.name for f in model._meta.fields if f.is_relation}
+
+
+def _value(row: Model, name: str, m2m: set[str], relations: set[str]) -> Any:
+    """One value as the diff should carry it.
+
+    A **pk** for anything related, which is what a many-to-many already did.
+    A diff describes a write and travels to listeners, some of which store it —
+    and a live model instance does not go into a JSON column. Carrying the
+    object also pins a row in memory for every listener, to say what a pk says.
+    """
+    if name in m2m:
+        return _m2m_value(row, name)
+    if name in relations:
+        return getattr(row, f"{name}_id", None)
+    return getattr(row, name, None)
+
+
 def authorise(user, action: str, instance: Model, fields: list[str]) -> None:
     """Refuse the write before anything is validated or saved.
 
@@ -83,10 +103,8 @@ def _before(instance: Model, fields: list[str], m2m: set[str]) -> dict[str, Any]
     stored = type(instance)._default_manager.filter(pk=instance.pk).first()
     if stored is None:
         return {}
-    return {
-        name: _m2m_value(stored, name) if name in m2m else getattr(stored, name, None)
-        for name in fields
-    }
+    relations = _relations(type(instance))
+    return {name: _value(stored, name, m2m, relations) for name in fields}
 
 
 @transaction.atomic
@@ -147,8 +165,9 @@ def write(
         getattr(instance, name).set(values[name])
 
     changes = {}
+    relations = _relations(model)
     for name in sorted(values):
-        after = _m2m_value(instance, name) if name in m2m else getattr(instance, name, None)
+        after = _value(instance, name, m2m, relations)
         was = before.get(name)
         if creating or was != after:
             changes[name] = (was, after)

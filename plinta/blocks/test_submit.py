@@ -267,6 +267,9 @@ def with_region(source, writer):
         Book, {"title": True, "in_print": True, "region__name": False, "region": True}
     )
     grant(writer, Book, "view_book_region", "change_book_region")
+    # A related row nobody may see is not one they may be asked to choose,
+    # so the picker's model needs its own view permission.
+    grant(writer, Region, "view_region")
     return source
 
 
@@ -319,3 +322,33 @@ def test_a_relations_raw_value_is_its_pk(block, with_region, writer, book):
         values={"region": book.region_id},
     )
     assert out["row"]["_edit"]["region"] == book.region_id
+
+
+def test_a_relation_may_only_be_set_to_a_row_the_viewer_may_see(
+    block, with_region, writer, book
+):
+    """The picker and the write read one list.
+
+    `editor_queryset_filter` narrowed the dropdown and not the save, so a
+    viewer who typed a pk assigned a row that was never on offer. Resolving
+    through the same queryset is what makes that impossible rather than
+    unlikely.
+    """
+    from django.contrib.auth.models import Permission
+
+    hidden = Region.objects.create(name="Hidden")
+    writer.user_permissions.remove(
+        Permission.objects.get(
+            codename="view_region",
+            content_type=ContentType.objects.get_for_model(Region),
+        )
+    )
+    writer = User.objects.get(pk=writer.pk)  # permissions are cached per user
+
+    out = submit(
+        block, writer, datasource=with_region, record=book.pk,
+        values={"region": hidden.pk},
+    )
+    assert out["errors"]["region"]
+    book.refresh_from_db()
+    assert book.region.name == "North"

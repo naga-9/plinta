@@ -396,6 +396,7 @@ def render_page(
                 # unconditionally; a component that cannot write ignores it,
                 # and the endpoint refuses one in its name anyway.
                 write_url=f"/pages/{page.pk}/blocks/{placement.pk}/write/",
+                options_url=f"/pages/{page.pk}/blocks/{placement.pk}/options/",
                 page=_page_number(query, prefix),
                 sort=_sort_param(query, prefix),
             )

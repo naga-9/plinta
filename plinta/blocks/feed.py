@@ -18,6 +18,7 @@ import decimal
 from typing import Any
 
 from plinta.components.tabular import filtered, ordered, paged, sort_asked
+from plinta.datasources.choices import THRESHOLD, choosable as choices
 
 #: What a request may ask for beyond the column filters.
 RESERVED = {"page", "size", "sort", "tab", "view"}
@@ -151,6 +152,25 @@ def row_payload(row: Any, fields: list, user, editable: set[str],
     return payload
 
 
+def picker(field: Any, model, user) -> dict[str, Any]:
+    """How an editable relation offers its choices, and the small ones inline.
+
+    A list is by definition short — under a hundred, or the author said so —
+    so it travels with the column and costs no round trip. A search cannot,
+    and asks the options endpoint as the writer types.
+    """
+    from plinta.datasources.choices import mode_for, options
+
+    rows = choices(model, field.field_name, user)
+    if rows is None:
+        return {}
+    mode = mode_for(field, rows)
+    drawn: dict[str, Any] = {"picker": mode}
+    if mode == "list":
+        drawn["options"] = options(rows, limit=THRESHOLD)
+    return drawn
+
+
 def column(field: Any, *, editable: bool = False, kind: str = "") -> dict[str, Any]:
     """One column, as an adapter needs to draw its header.
 
@@ -237,6 +257,14 @@ def feed(component, config, user, *, datasource, narrow, asked) -> dict[str, Any
                 f,
                 editable=f.field_name in editable,
                 kind=kinds.get(f.field_name, ""),
+            )
+            # A picker only where the viewer may actually write the column:
+            # offering choices for one they cannot change is a control that
+            # does nothing, and it costs a query to build.
+            | (
+                picker(f, datasource.model, user)
+                if f.field_name in editable and kinds.get(f.field_name) == "relation"
+                else {}
             )
             for f in fields
         ],

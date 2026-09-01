@@ -52,6 +52,9 @@ def viewer(db):
         "view_book_region",
         "change_book_region",
     )
+    # The picker's own model: a related row nobody may see is not one they
+    # may be asked to choose.
+    grant(user, Region, "view_region")
     for model in CONFIG_MODELS:
         grant(user, model, f"view_{model._meta.model_name}")
     return user

@@ -242,17 +242,86 @@ def test_a_boolean_gets_a_tick_not_a_text_box(page, live_server, signed_in, scre
     assert ["title", "string"] in kinds
 
 
-def test_a_relation_offers_no_editor_until_it_has_a_picker(
-    page, live_server, signed_in, screen
-):
-    """`region` is editable and a relation. A text box would send a label,
-    which raised out of the assignment and answered 500 — so it draws none
-    rather than one that cannot work.
-    """
+# --- the relation picker ----------------------------------------------------
+
+
+def test_a_short_list_travels_with_the_column(page, live_server, signed_in, screen):
+    """Under a hundred, so it costs no round trip: the options are already
+    there when the writer opens the cell."""
     open_page(page, live_server, screen)
-    cell = cell_of(page, "region")
-    cell.click()
-    assert cell.locator("input").count() == 0
+    columns = page.evaluate("""async () => {
+        var m = document.querySelector('[data-plinta-mount]');
+        var r = await fetch(m.dataset.plintaUrl + '?page=1&size=1',
+                            {credentials: 'same-origin'});
+        var b = await r.json();
+        return b.columns;
+    }""")
+    region = [c for c in columns if c["name"] == "region"][0]
+    assert region["picker"] == "list"
+    assert sorted(o["label"] for o in region["options"]) == ["North", "South"]
+
+
+def test_choosing_a_relation_writes_it(page, live_server, signed_in, screen):
+    """A picker, and the pk behind the label reaching the database."""
+    from tests.testapp.models import Book, Region
+
+    open_page(page, live_server, screen)
+    first = Book.objects.order_by("title").first()
+    assert first.region.name == "North"
+
+    cell_of(page, "region").click()
+    page.wait_for_selector(".tabulator-edit-list-item", timeout=15000)
+    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
+        page.click(".tabulator-edit-list-item:has-text('South')")
+    assert answer.value.status == 200
+    # Re-read rather than refresh: the cached relation on `first` survives a
+    # refresh_from_db and would report the old row.
+    assert Book.objects.get(pk=first.pk).region == Region.objects.get(name="South")
+
+
+def test_the_picker_offers_only_what_the_write_would_take(
+    page, live_server, signed_in, screen, viewer
+):
+    """One list, two readers.
+
+    `editor_queryset_filter` narrowed the dropdown and not the save. Here the
+    options endpoint and the write resolve against the same queryset, so a
+    region the viewer may not see is in neither.
+    """
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+    from tests.testapp.models import Book, Region
+
+    hidden = Region.objects.create(name="Hidden")
+    viewer.user_permissions.remove(
+        Permission.objects.get(
+            codename="view_region",
+            content_type=ContentType.objects.get_for_model(Region),
+        )
+    )
+
+    open_page(page, live_server, screen)
+    columns = page.evaluate("""async () => {
+        var m = document.querySelector('[data-plinta-mount]');
+        var r = await fetch(m.dataset.plintaUrl + '?page=1&size=1',
+                            {credentials: 'same-origin'});
+        return (await r.json()).columns;
+    }""")
+    region = [c for c in columns if c["name"] == "region"][0]
+    assert region.get("options") == []
+
+    # And the write refuses the same row, rather than only the picker hiding it.
+    answer = page.evaluate("""async (pk) => {
+        var m = document.querySelector('[data-plinta-mount]');
+        var token = /(?:^|;\s*)csrftoken=([^;]*)/.exec(document.cookie)[1];
+        var r = await fetch(m.dataset.plintaWriteUrl, {
+            method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': token},
+            body: JSON.stringify({record: %d, values: {region: pk}})
+        });
+        return r.status;
+    }""" % Book.objects.order_by("title").first().pk, hidden.pk)
+    assert answer == 422
 
 
 def test_an_edited_cell_sends_the_value_not_the_formatting(

@@ -189,9 +189,11 @@ from `sorter`, which only says how to compare it: reading the sort hint gives
 every column a text box, and a boolean cell then offers the word `No` back
 and is told it is not a boolean.
 
-**A relation is written by its pk.** Sending a label raises out of the
-assignment, which is a 422 and not a crash — but it is still a write that was
-never going to work, so draw a picker or draw nothing.
+**A relation is written by its pk**, and the column tells you how to offer the
+choices. `picker` is `list` or `search`: a `list` arrives with its `options`
+already on the column, and a `search` asks `ctx.options(field, term)` as the
+writer types. Both read the same queryset the write resolves against, so a
+picker cannot offer what the save would refuse.
 
 **Tell a refusal from a rejection.** `error.refused` is a 403 and will not
 succeed however the value changes; a 422 carries `error.fields` and will.

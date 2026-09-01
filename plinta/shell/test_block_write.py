@@ -11,7 +11,9 @@ import pytest
 from django.contrib.auth.models import Permission, User
 from django.contrib.contenttypes.models import ContentType
 
-from plinta.blocks.models import Block
+from plinta.blocks.models import Block, SavedView
+from pydantic import Field
+
 from plinta.components.base import Component, ComponentConfig
 from plinta.components.registry import register_component
 from plinta.datasources.models import DataSource, DataSourceField
@@ -41,9 +43,13 @@ def writing_component(component_registry):
     the endpoint's own behaviour should not wait on a component's.
     """
 
+    class WriterConfig(ComponentConfig):
+        page_size: int = Field(default=25, gt=0)
+        striped: bool = False
+
     @register_component("writer", label="Writer")
     class Writer(Component):
-        config_schema = ComponentConfig
+        config_schema = WriterConfig
         writes = True
 
         def render(self, config, user, **context):
@@ -285,3 +291,113 @@ def test_a_form_on_another_page_is_not_reachable(client, screen):
     assert client.get(
         f"/pages/{other.pk}/blocks/{placement.pk}/form/", {"record": book.pk}
     ).status_code == 404
+
+
+# --- managing a block's saved views -----------------------------------------
+
+
+def views_url(page, placement):
+    return f"/pages/{page.pk}/blocks/{placement.pk}/views/"
+
+
+@pytest.fixture
+def may_save(screen):
+    """The viewer, able to save a view but not to publish one."""
+    page, placement, block, book = screen
+    ada = User.objects.get(username="ada")
+    # `view_savedview` included: without it a viewer cannot see their own
+    # views, so there is nothing to edit or delete. The demo's base role
+    # grants it for the same reason.
+    grant(ada, SavedView, "view_savedview", "add_savedview",
+          "change_savedview", "delete_savedview")
+    return page, placement, block, User.objects.get(pk=ada.pk)
+
+
+def test_the_editor_draws_the_components_own_fields(client, may_save):
+    page, placement, _, _ = may_save
+    body = client.get(views_url(page, placement)).content.decode()
+    assert 'name="page_size"' in body
+    assert 'name="override_page_size"' in body
+
+
+def test_saving_stores_only_the_delta(client, may_save):
+    page, placement, block, _ = may_save
+    Block.objects.filter(pk=block.pk).update(config={"page_size": 25})
+
+    response = client.post(views_url(page, placement), {
+        "name": "Mine",
+        "override_page_size": "on",
+        "page_size": "10",
+    })
+    assert response.status_code == 302
+    view = SavedView.objects.get()
+    assert view.config == {"page_size": 10}
+
+
+def test_a_field_not_overridden_is_not_stored(client, may_save):
+    """Unticked means inherited, which means absent — the whole delta."""
+    page, placement, block, _ = may_save
+    Block.objects.filter(pk=block.pk).update(config={"page_size": 25})
+
+    client.post(views_url(page, placement), {
+        "name": "Mine", "page_size": "10",   # value sent, override not ticked
+    })
+    assert SavedView.objects.get().config == {}
+
+
+def test_saving_returns_to_this_placements_view(client, may_save):
+    """This placement's parameter, so the other card keeps its own."""
+    page, placement, _, _ = may_save
+    response = client.post(views_url(page, placement), {"name": "Mine"})
+    view = SavedView.objects.get()
+    assert response["Location"].endswith(f"?b{placement.pk}_view={view.pk}")
+
+
+def test_an_invalid_value_is_answered_not_saved(client, may_save):
+    page, placement, _, _ = may_save
+    response = client.post(views_url(page, placement), {
+        "name": "Mine", "override_page_size": "on", "page_size": "0",
+    })
+    assert response.status_code == 422
+    assert not SavedView.objects.exists()
+
+
+def test_publishing_without_the_permission_is_refused(client, may_save):
+    page, placement, _, _ = may_save
+    response = client.post(views_url(page, placement), {
+        "name": "Everyone's", "public": "on",
+    })
+    assert response.status_code == 403
+    assert not SavedView.objects.exists()
+
+
+def test_publishing_with_it_is_allowed(client, may_save):
+    page, placement, _, ada = may_save
+    grant(ada, SavedView, "change_savedview_owner")
+    client.force_login(User.objects.get(pk=ada.pk))
+
+    response = client.post(views_url(page, placement), {
+        "name": "Everyone's", "public": "on",
+    })
+    assert response.status_code == 302
+    assert SavedView.objects.get().owner is None
+
+
+def test_a_view_can_be_deleted(client, may_save):
+    page, placement, block, ada = may_save
+    view = SavedView.objects.create(block=block, name="Mine", owner=ada, config={})
+    response = client.post(views_url(page, placement), {
+        "view": str(view.pk), "action": "delete",
+    })
+    assert response.status_code == 302
+    assert not SavedView.objects.exists()
+
+
+def test_someone_elses_view_is_not_deletable(client, may_save):
+    page, placement, block, _ = may_save
+    other = User.objects.create_user(username="bob", password="x")  # noqa: S106
+    view = SavedView.objects.create(block=block, name="Theirs", owner=other, config={})
+    assert client.post(views_url(page, placement), {
+        "view": str(view.pk), "action": "delete",
+    }).status_code == 404
+    assert SavedView.objects.filter(pk=view.pk).exists()

@@ -2993,6 +2993,22 @@ They are ordinary schema fields, not extras. They resist derivation for two sepa
 
 **Some still need a real editor.** Reordering series by drag, picking a colour, mapping a workflow state to a column: typing the schema does not produce those. So the form engine takes an **override registry** — a component declares a template for one of its config fields and the engine uses it instead of the derived widget. Without it the engine handles the simple 80% and someone hand-writes the rest again, which is how v1 arrived at thirteen templates and no place to put them.
 
+### 12.3a The saved-view editor
+
+The same mechanism as the block inspector, over a **delta** rather than a base. `plinta.forms` derives it from the component's own config schema, so nothing in it knows what a table is and a consumer's component gets view CRUD without writing a form.
+
+**Every field carries whether this view overrides it**, and that is not decoration. A control showing 25 because the block says 25 must be told apart from one showing 25 because somebody chose it — a form posts every field, so without the distinction the first save turns every inherited field into an override and the delta is a copy. Unticked means inherited, which means *not submitted*.
+
+**`parse` returns the whole config**, defaults included, which is what an inspector wants and the opposite of what a delta is. The caller narrows it to the fields that were ticked.
+
+**`columns` is the field that cannot derive**, and it is why `forms/overrides.py` exists. Its widget lists every column the viewer may see — chosen ones first in this view's order, the rest unticked — so a column added to the DataSource after a view was saved is something to *select*, never something that appeared. Order is DOM order, since a browser posts checkboxes as they appear, so dragging a row is the whole of reordering.
+
+The override is registered on `ComponentConfig`, and `overrides_for` walks the MRO to find it: `columns` is declared there, so a chooser each component had to re-register is one an author will forget.
+
+**Submitted as a form, answered with a redirect.** Saving changes what the card shows, so the page redraws for the reason §7.12 gives, and the redirect carries *this placement's* view parameter so the other card keeps its own.
+
+**Publishing is `change_savedview_owner`** — one field, `owner = None`, and a field permission is the only thing that can gate one (§6.1b). Without the permission the control is not drawn and a submitted `public` is refused rather than ignored.
+
 ### 12.4 The page composer
 
 Arranges blocks on the 12-column grid — drag, resize, add, remove — driven by GridStack, persisting `PageBlock` positions.

@@ -652,7 +652,7 @@ def test_add_opens_the_same_form_with_nothing_in_it(
     viewer.user_permissions.add(grant)
 
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form]")
+    page.click(".pl-card__actions [data-plinta-open-form*='/form/']")
     page.wait_for_selector("dialog[open] .pl-form", timeout=15000)
     assert page.locator('dialog [name="title"]').input_value() == ""
 
@@ -668,7 +668,11 @@ def test_add_is_not_offered_without_the_permission(
 ):
     """The viewer has no `add_book`, so the card does not offer one."""
     open_page(page, live_server, screen)
-    assert page.locator(".pl-card__actions [data-plinta-open-form]").count() == 0
+    # Specific to the record form: the card also carries a Views button,
+    # which is a different permission.
+    assert page.locator(
+        ".pl-card__actions [data-plinta-open-form*='/form/']"
+    ).count() == 0
 
 
 def test_escape_closes_the_dialog(page, live_server, signed_in, screen):
@@ -690,3 +694,73 @@ def test_a_record_outside_the_blocks_narrowing_is_not_opened(
         f"/form/?record=999999"
     )
     assert answer.status == 404
+
+
+# --- saved views ------------------------------------------------------------
+
+
+def test_the_view_editor_opens_in_the_dialog(page, live_server, signed_in, screen):
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector("dialog[open] form", timeout=15000)
+    assert page.locator('dialog [name="name"]').count() == 1
+    # Derived from the component's own schema, not written by hand.
+    assert page.locator('dialog [name="page_size"]').count() == 1
+
+
+def test_the_chooser_offers_every_permitted_column(
+    page, live_server, signed_in, screen
+):
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector("dialog .pl-columns", timeout=15000)
+    offered = page.locator('dialog .pl-columns [name="columns"]').evaluate_all(
+        "els => els.map(e => e.value)"
+    )
+    assert offered == ["title", "in_print", "region", "watchers"]
+
+
+def test_saving_a_view_stores_only_what_was_ticked(
+    page, live_server, signed_in, screen
+):
+    """The whole point of a delta: a form posts every field."""
+    from plinta.blocks.models import SavedView
+
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector("dialog form", timeout=15000)
+
+    page.fill('dialog [name="name"]', "Wide")
+    page.check('dialog [name="override_page_size"]')
+    page.fill('dialog [name="page_size"]', "5")
+    page.click('dialog button[type="submit"]')
+    page.wait_for_url("**/*view=*", timeout=15000)
+
+    view = SavedView.objects.get()
+    assert view.config == {"page_size": 5}
+    assert view.owner is not None  # personal, since nothing published it
+
+
+def test_a_saved_view_is_what_the_card_then_draws(
+    page, live_server, signed_in, screen
+):
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector("dialog form", timeout=15000)
+    page.fill('dialog [name="name"]', "Five")
+    page.check('dialog [name="override_page_size"]')
+    page.fill('dialog [name="page_size"]', "5")
+    page.click('dialog button[type="submit"]')
+
+    page.wait_for_selector(".tabulator-row", timeout=15000)
+    assert rows(page).count() == 5
+
+
+def test_publishing_is_not_offered_without_the_permission(
+    page, live_server, signed_in, screen
+):
+    """`change_savedview_owner` gates one field, and the control for it."""
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector("dialog form", timeout=15000)
+    assert page.locator('dialog [name="public"]').count() == 0

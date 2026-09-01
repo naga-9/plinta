@@ -1,0 +1,11 @@
+{% load plinta_tags %}
+{% comment %} Save what you are looking at, or edit a view you saved.
+
+Offered even when the block has no views yet, which is why it is a separate
+action from the picker: the picker has nothing to choose between until this
+has been used once.
+{% endcomment %}
+<button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}"
+        data-plinta-open-form="{{ slot.views_url }}">
+    {% icon "plinta:settings" %} Views
+</button>

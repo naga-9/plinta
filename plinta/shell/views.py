@@ -10,7 +10,13 @@ from typing import Any
 
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
-from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.http import (
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseForbidden,
+    JsonResponse,
+)
 from django.shortcuts import redirect, render
 
 from django.db.models import Q
@@ -385,6 +391,125 @@ def block_form(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
             write_url=f"/pages/{pk}/blocks/{placement}/write/",
             options_url=f"/pages/{pk}/blocks/{placement}/options/",
         )
+    )
+
+
+@login_required
+def block_views(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
+    """Manage the saved views on one card's block.
+
+    A plain form, posted and redirected rather than fetched: saving a view
+    changes what the card shows, and the page redraws for the same reason a
+    filter change does (§7.12). The dialog is where it is *drawn*, not how it
+    is submitted.
+
+    The fields come from the component's own schema, so this screen has no
+    idea what a table is (§12.3).
+    """
+    from plinta.blocks import saved_views
+    from plinta.permissions import can
+
+    page, slot, component = placement_of(request, pk, placement)
+    block = slot.block
+    mine = saved_views.visible_views(block, request.user)
+    chosen = next(
+        (v for v in mine if str(v.pk) == (request.GET.get("view") or "")), None
+    )
+
+    if request.method == "POST":
+        return _save_view(request, page, slot, component, mine)
+
+    return render(
+        request,
+        "plinta/blocks/view_editor.html",
+        {
+            "cls": _classes(),
+            "views": mine,
+            "view": chosen,
+            "controls": saved_views.controls(component, block, request.user, chosen),
+            "columns": saved_views.column_choices(block, request.user, chosen),
+            "may_publish": saved_views.may_publish(request.user),
+            "may_delete": chosen is not None and can(request.user, "delete", chosen),
+            "action": f"/pages/{pk}/blocks/{placement}/views/",
+            "errors": {},
+        },
+    )
+
+
+def _classes() -> dict:
+    from plinta.utils.styles import classes
+
+    return classes()
+
+
+def _save_view(request: HttpRequest, page, slot, component, mine):
+    """Create, update or delete one view, then send the viewer back to it."""
+    from plinta.blocks import saved_views
+    from plinta.forms.parse import parse
+    from plinta.permissions import can
+
+    block = slot.block
+    schema = component.config_schema
+    asked = request.POST.get("view") or ""
+    view = next((v for v in mine if str(v.pk) == asked), None)
+
+    if request.POST.get("action") == "delete":
+        if view is None or not can(request.user, "delete", view):
+            raise Http404("no such view")
+        view.delete()
+        return redirect(page.get_absolute_url())
+
+    # Only the overridden fields are read. A field nobody ticked is inherited,
+    # and inherited means absent — which is what keeps the delta a delta.
+    submitted = {}
+    for field in schema.model_fields:
+        if not request.POST.get(f"override_{field}"):
+            continue
+        values = request.POST.getlist(field)
+        submitted[field] = values if len(values) > 1 or field == "columns" else (
+            request.POST.get(field)
+        )
+
+    config, errors = parse(schema, submitted)
+    if errors:
+        return render(
+            request,
+            "plinta/blocks/view_editor.html",
+            {
+                "cls": _classes(),
+                "views": mine,
+                "view": view,
+                "controls": saved_views.controls(component, block, request.user, view),
+                "columns": saved_views.column_choices(block, request.user, view),
+                "may_publish": saved_views.may_publish(request.user),
+                "may_delete": view is not None and can(request.user, "delete", view),
+                "action": request.path,
+                "errors": errors,
+            },
+            status=422,
+        )
+
+    # `parse` validates and returns the **whole** config, defaults included,
+    # which is what a block inspector wants and the opposite of what a delta
+    # is. Only the fields somebody ticked survive.
+    overridden = {name: config[name] for name in submitted if name in config}
+
+    try:
+        saved = saved_views.save(
+            block,
+            request.user,
+            name=request.POST.get("name") or "Untitled",
+            values=overridden,
+            view=view,
+            public=bool(request.POST.get("public")),
+        )
+    except PermissionError as exc:
+        return HttpResponseForbidden(str(exc))
+
+    # Back to the page, opened on what was just saved — and on *this*
+    # placement's parameter, so the other card keeps its own view.
+    return redirect(
+        f"{page.get_absolute_url()}?b{slot.pk}_view={saved.pk}"
     )
 
 

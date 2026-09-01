@@ -990,3 +990,36 @@ hr {
     color: var(--pl-fg);
     min-height: 1.5rem;
 }
+
+/* --- the view editor ----------------------------------------------------- */
+
+.pl-views { margin: 0; padding-left: var(--pl-space-4); }
+
+/* A field and its override checkbox. The dimming says "inherited" without a
+ * second label on every row. */
+.pl-override:not(:has([data-plinta-override]:checked)) .pl-input,
+.pl-override:not(:has([data-plinta-override]:checked)) .pl-textarea,
+.pl-override:not(:has([data-plinta-override]:checked)) .pl-columns {
+    opacity: 0.55;
+}
+
+.pl-columns {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--pl-border);
+    border-radius: var(--pl-radius);
+}
+
+.pl-columns__item {
+    display: flex;
+    align-items: center;
+    gap: var(--pl-space-2);
+    padding: var(--pl-space-2) var(--pl-space-3);
+    border-bottom: 1px solid var(--pl-border);
+    background: var(--pl-surface);
+}
+
+.pl-columns__item:last-child { border-bottom: 0; }
+.pl-columns__item.is-dragging { opacity: 0.4; }
+.pl-columns__grip { cursor: grab; color: var(--pl-fg-muted); }

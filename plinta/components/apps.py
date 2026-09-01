@@ -19,3 +19,15 @@ class ComponentsConfig(AppConfig):
         # After core's client, which it registers with. Ordered below the
         # contrib range so a package's adapter still lands after it.
         register_script("plinta/js/form.js", order=200)
+        register_script("plinta/js/column-order.js", order=200)
+
+        # The one config field no schema can describe: which columns, in what
+        # order. Registered on `ComponentConfig`, so every component's config
+        # inherits it — `columns` is declared there, and a chooser each author
+        # had to re-register is one an author will forget.
+        from plinta.components.base import ComponentConfig
+        from plinta.forms.overrides import register_widget
+
+        register_widget(
+            ComponentConfig, "columns", "plinta/blocks/columns_widget.html"
+        )

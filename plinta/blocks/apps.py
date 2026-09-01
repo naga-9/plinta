@@ -48,6 +48,14 @@ class BlocksConfig(AppConfig):
             when=_may_add,
             order=20,
         )
+        # Saving what you are looking at. Separate from the picker, which
+        # has nothing to choose between until this has been used once.
+        actions.register_block_action(
+            "manage_views",
+            template="plinta/blocks/manage_views.html",
+            permission="plinta_blocks.add_savedview",
+            order=15,
+        )
         # The declared-dependency checks, registered wherever plinta is.
         from plinta.utils import checks as _dependency_checks  # noqa: F401
         # Imported for their side effects: registering the policies that make

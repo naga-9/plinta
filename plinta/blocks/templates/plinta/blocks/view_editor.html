@@ -1,0 +1,62 @@
+{% load plinta_tags %}
+{% comment %} Managing one block's saved views.
+
+A plain form: saving changes what the card shows, so the page redraws for the
+same reason a filter change does (§7.12). The dialog is where this is drawn,
+not how it is sent.
+
+Every field below came from the component's config schema. Nothing here knows
+what a table is.
+{% endcomment %}
+<form method="post" action="{{ action }}" class="{{ cls.form }}">
+    {% csrf_token %}
+    <input type="hidden" name="view" value="{{ view.pk|default_if_none:'' }}">
+
+    <h2 class="{{ cls.card_title }}">
+        {% if view %}{{ view.name }}{% else %}New view{% endif %}
+    </h2>
+
+    {% if views %}
+        <div class="{{ cls.field }}">
+            <label class="{{ cls.label }}">Views on this block</label>
+            <ul class="pl-views">
+                {% for each in views %}
+                    <li>
+                        <a href="?view={{ each.pk }}">{{ each.name }}</a>
+                        {% if not each.owner %}<span class="{{ cls.chip }}">Everyone</span>{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <div class="{{ cls.field }}">
+        <label class="{{ cls.label }}" for="pl-view-name">Name</label>
+        <input class="{{ cls.input }}" type="text" id="pl-view-name" name="name"
+               value="{{ view.name|default_if_none:'' }}" required>
+    </div>
+
+    {% for control in controls %}
+        {% include "plinta/blocks/view_field.html" %}
+    {% endfor %}
+
+    {% if may_publish %}
+        <div class="{{ cls.field }}">
+            <label class="{{ cls.label }}">
+                <input class="{{ cls.checkbox }}" type="checkbox" name="public"
+                       {% if view and not view.owner %}checked{% endif %}>
+                Everyone can see this view
+            </label>
+            {% comment %} `owner = None` is public, so this is one field and
+            `change_savedview_owner` is what gates it (§6.1b). {% endcomment %}
+        </div>
+    {% endif %}
+
+    <div class="{{ cls.form_actions }}">
+        <button type="submit" class="{{ cls.btn }} {{ cls.btn_primary }}">Save</button>
+        {% if may_delete %}
+            <button type="submit" name="action" value="delete"
+                    class="{{ cls.btn }} {{ cls.btn_danger }}">Delete</button>
+        {% endif %}
+    </div>
+</form>

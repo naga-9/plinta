@@ -43,6 +43,8 @@ class Placement:
     #: Where the card opens a record's form. An action reads it from here
     #: rather than building a URL, which is the page's job (§9.0).
     form_url: str = ""
+    #: And where it manages the block's saved views.
+    views_url: str = ""
 
     @property
     def param(self) -> str:
@@ -421,6 +423,7 @@ def render_page(
                 view=view,
                 actions=actions_for(placement.block, user, views=views),
                 form_url=f"/pages/{page.pk}/blocks/{placement.pk}/form/",
+                views_url=f"/pages/{page.pk}/blocks/{placement.pk}/views/",
                 column=placement.column,
                 row=placement.row,
                 width=placement.width,

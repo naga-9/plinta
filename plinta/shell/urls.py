@@ -34,6 +34,9 @@ urlpatterns = [
     # detail page draws, asked for after the page has loaded.
     path("pages/<int:pk>/blocks/<int:placement>/form/", views.block_form,
          name="block_form"),
+    # Managing the saved views on a card's block.
+    path("pages/<int:pk>/blocks/<int:placement>/views/", views.block_views,
+         name="block_views"),
     # A detail page: the record in the path, so the URL is shareable and the
     # page is what somebody sends a colleague.
     path("pages/<int:pk>-<slug:slug>/<str:record>/", views.page_view, name="record"),

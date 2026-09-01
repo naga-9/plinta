@@ -1,0 +1,37 @@
+{% comment %} One config field, with the thing that keeps a delta a delta.
+
+The checkbox is not decoration: unticked means *inherited*, the field is not
+submitted, and the block's value keeps reaching this view. Without it a form
+can only ever add overrides and the view becomes a copy of the block one save
+at a time.
+{% endcomment %}
+<div class="{{ cls.field }} pl-override" data-plinta-field="{{ control.name }}">
+    <label class="{{ cls.label }}">
+        <input class="{{ cls.checkbox }}" type="checkbox"
+               name="override_{{ control.name }}"
+               data-plinta-override
+               {% if control.overridden %}checked{% endif %}>
+        {{ control.label }}
+    </label>
+
+    {% if control.template %}
+        {% include control.template %}
+    {% elif control.widget == "bool" %}
+        <input class="{{ cls.checkbox }}" type="checkbox" name="{{ control.name }}"
+               {% if control.value %}checked{% endif %}>
+    {% elif control.widget == "number" %}
+        <input class="{{ cls.input }}" type="number" name="{{ control.name }}"
+               value="{{ control.value|default_if_none:'' }}">
+    {% elif control.widget == "json" %}
+        <textarea class="{{ cls.textarea }}" name="{{ control.name }}" rows="3">{{ control.value }}</textarea>
+    {% else %}
+        <input class="{{ cls.input }}" type="text" name="{{ control.name }}"
+               value="{{ control.value|default_if_none:'' }}">
+    {% endif %}
+
+    {% if not control.overridden %}
+        <div class="{{ cls.help }}">Inherited from the block: {{ control.inherited_value|default_if_none:"—" }}</div>
+    {% endif %}
+    {% if control.help %}<div class="{{ cls.help }}">{{ control.help }}</div>{% endif %}
+    {% for message in errors|dictsort:0 %}{% endfor %}
+</div>

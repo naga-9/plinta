@@ -955,3 +955,25 @@ hr {
     padding: var(--pl-space-1) var(--pl-space-2);
     font-size: var(--pl-font-sm);
 }
+
+/* --- form component ----------------------------------------------------- */
+
+.pl-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pl-space-3);
+}
+
+.pl-form__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--pl-space-3);
+    margin-top: var(--pl-space-4);
+}
+
+.pl-form__status {
+    color: var(--pl-fg-muted);
+    font-size: var(--pl-font-sm);
+}
+
+.pl-form__status--saved { color: var(--pl-success); }

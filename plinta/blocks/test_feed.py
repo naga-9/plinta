@@ -121,7 +121,7 @@ def test_a_many_to_manys_raw_value_is_a_list_of_pks(db):
 
     from django.contrib.auth.models import User
 
-    from plinta.blocks.feed import raw
+    from plinta.renderers.values import raw
     from tests.testapp.models import Book
 
     book = Book.objects.create(title="Ariel")

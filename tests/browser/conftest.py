@@ -125,6 +125,38 @@ def screen(viewer):
 
 
 @pytest.fixture
+def detail(screen, viewer):
+    """A detail page carrying a form over one book.
+
+    A second page rather than a second block on the first: a form is about
+    *one* record, and a page that is about one is what supplies it.
+    """
+    from plinta.pages.models import PageType
+
+    page, block, _ = screen
+    source = block.data_source
+    detail_page = Page.objects.create(
+        name="Book",
+        slug="book",
+        owner=viewer,
+        menu_group=page.menu_group,
+        page_type=PageType.DETAIL,
+        primary_data_source=source,
+    )
+    form = Block.objects.create(
+        name="book-form",
+        component_type="form_plinta",
+        data_source=source,
+        owner=viewer,
+        config={"submit_label": "Save book"},
+    )
+    PageBlock.objects.create(
+        page=detail_page, block=form, column=0, row=0, width=12, height=6
+    )
+    return detail_page, Book.objects.order_by("title").first()
+
+
+@pytest.fixture
 def signed_in(live_server, context, viewer):
     """A browser context carrying ``viewer``'s session cookie.
 

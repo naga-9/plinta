@@ -1407,7 +1407,7 @@ The merge happens one layer up, in `blocks`, which holds `SavedView` (§8.1). Th
 
 Each component declares a pydantic config schema with `extra='forbid'`, so a typo is rejected at save time rather than ignored at render time. Strict validation is only possible because exactly one shape arrives — not "the block config, unless a view overrode it".
 
-**Core ships `table_plinta` and nothing else** (ADR 0005 (§24)). Every other component registers through the same door a third party would use, so the contract is dogfooded rather than asserted.
+**Core ships one reference implementation per contract** (ADR 0005 (§24)): `table_plinta` reads and `form_plinta` writes. Every other component registers through the same door a third party would use, so the contract is dogfooded rather than asserted — and a write path with no writing component in core would have been asserted, not dogfooded.
 
 A block referencing an unregistered component type renders as an **empty slot** — a normal state, not an error, mirroring how a page already degrades a block the viewer may not see. The registry offers both lookups: `find` returns None, which is that path, and `get` raises for a caller that already knows the type is installed.
 
@@ -2130,6 +2130,10 @@ A per-component write endpoint would make three of those into three shapes for o
 **The response carries the saved row, in the same shape a feed row has** — `_record`, the formatted columns, and `_edit`. A write can change a column the database derived, and a widget refreshing an edited row should be able to use exactly what it drew the row from.
 
 **The client half is symmetric with `load`.** The client owns the URL, the CSRF token, and the error path; the adapter owns *when* — drag end, cell blur, form submit. `save(record, values)` beside `load(params)`.
+
+**Built, and `form_plinta` is the many-field case.** Core's form draws the columns this viewer may **write** — not the ones they may see — because a control the save would refuse is a promise the page cannot keep, and the writer finds out only after typing. Its fields come from the DataSource and the model; `plinta.forms` derives a form from a **pydantic schema** and edits a block's *configuration*, so the two never meet and neither is the other's consumer.
+
+A rejection is answered beside the control it belongs to, which is the reason the endpoint returns a field-keyed body rather than a message.
 
 **Status: the pipeline is built and tested (`plinta/blocks/write.py`, 185 lines) and nothing calls it.** No endpoint, no client, no component that writes. It is a declared-but-unused layer until one of the rows in that table exists.
 
@@ -4906,9 +4910,9 @@ The component contract is unaffected either way, which is what made the two deci
 
 Deltas remain deltas, never copies. A saved view stores only what differs, so a change to the underlying block reaches every view except where one deliberately overrides. Storing full copies would fork configuration silently.
 
-### ADR 0005 — Core ships `table_plinta` and no other component
+### ADR 0005 — Core ships one reference implementation per contract
 
-**Status:** accepted, 2026-08-28
+**Status:** accepted 2026-08-28; amended 2026-09-01 (see below)
 
 #### Context
 
@@ -4933,6 +4937,18 @@ Front-end vendors ship with their components, and core carries neither a CSS fra
 **Trade accepted:** core alone composes a detail page but renders a record as a single-row table until `contrib.components.details_card` is installed. `details-card` was the strongest candidate to keep in core and was excluded to keep the rule absolute — one reference implementation, no exceptions.
 
 Removing a component degrades pages rather than breaking them, which makes uninstalling one safe.
+
+#### Amendment, 2026-09-01 — one reference implementation *per contract*
+
+Core also ships **`form_plinta`**.
+
+The rule was written as "one component", but the reason behind it was "one *reference implementation*, so the contract is dogfooded rather than asserted". Core has two contracts a component can implement, not one: a component reads, and a component writes. `table_plinta` is the reference for reading and declares `writes = False`, so with it alone the write path — the endpoint, the client's `save`, `Component.writes`, the field gates — had no component in core exercising any of it. That is precisely the situation this ADR exists to prevent, arrived at from the other side.
+
+So the rule becomes: **core ships the contract, plus one reference implementation of each contract.** Today that is exactly two components. A third would need a third contract to justify it, which is a high enough bar to keep the rule honest.
+
+The original wording remains correct about the catalogue: every *visualisation* is contrib, `details-card` included.
+
+**Cost accepted:** `form_plinta` requires JavaScript, which `table_plinta` does not. The write endpoint takes `application/json` and nothing else (§15.3), so a plain form post has nowhere to land; accepting form encoding would mean a second write entry point parsing a second content type, which is the duplication one endpoint exists to prevent. A no-JS write path can be added later as a contrib component posting to its own view — it would go through the same public door as any other.
 
 ### ADR 0006 — Tenancy is a provider, not a dependency
 

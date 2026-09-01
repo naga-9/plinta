@@ -107,3 +107,20 @@ def options(rows, *, search: str = "", limit: int = LIMIT) -> list[dict[str, Any
         {"value": row.pk, "label": str(row)}
         for row in searched(rows, search).order_by("pk")[:limit]
     ]
+
+
+def picker_for(field, model, user) -> dict:
+    """How an editable or filterable relation offers its choices.
+
+    A list is by definition short — under a hundred, or the author said so —
+    so it travels with the column and costs no round trip. A search cannot,
+    and asks the options endpoint as the writer types.
+    """
+    rows = choosable(model, field.field_name, user)
+    if rows is None:
+        return {}
+    mode = mode_for(field, rows)
+    drawn = {"picker": mode}
+    if mode == "list":
+        drawn["options"] = options(rows, limit=THRESHOLD)
+    return drawn

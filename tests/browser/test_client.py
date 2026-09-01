@@ -424,7 +424,7 @@ def test_a_page_of_many_to_many_cells_is_one_query_not_one_each(
     from django.db import connection
     from django.test.utils import CaptureQueriesContext
 
-    from plinta.blocks.feed import raw
+    from plinta.renderers.values import raw
     from tests.testapp.models import Book
 
     rows = list(Book.objects.prefetch_related("watchers")[:10])
@@ -491,3 +491,87 @@ def test_filtering_by_a_many_to_many_shows_each_row_once(
     body = answer.value.json()
     assert body["page"]["total"] == 1
     assert [row["title"] for row in body["rows"]] == [watched.title]
+
+
+# --- the form component -----------------------------------------------------
+
+
+def open_detail(page, live_server, detail):
+    subject, record = detail
+    page.goto(f"{live_server.url}{subject.get_absolute_url()}{record.pk}/")
+    page.wait_for_selector(".pl-form", timeout=15000)
+    return record
+
+
+def test_a_form_draws_the_record_it_is_about(page, live_server, signed_in, detail):
+    record = open_detail(page, live_server, detail)
+    assert page.locator('.pl-form [name="title"]').input_value() == record.title
+    assert page.locator('.pl-form [name="region"]').input_value() == str(
+        record.region_id
+    )
+
+
+def test_a_form_writes_every_field_at_once(page, live_server, signed_in, detail):
+    """The many-field shape, through the same endpoint one dragged card uses."""
+    from tests.testapp.models import Book, Region
+
+    record = open_detail(page, live_server, detail)
+    south = Region.objects.get(name="South")
+
+    page.fill('.pl-form [name="title"]', "Rewritten")
+    page.select_option('.pl-form [name="region"]', str(south.pk))
+    # `in_print` is visible and not editable here, so the form draws no
+    # control for it — which the last test in this group asserts directly.
+    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
+        page.click('.pl-form button[type="submit"]')
+
+    assert answer.value.status == 200
+    saved = Book.objects.get(pk=record.pk)
+    assert saved.title == "Rewritten"
+    assert saved.region == south
+
+
+def test_a_rejected_field_is_answered_beside_itself(
+    page, live_server, signed_in, detail
+):
+    """A 422 names the fields, and each message belongs to one control."""
+    from tests.testapp.models import Book
+
+    record = open_detail(page, live_server, detail)
+    page.fill('.pl-form [name="title"]', "x" * 500)
+    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
+        page.click('.pl-form button[type="submit"]')
+
+    assert answer.value.status == 422
+    field = page.locator('.pl-form [data-plinta-field="title"]')
+    page.wait_for_selector('[data-plinta-field="title"].is-invalid', timeout=15000)
+    assert field.locator("[data-plinta-error]").inner_text().strip()
+    assert Book.objects.get(pk=record.pk).title == record.title
+
+
+def test_a_form_says_when_it_saved(page, live_server, signed_in, detail):
+    """A write that changed nothing visible still has to say it happened."""
+    open_detail(page, live_server, detail)
+    page.fill('.pl-form [name="title"]', "Quietly changed")
+    with page.expect_response(lambda r: r.url.endswith("/write/")):
+        page.click('.pl-form button[type="submit"]')
+    page.wait_for_selector(".pl-form__status--saved", timeout=15000)
+    assert page.locator("[data-plinta-status]").inner_text().strip() == "Saved"
+
+
+def test_a_form_draws_no_field_the_viewer_may_not_write(
+    page, live_server, signed_in, detail, viewer
+):
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+    from tests.testapp.models import Book
+
+    viewer.user_permissions.remove(
+        Permission.objects.get(
+            codename="change_book_title",
+            content_type=ContentType.objects.get_for_model(Book),
+        )
+    )
+    open_detail(page, live_server, detail)
+    assert page.locator('.pl-form [name="title"]').count() == 0
+    assert page.locator('.pl-form [name="region"]').count() == 1

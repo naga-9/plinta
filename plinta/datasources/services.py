@@ -115,6 +115,27 @@ def resolve_path(model, path: str):
     return None
 
 
+#: A path through a relation names a column on another row. Reading one is
+#: ordinary; writing one would mean deciding which row it meant, so a
+#: traversal is never writable however it is declared.
+TRAVERSAL = "__"
+
+
+def writable_fields(datasource: DataSource, user) -> dict[str, DataSourceField]:
+    """The columns this viewer may write, by name.
+
+    Three things at once, and each is a separate decision by a different
+    person: the DataSource author declared the column `editable`, an
+    administrator granted this viewer its change permission, and neither of
+    them can make a traversal writable.
+    """
+    return {
+        field.field_name: field
+        for field in editable_fields(datasource, user)
+        if TRAVERSAL not in field.field_name
+    }
+
+
 def searchable_fields(datasource: DataSource, user) -> list[DataSourceField]:
     """The columns a text search may match on.
 

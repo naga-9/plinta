@@ -174,6 +174,15 @@ an edited cell, a submitted form. Do not invent a write shape for your
 component; there is one, and it is the reason a kanban and a table share an
 endpoint.
 
+**Draw only what the viewer may write**, not what they may see. `writable()`
+answers it, and core's `form_plinta` is the worked example: a control the save
+would refuse is a promise the page cannot keep.
+
+**Render your payload as `{"config": ...}`** like every other mount. Emitted
+flat, the client finds no config, your adapter reads no state from it, and the
+failure looks like something else entirely — a form whose record went missing
+sent every save as a create, which was then refused as a permission error.
+
 **Only offer an edit where the column says `editable`.** It is per viewer and
 arrives with the columns. An editor on a cell the server would refuse is a
 promise the page cannot keep, and the writer finds out only after typing.

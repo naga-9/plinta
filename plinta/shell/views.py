@@ -309,7 +309,7 @@ def block_options(
     The same queryset the write resolves against, so the picker cannot offer
     what the save would refuse, nor hide what it would accept.
     """
-    from plinta.blocks.submit import writable
+    from plinta.datasources.services import writable_fields as writable
     from plinta.datasources.choices import choosable, options
 
     _, slot, component = placement_of(request, pk, placement)

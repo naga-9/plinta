@@ -19,12 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 from plinta.blocks.write import WriteDenied, write_or_errors
-
-#: A path through a relation names a column on another row. Reading one is
-#: ordinary; writing one would mean deciding which row it meant, so a
-#: traversal is never writable however it is declared.
-TRAVERSAL = "__"
-
+from plinta.datasources.services import writable_fields as writable
 
 def submitted(body: dict[str, Any]) -> tuple[Any, dict[str, Any]]:
     """The record and the values out of a request body.
@@ -36,23 +31,6 @@ def submitted(body: dict[str, Any]) -> tuple[Any, dict[str, Any]]:
     values = body.get("values")
     return (record if record not in ("", None) else None,
             values if isinstance(values, dict) else {})
-
-
-def writable(datasource, user) -> dict[str, Any]:
-    """The columns this viewer may write, by name.
-
-    Three things at once, and each is a separate decision by a different
-    person: the DataSource author declared the column `editable`, an
-    administrator granted this viewer its change permission, and neither of
-    them can make a traversal writable.
-    """
-    from plinta.datasources.services import editable_fields
-
-    return {
-        field.field_name: field
-        for field in editable_fields(datasource, user)
-        if TRAVERSAL not in field.field_name
-    }
 
 
 def coerced(datasource, values: dict[str, Any], user) -> dict[str, Any]:

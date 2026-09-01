@@ -1,0 +1,60 @@
+{% comment %} One record's editable fields.
+
+The mount carries the record and the URLs; `form.js` reads the controls back
+out of the DOM and sends them through the client, so nothing here knows what
+a request looks like. A real <form> element, so Enter submits and a screen
+reader announces it as one — the submit is intercepted, not invented.
+{% endcomment %}
+<form class="{{ cls.form }}" data-plinta-mount="form_plinta"
+      data-plinta-write-url="{{ write_url }}"
+      data-plinta-options-url="{{ options_url }}">
+    {% comment %} The payload shape the client reads: config, and nothing to
+    inline because a form fetches nothing. {% endcomment %}
+    <script type="application/json">{"config": {"record": {{ record|default_if_none:"null" }}}}</script>
+
+    {% for control in controls %}
+        <div class="{{ cls.field }}" data-plinta-field="{{ control.name }}">
+            <label class="{{ cls.label }}" for="pl-form-{{ control.name }}">{{ control.label }}</label>
+
+            {% if control.control == "checkbox" %}
+                <input class="{{ cls.checkbox }}" type="checkbox" id="pl-form-{{ control.name }}"
+                       name="{{ control.name }}" data-kind="{{ control.kind }}"
+                       {% if control.value %}checked{% endif %}>
+
+            {% elif control.control == "select" %}
+                <select class="{{ cls.select }}" id="pl-form-{{ control.name }}"
+                        name="{{ control.name }}" data-kind="{{ control.kind }}">
+                    <option value="">&mdash;</option>
+                    {% for option in control.options %}
+                        <option value="{{ option.value }}"
+                                {% if option.value == control.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+
+            {% elif control.control == "select-multiple" %}
+                <select class="{{ cls.select }}" id="pl-form-{{ control.name }}" multiple
+                        name="{{ control.name }}" data-kind="{{ control.kind }}">
+                    {% for option in control.options %}
+                        <option value="{{ option.value }}"
+                                {% if option.value in control.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+
+            {% else %}
+                <input class="{{ cls.input }}" type="{{ control.control }}"
+                       id="pl-form-{{ control.name }}" name="{{ control.name }}"
+                       data-kind="{{ control.kind }}"
+                       value="{{ control.value|default_if_none:'' }}">
+            {% endif %}
+
+            {% if control.help %}<div class="{{ cls.help }}">{{ control.help }}</div>{% endif %}
+            <div class="{{ cls.error }}" data-plinta-error hidden></div>
+        </div>
+    {% endfor %}
+
+    <div class="{{ cls.form_actions }}">
+        <button type="submit" class="{{ cls.btn }} {{ cls.btn_primary }}">{{ config.submit_label }}</button>
+        <span class="{{ cls.form_status }}" data-plinta-status
+              data-saved-text="{{ config.saved_text }}" hidden></span>
+    </div>
+</form>

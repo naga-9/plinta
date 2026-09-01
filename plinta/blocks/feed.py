@@ -13,13 +13,12 @@ around a shape named after one library.
 """
 from __future__ import annotations
 
-import datetime
-import decimal
 from typing import Any
 
 from plinta.components.tabular import filtered, ordered, paged, sort_asked
-from plinta.datasources.choices import THRESHOLD, choosable as choices
+from plinta.datasources.choices import picker_for as picker
 from plinta.datasources.kinds import kind_of
+from plinta.renderers.values import raw
 
 #: What a request may ask for beyond the column filters.
 RESERVED = {"page", "size", "sort", "tab", "view"}
@@ -77,29 +76,6 @@ def _int(value: Any, fallback: int) -> int:
     return number if number > 0 else fallback
 
 
-def raw(row: Any, name: str, kind: str) -> Any:
-    """One value as the field holds it, ready to seed an editor.
-
-    JSON has no date and no Decimal, so both are sent in a form the browser
-    can read back and the server can parse: a relation as the pk it is
-    written by, a date as ISO-8601.
-    """
-    if kind == "relation":
-        return getattr(row, f"{name}_id", None)
-    if kind == "relations":
-        # A manager, not a value: left alone it reaches JSON as one and the
-        # whole feed fails to serialise. `.all()` rather than `values_list`,
-        # which would go back to the database once per row and undo the
-        # prefetch the column already asked for.
-        return [related.pk for related in getattr(row, name).all()]
-    value = getattr(row, name, None)
-    if isinstance(value, decimal.Decimal):
-        return float(value)
-    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
-        return value.isoformat()
-    return value
-
-
 def row_payload(row: Any, fields: list, user, editable: set[str],
                 kinds: dict[str, str]) -> dict[str, Any]:
     """One row, as both halves of the conversation send it.
@@ -116,25 +92,6 @@ def row_payload(row: Any, fields: list, user, editable: set[str],
             if f.field_name in editable
         }
     return payload
-
-
-def picker(field: Any, model, user) -> dict[str, Any]:
-    """How an editable relation offers its choices, and the small ones inline.
-
-    A list is by definition short — under a hundred, or the author said so —
-    so it travels with the column and costs no round trip. A search cannot,
-    and asks the options endpoint as the writer types.
-    """
-    from plinta.datasources.choices import mode_for, options
-
-    rows = choices(model, field.field_name, user)
-    if rows is None:
-        return {}
-    mode = mode_for(field, rows)
-    drawn: dict[str, Any] = {"picker": mode}
-    if mode == "list":
-        drawn["options"] = options(rows, limit=THRESHOLD)
-    return drawn
 
 
 def column(field: Any, *, editable: bool = False, kind: str = "") -> dict[str, Any]:
@@ -195,9 +152,9 @@ def feed(component, config, user, *, datasource, narrow, asked) -> dict[str, Any
     # this viewer may write costs a permission read, and a chart would pay it
     # to be told about editors it will never draw.
     if getattr(component, "writes", False):
-        from plinta.blocks.submit import writable
+        from plinta.datasources.services import writable_fields
 
-        editable = set(writable(datasource, user))
+        editable = set(writable_fields(datasource, user))
     else:
         editable = set()
 

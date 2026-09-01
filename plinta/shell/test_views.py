@@ -1115,3 +1115,109 @@ def test_the_view_picker_keeps_your_place(screen, client):
     SavedView.objects.create(block=block, name="A", owner=None, config={})
     body = client.get(page.get_absolute_url()).content.decode()
     assert "data-plinta-keep-scroll" in body
+
+
+# --- the widget data feed ----------------------------------------------------
+
+
+def url_for(page, placement):
+    return f"/pages/{page.pk}/blocks/{placement.pk}/data/"
+
+
+def test_the_feed_returns_columns_rows_and_paging(screen, client):
+    import json
+
+    page, _, _ = screen
+    placement = page.placements.get()
+    body = json.loads(client.get(url_for(page, placement)).content)
+    assert [c["name"] for c in body["columns"]] == ["title"]
+    assert {r["title"] for r in body["rows"]} == {"Dune", "Emma"}
+    assert body["page"] == {"number": 1, "count": 1, "total": 2, "size": 50}
+
+
+def test_it_is_placement_scoped_not_block_scoped(screen, client):
+    """The placement knows the view, the context filter and the tab, so the
+    server reads them from the row rather than trusting the query string."""
+    page, block, ada = screen
+    second = PageBlock.objects.create(page=page, block=block, order=1)
+    first = page.placements.exclude(pk=second.pk).get()
+
+    narrow = SavedView.objects.create(
+        block=block, name="None", owner=None, config={"page_size": 1}
+    )
+    PageBlock.objects.filter(pk=second.pk).update(default_view=narrow)
+
+    import json
+
+    assert json.loads(client.get(url_for(page, first)).content)["page"]["size"] == 50
+    assert json.loads(client.get(url_for(page, second)).content)["page"]["size"] == 1
+
+
+def test_a_context_filter_cannot_be_sent_by_the_client(screen, client):
+    """It is read from the placement. v1's endpoint was block-scoped and took
+    it as a parameter, so a client could rescope its own card."""
+    import json
+
+    page, _, _ = screen
+    placement = page.placements.get()
+    PageBlock.objects.filter(pk=placement.pk).update(context_filter={"title": "Dune"})
+    body = json.loads(client.get(url_for(page, placement)).content)
+    assert [r["title"] for r in body["rows"]] == ["Dune"]
+
+    # Asking for the other row does not widen it: the placement's filter is
+    # applied whatever arrives.
+    body = json.loads(
+        client.get(url_for(page, placement), {"context_filter": "{}"}).content
+    )
+    assert [r["title"] for r in body["rows"]] == ["Dune"]
+
+
+def test_paging_and_sorting_travel(screen, client):
+    import json
+
+    page, _, _ = screen
+    placement = page.placements.get()
+    body = json.loads(
+        client.get(url_for(page, placement), {"size": "1", "sort": "-title"}).content
+    )
+    assert [r["title"] for r in body["rows"]] == ["Emma"]
+    assert body["page"] == {"number": 1, "count": 2, "total": 2, "size": 1}
+    assert body["applied"]["sort"] == ["-title"]
+
+
+def test_a_sort_on_a_column_the_viewer_cannot_see_is_reported_as_dropped(screen, client):
+    """The client draws its header from `applied`, never from what it sent —
+    or it shows an arrow on a column that is not sorted."""
+    import json
+
+    page, _, _ = screen
+    placement = page.placements.get()
+    body = json.loads(
+        client.get(url_for(page, placement), {"sort": "-secret_salary"}).content
+    )
+    assert body["applied"]["sort"] == []
+
+
+def test_the_feed_refuses_a_page_the_viewer_may_not_see(screen, client, django_user_model):
+    """The gate is the page's own, so reachability over the wire and on the
+    screen cannot drift apart."""
+    other = django_user_model.objects.create_user("intruder", password="x")  # noqa: S106
+    client.force_login(other)
+    page, _, _ = screen
+    assert client.get(url_for(page, page.placements.get())).status_code == 404
+
+
+def test_a_placement_on_another_page_is_a_404(screen, client):
+    """The URL carries the page, so the gate is the page's own."""
+    page, block, ada = screen
+    elsewhere = Page.objects.create(name="Other", slug="other", owner=ada)
+    stray = PageBlock.objects.create(page=elsewhere, block=block)
+    assert client.get(url_for(page, stray)).status_code == 404
+
+
+def test_anonymous_is_redirected(screen):
+    from django.test import Client
+
+    page, _, _ = screen
+    response = Client().get(url_for(page, page.placements.get()))
+    assert response.status_code == 302

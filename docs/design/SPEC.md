@@ -1477,6 +1477,35 @@ v1 had the nullable column and put the knowledge in `CONTENT_COMPONENT_TYPES = {
 
 Not ninja. §15 keeps ninja for the public API alone, and this is neither a public resource nor an HTML fragment — but it shares the fragments' properties: it is plinta's own frontend talking to plinta, and it changes whenever the UI does.
 
+#### Placement-scoped, and vendor-neutral
+
+```
+GET pages/<page>/blocks/<placement>/data/?page=2&size=25&sort=-price&f.title=dune
+```
+
+**The placement, not the block.** A placement knows the saved view, the context filter and the tab, so the server reads them from the row rather than trusting them from the query string. v1's endpoint was block-scoped — by name *and* by id — and everything a placement knew had to be re-sent as a parameter, which is why it re-applied `base_filter` at the end: it could not trust what arrived. A detail page's context filter travelling as a parameter is a client that can rescope its own card.
+
+The page is in the path so the gate is `visible_page`, the same one a render uses — reachability over the wire and on the screen cannot drift apart. The cost is that a block on no page is unfetchable, which is right: §12's inspector previews an unplaced block and is its own surface.
+
+**Column filters are namespaced `f.`**, so they cannot collide with `page`, `size` or `sort`, nor be mistaken for the page's own filter bar.
+
+```json
+{ "columns": [{"name", "label", "type", "align", "sortable", "filterable", "wrap", "width"}],
+  "rows":    [{"title": "Dune", "price": "£9.99"}],
+  "page":    {"number", "count", "total", "size"},
+  "applied": {"sort": ["-price"], "filters": {"title": "dune"}} }
+```
+
+**`columns` every time**, because they vary by *viewer*: a saved view changes them and so does field permission, so a client caching them from first load shows stale columns after a view switch.
+
+**`applied` is what was applied, never what was asked.** `requested_sort` silently drops a sort on a column the viewer may not see — correct, and invisible over the wire. An adapter drawing its header from its own request would show an arrow on a column that is not sorted. Same principle as the filter cascade dropping a value no longer on offer: the server's answer beats the client's memory.
+
+**Values are formatted by `renderers`**, so a fetched table, a server-rendered one and an export agree on what `£9.99` is — and a column declaring a field renderer sends its markup, which is why a renderer is a column's declaration rather than a default.
+
+**Nothing on the wire is named after a vendor.** v1 returned `data` and `last_page`, which are Tabulator's own parameter names, so every other adapter worked around a shape named for one library. Tabulator's `last_page` is `page.count` in *its* adapter, where a vendor's vocabulary belongs.
+
+**`DataSourceField.filterable` means the column's own header filter**, not the page's bar. It was written by twelve seeders and read by nothing — a v1 carry-over, where it gated the bar. In v2 a `PageFilter` row *is* that decision, and it may name a path that is not a column at all.
+
 #### It is not the public API, and must not become it
 
 Tempting, since both return rows over a DataSource.

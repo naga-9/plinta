@@ -18,6 +18,10 @@ urlpatterns = [
     # others' current selections, so the cascade happens while choosing.
     path("pages/<int:pk>/filter-options/", views.filter_options,
          name="filter_options"),
+    # The rows one card fetches. Placement-scoped, so the view and the context
+    # filter are read from the row rather than trusted from the query string.
+    path("pages/<int:pk>/blocks/<int:placement>/data/", views.block_data,
+         name="block_data"),
     # A detail page: the record in the path, so the URL is shareable and the
     # page is what somebody sends a colleague.
     path("pages/<int:pk>-<slug:slug>/<str:record>/", views.page_view, name="record"),

@@ -11,13 +11,17 @@ from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 
-from plinta.pages.models import Page, PageType
+from django.db.models import Q
+
+from plinta.pages.models import Page, PageBlock, PageType
 from plinta.pages.rendering import (
-    drawn_controls,
     controls_of,
     default_filters,
+    drawn_controls,
+    filter_q,
     remember_filters,
     render_page,
+    resolve_filters,
     saved_filter_sets,
 )
 from plinta.permissions import can
@@ -162,6 +166,61 @@ def filter_options(request: HttpRequest, pk: int) -> JsonResponse:
             for drawn in drawn_controls(page, values, request.user)
             if drawn.options
         }
+    )
+
+
+@login_required
+def block_data(request: HttpRequest, pk: int, placement: int) -> JsonResponse:
+    """The rows one card asks for, as JSON.
+
+    **Placement-scoped, not block-scoped.** The placement is what knows the
+    view, the context filter and the tab, so the server reads them from the
+    row rather than trusting them from the query string — a detail page's
+    context filter travelling as a parameter would be a client that can
+    rescope its own card. v1's endpoint was block-scoped and had to re-apply
+    `base_filter` at the end for exactly that reason.
+
+    Gated by the **page's** permission, the same `visible_page` a render uses,
+    so reachability over the wire and on the screen cannot drift apart.
+    """
+    from plinta.blocks.feed import feed, requested
+    from plinta.blocks.rendering import chosen_view, effective_config, views_for
+    from plinta.blocks.narrowing import narrowing_for
+    from plinta.components.registry import find
+
+    page = visible_page(request, pk)
+    try:
+        slot = page.placements.select_related("block", "block__data_source").get(
+            pk=placement, is_visible=True
+        )
+    except PageBlock.DoesNotExist as exc:
+        raise Http404("no such block on this page") from exc
+
+    component = find(slot.block.component_type)
+    if component is None or slot.block.data_source is None:
+        raise Http404("that block has nothing to fetch")
+
+    asked = requested(request.GET)
+    views = views_for([slot.block], request.user).get(slot.block_id, [])
+    view = chosen_view(views, request.user, asked["view"], slot.default_view_id)
+
+    config = component.config_schema(
+        **effective_config(slot.block, request.user, view)
+    )
+    values = submitted_filters(request, page) or default_filters(page, request.user)
+    narrowing = filter_q(page, values, request.user) & Q(
+        **resolve_filters(slot.context_filter, request.user, None)
+    )
+
+    return JsonResponse(
+        feed(
+            component,
+            config,
+            request.user,
+            datasource=slot.block.data_source,
+            narrow=narrowing_for(slot.block, request.user, narrowing),
+            asked=asked,
+        )
     )
 
 

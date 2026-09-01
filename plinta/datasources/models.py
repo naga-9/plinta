@@ -139,7 +139,10 @@ class DataSourceField(models.Model):
     sorter = models.CharField(max_length=10, choices=Sorter, default=Sorter.STRING)
     header_filter = models.CharField(max_length=10, choices=HeaderFilter, blank=True, default="")
     filterable = models.BooleanField(
-        default=False, help_text="Offered as a control on a page's filter bar."
+        default=False,
+        help_text="Offers a filter in a widget's own column header. Not the "
+        "page's filter bar — a PageFilter row is that decision, and it may "
+        "name a path that is not a column at all.",
     )
     # How a control is *drawn* is `PageFilter.widget`, a registry key (§9.4),
     # and what it *offers* is the values present in the rows (§9.5). Both used

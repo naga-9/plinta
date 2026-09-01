@@ -5,7 +5,7 @@ import pytest
 from pydantic import BaseModel, Field
 
 from plinta.forms.fields import fields_for
-from plinta.forms.overrides import OverrideError
+from plinta.forms.overrides import OverrideError, overrides_for, register_widget
 
 
 class Config(BaseModel):
@@ -50,3 +50,33 @@ def test_overrides_feed_straight_into_fields_for(override_registry):
     override_registry.register_widget(Config, "series", "chart/series.html")
     fields = {f.name: f for f in fields_for(Config, overrides=override_registry.overrides_for(Config))}
     assert fields["series"].override_template == "chart/series.html"
+
+
+# --- inheritance ------------------------------------------------------------
+
+
+def test_a_base_schemas_override_reaches_a_subclass(widget_registry):
+    """`columns` is declared on `ComponentConfig`, so a chooser registered for
+    it must reach every component's config — otherwise each author registers
+    the same widget and one of them forgets."""
+    class Base(BaseModel):
+        columns: list[str] = []
+
+    class Derived(Base):
+        page_size: int = 50
+
+    register_widget(Base, "columns", "base/columns.html")
+    assert overrides_for(Derived) == {"columns": "base/columns.html"}
+
+
+def test_a_subclass_may_override_the_override(widget_registry):
+    class Base(BaseModel):
+        columns: list[str] = []
+
+    class Derived(Base):
+        pass
+
+    register_widget(Base, "columns", "base/columns.html")
+    register_widget(Derived, "columns", "derived/columns.html")
+    assert overrides_for(Derived) == {"columns": "derived/columns.html"}
+    assert overrides_for(Base) == {"columns": "base/columns.html"}

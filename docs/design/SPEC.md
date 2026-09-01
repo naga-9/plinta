@@ -1776,6 +1776,7 @@ They are not `TableComponent` methods either. A table drawn on the server and th
 | JS file placement | mirrors the package layout — adapters with components, contrib JS with its app |
 | Import-boundary test | **extended to JS** — core JS names no vendor, only the client calls `fetch`, only core defines `window.plinta` |
 | Browser suite | a **fourth suite** — `pytest-browser.ini`, Playwright and a real Chromium, declared as the `browser` extra so the other three install without one |
+| Refreshing after a filter change | **a full page reload.** What it discards is client-side widget state the server never knew about, and after a filter change that state is meaningless — page four of the old result set is not page four of the new one |
 | Why a real browser and not jsdom | deferred-script timing and `readyState` are the browser's own semantics; jsdom does not model them, and the mount-order bug lived exactly there |
 | Widget wire format | **vendor-neutral** — `columns` / `rows` / `page` / `applied`, never one library's parameter names |
 | Column filter parameters | **`f.<column>`** — namespaced, so they cannot collide with the reserved names |
@@ -1805,6 +1806,28 @@ They are not `TableComponent` methods either. A table drawn on the server and th
 | Reading a prefetched collection | **`.all()`, never `values_list`** — the second goes back to the database once per row and undoes the prefetch the column asked for |
 | A many-to-many's field permission | **enforced.** It is minted like every other column's and was subtracted from the denied set, so the grant was offered, listed and never consulted |
 
+
+### 7.12 A filter change reloads the page, and that is the answer
+
+**Decided, not deferred.** Applying a filter or picking a saved filter set submits a plain `GET` form and the page re-renders. Nothing server-rendered is lost — the bar redraws from the query string, and a `PageFilterPreference` restores it on a later visit — so what a reload discards is only client-side widget state the server never knew about: which page of a grid you were on, a dragged column width, a clicked header sort, an open editor.
+
+**Discarding that is correct.** Page four of the previous result set means nothing in the new one. The reload is not a cost being tolerated; it is the right answer to "the question changed".
+
+v1 did refresh in place, and it is worth recording how, because it was cheaper than it looks: the filter form carried `hx-get` to **the page's own URL** with `hx-select=".blocks-grid"`, so the server rendered the whole page as usual and the client kept only the grid. No per-card endpoint, and inline components stayed correct because the server had drawn them.
+
+Three levels, if this is ever revisited:
+
+| | server work | what survives |
+|---|---|---|
+| full reload — **what plinta does** | full page render | nothing client-side |
+| swap the grid (v1's HTMX) | **full page render**, discarded client-side | chrome, the bar, focus, no flash — **the cards inside are still rebuilt** |
+| `load()` on the mounted widgets | one request per fetching card | the widget itself |
+
+The middle one buys less than it appears: it removes the flash and keeps the chrome, and still destroys every widget in the grid. Only the third preserves a grid's state, and it works for **fetch** components alone — an inline one has its rows in the HTML and would go stale — so it is the third *plus* the second, and it needs the client to remember what it mounted, which today it does not.
+
+**HTMX is not the way in either case.** Core carries no front-end vendor (ADR 0005); the client already fetches, and ten lines there cost less than a dependency core's own table would then be entitled to.
+
+**Where the argument is weaker:** the saved-view picker uses the same mechanism, and switching one card's view rebuilds every other card. The data stays right — views are placement-scoped (§8.2) — but the reasoning above does not apply, since the other cards' state was still meaningful. Not worth acting on until somebody notices.
 
 ## 8. Layer 7 — blocks
 

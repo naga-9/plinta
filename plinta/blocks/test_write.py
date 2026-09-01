@@ -40,6 +40,7 @@ def writer(db):
         "change_book_title",
         "change_book_region",
         "change_book_in_print",
+        "change_book_watchers",
     )
 
 
@@ -317,3 +318,20 @@ def test_a_relation_is_diffed_as_a_pk(db):
     import json
 
     json.dumps(changes)  # a listener that stores it must be able to
+
+
+def test_a_many_to_many_needs_its_field_permission(writer):
+    """Minted like any other column's, so it must be asked about.
+
+    It was subtracted from the denied set instead, which made a grant that is
+    offered, listed in the admin and never consulted — the worst kind, since
+    it reads as enforced. The fixture above says it grants "every field of
+    one" and did not grant this, and nothing noticed.
+    """
+    bob = User.objects.create(username="bob")
+    writer.user_permissions.remove(
+        Permission.objects.get(codename="change_book_watchers")
+    )
+    stripped = User.objects.get(pk=writer.pk)
+    with pytest.raises(WriteDenied, match="watchers"):
+        write(Book(owner=stripped), {"title": "Dune", "watchers": [bob]}, stripped)

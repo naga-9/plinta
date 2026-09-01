@@ -108,3 +108,24 @@ def test_a_path_that_is_no_model_field_keeps_the_sort_hint():
     from tests.testapp.models import Book
 
     assert kind_of(Book, "nonesuch", "number") == "number"
+
+
+def test_a_many_to_manys_raw_value_is_a_list_of_pks(db):
+    """A manager is not a value.
+
+    Left alone it reaches JSON as one and the whole feed fails to serialise,
+    so an editable many-to-many broke the page carrying it — a column nothing
+    can draw yet still has to be sent safely.
+    """
+    import json
+
+    from django.contrib.auth.models import User
+
+    from plinta.blocks.feed import raw
+    from tests.testapp.models import Book
+
+    book = Book.objects.create(title="Ariel")
+    bob = User.objects.create(username="bob")
+    book.watchers.add(bob)
+    assert raw(book, "watchers", "relations") == [bob.pk]
+    json.dumps(raw(book, "watchers", "relations"))

@@ -85,7 +85,10 @@ def authorise(user, action: str, instance: Model, fields: list[str]) -> None:
     if not fields:
         return
     granted = permitted_fields(user, "change", type(instance))
-    denied = sorted(set(fields) - granted - _m2m_names(type(instance)))
+    # Many-to-many included. Its permission is minted like any other column's,
+    # so exempting it here made a grant that was offered, shown and never
+    # asked about — the worst kind, because it reads as enforced.
+    denied = sorted(set(fields) - granted)
     if denied:
         raise WriteDenied(
             f"may not change {', '.join(denied)}", denied_fields=denied

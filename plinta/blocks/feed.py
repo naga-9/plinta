@@ -126,6 +126,11 @@ def raw(row: Any, name: str, kind: str) -> Any:
     """
     if kind == "relation":
         return getattr(row, f"{name}_id", None)
+    if kind == "relations":
+        # A manager, not a value. Left alone it reaches JSON as one and the
+        # whole feed fails to serialise — so a column nothing can draw yet
+        # still breaks the page that carries it.
+        return sorted(getattr(row, name).values_list("pk", flat=True))
     value = getattr(row, name, None)
     if isinstance(value, decimal.Decimal):
         return float(value)

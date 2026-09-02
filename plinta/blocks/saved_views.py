@@ -169,6 +169,7 @@ def settings_for(
                 "label": field.title or field.name.replace("_", " ").capitalize(),
                 "widget": field.widget,
                 "choices": field.choices,
+                "kinds": field.kinds,
                 "template": field.override_template,
                 "help": field.description or "",
                 "pinned": pinned,
@@ -190,7 +191,7 @@ def settings_for(
     available = column_choices(block, user, view)
     for setting in drawn:
         if setting["widget"] == "column":
-            setting["columns"] = available
+            setting["columns"] = of_kind(available, setting["kinds"])
         elif setting["name"] == "columns":
             setting["columns"] = available
         elif setting["name"] == "sort":
@@ -201,6 +202,19 @@ def settings_for(
                 if isinstance(row, dict)
             ]
     return drawn
+
+
+def of_kind(choices: list, kinds: tuple) -> list:
+    """``choices`` narrowed to the kinds a setting admits.
+
+    Empty ``kinds`` offers everything, which is right for a link: any column
+    can carry one. A setting that will be summed says ``("number",)``, because
+    offered a title it returns zero — worse than an error, since nothing says
+    anything is wrong.
+    """
+    if not kinds:
+        return choices
+    return [choice for choice in choices if choice["kind"] in kinds]
 
 
 def column_choices(block, user, view: SavedView | None = None) -> list[dict[str, Any]]:
@@ -226,8 +240,21 @@ def column_choices(block, user, view: SavedView | None = None) -> list[dict[str,
     chosen = named or [
         name for name, field in available.items() if getattr(field, "visible", True)
     ]
+    from plinta.datasources.kinds import kind_of
+
+    model = block.data_source.model
     return [
-        {"name": name, "label": available[name].label or name, "chosen": chosen_flag}
+        {
+            "name": name,
+            "label": available[name].label or name,
+            "chosen": chosen_flag,
+            # What it holds, so a setting can say which kinds it admits. A
+            # computed column resolves to no model field, so its own `sorter`
+            # is the fallback — which is the work `sorter` still does there.
+            "kind": kind_of(
+                model, name, getattr(available[name], "sorter", "") or "string"
+            ),
+        }
         for name, chosen_flag in (
             [(n, True) for n in chosen]
             + [(n, False) for n in available if n not in chosen]

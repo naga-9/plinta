@@ -95,6 +95,19 @@ The annotation cannot carry this, because the columns are not known until a
 block names a DataSource. So the field asks for the mechanism and core
 supplies one that knows which columns this viewer may see.
 
+**Say which kinds it may name.** A column that will be summed may only be a
+number — `"kinds": ["number"]`. Offered a title, `Sum` returns **zero** rather
+than failing, and a zero with nothing wrong with it is worse than an error:
+
+```python
+json_schema_extra={"widget": "column", "kinds": ["number"]}
+```
+
+Kinds are `string`, `number`, `boolean`, `date`, `datetime`, `time`,
+`relation`, `relations`. Leave them out and every column is offered, which is
+right for something like a link. A **computed** column has no model field, so
+its `sorter` is what says which kind it is — one more reason to set it.
+
 **Name your settings in the schema, not the template:**
 
 ```python

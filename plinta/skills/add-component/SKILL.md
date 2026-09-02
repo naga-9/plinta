@@ -197,7 +197,9 @@ name with the underscores taken out, and it reads like one. See
 - **A setting that names a column asks for the picker**:
   `json_schema_extra={"widget": "column"}`. Left as a plain `str` it is a text
   box, anything typed validates, and the query raises `FieldError` — on the
-  page, for whoever opens it.
+  page, for whoever opens it. Add `"kinds": ["number"]` where only a number
+  makes sense: `Sum` over a text column returns zero rather than failing,
+  which is worse.
 - **Inherit `ColumnsConfig` only if your component draws a chosen set of
   columns.** A KPI reads one aggregate and a gauge one number; neither has
   columns to choose between, and inheriting it puts a column chooser on their

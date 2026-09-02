@@ -226,7 +226,7 @@ class StatConfig(ComponentConfig):
         default="",
         title="Field to total",
         description="Summed across the rows. Leave empty to count them.",
-        json_schema_extra={"widget": "column"},
+        json_schema_extra={"widget": "column", "kinds": ["number"]},
     )
     prefix: str = ""
     suffix: str = ""

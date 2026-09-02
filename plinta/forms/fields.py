@@ -28,6 +28,9 @@ class FormField:
     #: The values a closed field may take, for a `choice` widget. Empty for
     #: everything else.
     choices: tuple = dataclass_field(default_factory=tuple)
+    #: Which kinds of column a `column` widget may offer — `("number",)` for
+    #: something that will be summed. Empty offers every column.
+    kinds: tuple = dataclass_field(default_factory=tuple)
 
 
 def unwrap_optional(annotation: Any) -> Any:
@@ -75,6 +78,25 @@ def declared_widget(info: Any) -> str:
     return extra.get("widget", "") if isinstance(extra, dict) else ""
 
 
+def declared_kinds(info: Any) -> tuple:
+    """Which kinds of column a field may name, or empty for any.
+
+    A setting that will be **summed** may only name a number. Offered every
+    column, a person picks the obvious one — a title — and the aggregate
+    returns zero rather than failing, which is worse than an error because
+    nothing says anything is wrong.
+
+        total_field: str = Field(
+            default="",
+            json_schema_extra={"widget": "column", "kinds": ["number"]},
+        )
+    """
+    extra = getattr(info, "json_schema_extra", None) or {}
+    if not isinstance(extra, dict):
+        return ()
+    return tuple(extra.get("kinds") or ())
+
+
 def widget_for(annotation: Any) -> str:
     """Pick a widget from a type annotation.
 
@@ -119,6 +141,7 @@ def fields_for(
                 name=name,
                 widget=declared_widget(info) or widget_for(info.annotation),
                 choices=choices_for(info.annotation),
+                kinds=declared_kinds(info),
                 annotation=info.annotation,
                 required=info.is_required(),
                 default=None if info.is_required() else info.get_default(call_default_factory=True),

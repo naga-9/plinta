@@ -24,6 +24,20 @@ from tests.testapp.models import Book
 pytestmark = pytest.mark.django_db
 
 
+def grant(user, model, *codenames):
+    """One or more permissions on ``model``, and a user with them loaded."""
+    content_type = ContentType.objects.get_for_model(model)
+    for codename in codenames:
+        user.user_permissions.add(
+            Permission.objects.get_or_create(
+                codename=codename, content_type=content_type,
+                defaults={"name": codename},
+            )[0]
+        )
+    return User.objects.get(pk=user.pk)
+
+
+
 @pytest.fixture
 def block(db):
     user = User.objects.create_user(username="ada", password="x")  # noqa: S106
@@ -376,3 +390,67 @@ def test_a_column_setting_is_offered_the_blocks_columns(
     assert [c["name"] for c in drawn["total_field"]["columns"]] == [
         "title", "in_print", "region__name",
     ]
+
+
+def test_a_setting_may_admit_only_some_kinds_of_column(block, columns, component_registry):
+    """A column that will be **summed** may only be a number. Offered a
+    title, `Sum` returns zero rather than failing — worse than an error,
+    because nothing says anything is wrong."""
+    from pydantic import Field as PydanticField
+
+    from plinta.components.base import Component, ComponentConfig
+    from plinta.components.registry import register_component
+    from plinta.datasources.models import DataSourceField, Sorter
+    from plinta.permissions.fields import sync_model
+
+    DataSourceField.objects.create(
+        data_source=block.data_source, field_name="price", label="Price",
+        sorter=Sorter.NUMBER, order=9,
+    )
+    sync_model(Book, {"title": False, "in_print": False, "region__name": False,
+                      "price": False})
+    viewer = grant(columns, Book, "view_book_price")
+
+    class StatConfig(ComponentConfig):
+        total_field: str = PydanticField(
+            default="",
+            json_schema_extra={"widget": "column", "kinds": ["number"]},
+        )
+
+    @register_component("stat_kinds", label="Stat")
+    class Stat(Component):
+        config_schema = StatConfig
+
+        def render(self, config, user, **context):
+            return ""
+
+    drawn = {c["name"]: c for c in settings_for(Stat(), block, viewer, None)}
+    offered = [c["name"] for c in drawn["total_field"]["columns"]]
+    assert offered == ["price"], "a title cannot be summed"
+
+
+def test_a_computed_columns_kind_comes_from_its_sorter(block, columns):
+    """It resolves to no model field, so the sort hint is the only thing that
+    knows — which is the work `sorter` still does there."""
+    from plinta.datasources.models import DataSourceField, Sorter
+
+    DataSourceField.objects.create(
+        data_source=block.data_source, field_name="line_total", label="Total",
+        sorter=Sorter.NUMBER, order=9,
+    )
+    from plinta.permissions.fields import sync_model
+
+    sync_model(Book, {"title": False, "in_print": False, "region__name": False,
+                      "line_total": False})
+    viewer = grant(columns, Book, "view_book_line_total")
+
+    offered = {c["name"]: c["kind"] for c in column_choices(block, viewer)}
+    assert offered["line_total"] == "number"
+
+
+def test_a_setting_that_admits_anything_is_offered_everything(block, columns):
+    """Any column can carry a link."""
+    from plinta.blocks.saved_views import of_kind
+
+    every = column_choices(block, columns)
+    assert of_kind(every, ()) == every

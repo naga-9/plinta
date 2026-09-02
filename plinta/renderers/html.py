@@ -113,7 +113,12 @@ class HtmlRenderer(Renderer):
                         "",
                         "<td{}>{}</td>",
                         (
-                            (self.attributes(column_classes[i]), cell(row, f, user))
+                            (
+                                self.attributes(column_classes[i]),
+                                self.linked(
+                                    cell(row, f, user), row, f, config, context
+                                ),
+                            )
                             for i, f in enumerate(fields)
                         ),
                     ),
@@ -132,6 +137,26 @@ class HtmlRenderer(Renderer):
             body,
             self.pager(context.get("page"), context.get("page_urls") or {}),
         )
+
+    def linked(
+        self, drawn: Any, row: Any, field: Any, config: dict, context: dict
+    ) -> Any:
+        """One cell, as a link to its record where the config asks for one.
+
+        ``record_url`` is a format string the *page* supplies, because only a
+        page knows where a record of this DataSource is shown — a table sits
+        on a dashboard and the record opens somewhere else. Absent, the cell
+        is drawn plainly: a column named as the link on a screen with nowhere
+        to link to is a setting that cannot be honoured, not an error.
+        """
+        template = context.get("record_url") or ""
+        wanted = (config or {}).get("row_link_field") or ""
+        if not template or field.field_name != wanted:
+            return drawn
+        pk = getattr(row, "pk", None)
+        if pk is None:
+            return drawn
+        return format_html('<a href="{}">{}</a>', template.format(record=pk), drawn)
 
     def column_class(self, field: Any, cls: dict[str, str]) -> str:
         """The classes one column's cells carry, from the column's own options.

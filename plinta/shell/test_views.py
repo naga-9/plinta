@@ -1221,3 +1221,46 @@ def test_anonymous_is_redirected(screen):
     page, _, _ = screen
     response = Client().get(url_for(page, page.placements.get()))
     assert response.status_code == 302
+
+
+# --- a row that links to its record -----------------------------------------
+
+
+def test_a_row_links_to_the_detail_page_for_its_datasource(screen, client):
+    """Only a page knows where a record opens — a table sits on a dashboard
+    and the record is shown somewhere else — so the URL comes from the page,
+    never from the block."""
+    page, block, ada = screen
+    detail = Page.objects.create(
+        name="Book", slug="book", owner=ada,
+        page_type=PageType.DETAIL, primary_data_source=block.data_source,
+    )
+    Block.objects.filter(pk=block.pk).update(config={"row_link_field": "title"})
+
+    body = client.get(page.get_absolute_url()).content.decode()
+    book = Book.objects.get(title="Dune")
+    assert f'href="/pages/{detail.pk}-book/{book.pk}/"' in body
+
+
+def test_without_a_detail_page_the_cell_is_drawn_plainly(screen, client):
+    """A setting that cannot be honoured, not an error."""
+    page, block, _ = screen
+    Block.objects.filter(pk=block.pk).update(config={"row_link_field": "title"})
+
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "Dune" in body
+    assert "<a href=\"/pages/" not in body.split("Dune")[0][-200:]
+
+
+def test_a_detail_page_the_viewer_may_not_see_is_not_linked_to(screen, client):
+    """A link to a page they cannot open is a link to a 404."""
+    page, block, ada = screen
+    other = User.objects.create_user(username="zoe", password="x")  # noqa: S106
+    Page.objects.create(
+        name="Book", slug="book", owner=other,
+        page_type=PageType.DETAIL, primary_data_source=block.data_source,
+    )
+    Block.objects.filter(pk=block.pk).update(config={"row_link_field": "title"})
+
+    body = client.get(page.get_absolute_url()).content.decode()
+    assert "-book/" not in body

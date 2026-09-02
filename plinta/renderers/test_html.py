@@ -282,3 +282,47 @@ def test_a_width_reaches_the_heading_only():
     html = HtmlRenderer().render([Row(title="x")], [Field("title", width=120)], {}, None)
     assert '<th style="width: 120px">' in html
     assert "width: 120px" not in html.split("</thead>")[1]
+
+
+# --- a row that links to its record -----------------------------------------
+#
+# `row_link_field` was declared and read by nothing. What it always meant: the
+# named column becomes a link to the record's own page.
+
+
+def drawn(config, **context):
+    return HtmlRenderer().render(
+        [Row(pk=7, title="Ariel", author="Plath")],
+        [Field("title", "Title"), Field("author", "Author")],
+        config,
+        None,
+        **context,
+    )
+
+
+def test_the_named_column_becomes_a_link():
+    out = drawn({"row_link_field": "title"}, record_url="/pages/3-books/{record}/")
+    assert '<a href="/pages/3-books/7/">Ariel</a>' in out
+
+
+def test_the_other_columns_do_not():
+    out = drawn({"row_link_field": "title"}, record_url="/pages/3-books/{record}/")
+    assert "<a href" not in out.split("Plath")[0].split("Ariel")[1]
+
+
+def test_no_detail_page_means_no_link(): 
+    """A column named as the link on a screen with nowhere to link to is a
+    setting that cannot be honoured, not an error."""
+    out = drawn({"row_link_field": "title"})
+    assert "<a href" not in out
+    assert "Ariel" in out
+
+
+def test_naming_no_column_links_nothing():
+    out = drawn({}, record_url="/pages/3-books/{record}/")
+    assert "<a href" not in out
+
+
+def test_a_name_that_is_not_a_column_links_nothing():
+    out = drawn({"row_link_field": "nonesuch"}, record_url="/pages/3-books/{record}/")
+    assert "<a href" not in out

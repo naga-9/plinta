@@ -17,6 +17,7 @@ from plinta.pages.models import (
     PageBlock,
     PageFilter,
     PageFilterPreference,
+    PageType,
     Widget,
 )
 
@@ -333,6 +334,33 @@ def _param(query: Any, name: str) -> str:
         return ""
 
 
+def record_urls(user) -> dict[int, str]:
+    """Where a record of each DataSource is shown, as a URL template.
+
+    Only a **page** knows this: a table sits on a dashboard and its records
+    open on a detail page somewhere else, so the block cannot answer it and
+    the component must not guess.
+
+    One query for the whole render, keyed by DataSource, and permission
+    filtered — a link to a page the viewer may not open is a link to a 404.
+    A DataSource with no detail page is simply absent, and a column named as
+    the link is then drawn plainly.
+    """
+    from plinta.permissions import allowed
+
+    pages = allowed(
+        user,
+        "view",
+        Page.objects.filter(
+            page_type=PageType.DETAIL, primary_data_source__isnull=False
+        ),
+    )
+    return {
+        page.primary_data_source_id: f"/pages/{page.pk}-{page.slug}/{{record}}/"
+        for page in pages
+    }
+
+
 def render_page(
     page: Page,
     user,
@@ -370,6 +398,10 @@ def render_page(
     # would make each extra block cost more than the last.
     by_block = views_for([slot.block for slot in slots], user)
 
+    # Where a record of each DataSource opens. Fetched once for the page, not
+    # once per block: eight cards asking separately is eight round trips.
+    records = record_urls(user)
+
     drawn = []
     for placement in slots:
         html, error = "", ""
@@ -406,6 +438,8 @@ def render_page(
                 # The row a detail page is about. A component that edits one
                 # needs to know which; everything else ignores it.
                 record=record,
+                # Only where the block's own DataSource has a detail page.
+                record_url=records.get(placement.block.data_source_id, ""),
                 page=_page_number(query, prefix),
                 sort=_sort_param(query, prefix),
             )

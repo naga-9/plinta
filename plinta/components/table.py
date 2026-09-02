@@ -196,5 +196,9 @@ class TableComponent(Component):
             fields,
             config.model_dump(),
             user,
+            # Where a record of this DataSource opens, if anywhere. The page
+            # supplies it — a table sits on a dashboard and the record is
+            # shown elsewhere — so it travels rather than being derived.
+            record_url=context.get("record_url", ""),
             **self.navigation(config, page, {**context, "fields": fields}),
         )

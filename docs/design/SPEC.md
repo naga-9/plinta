@@ -3052,6 +3052,18 @@ Routing it there closed a hole the hand-rolled path had: it checked those two fl
 
 **Publishing is `change_savedview_owner`** — one field, `owner = None`, and a field permission is the only thing that can gate one (§6.1b). Without the permission the control is not drawn and a submitted `public` is refused rather than ignored.
 
+### 12.3b The filter-set editor
+
+The same species as the saved-view editor and mostly the same code: a dialog, a form posted and redirected, the write pipeline, and publishing as a change to `owner` rather than a check somebody wrote. Page-scoped rather than placement-scoped, because a filter set belongs to the bar and the bar belongs to the page.
+
+It draws **the page's own filter controls**, through the same `drawn_controls` the bar uses. A set is the answers, not a second way of asking, so a widget registered for the bar appears here without being told.
+
+**The trigger carries the query string**, so "Save these" means the filters on screen rather than an empty form to fill in again.
+
+**One deliberate difference from a saved view: the values are stored whole, not as a delta.** A view's settings are presentation, where inheriting a later change is usually wanted. Filter values are *answers*, and an absent one means **no filter** — a real answer, not a missing one. A delta could not tell "the filters I saved" from "the filters I left alone", and a page's defaults moving would silently change what a saved set asks. It is the same reasoning that pins a list of columns.
+
+A value for a filter the page does not declare is dropped rather than stored, and a blank is not a filter — the same two gates `filter_q` applies when reading them.
+
 ### 12.4 The page composer
 
 Arranges blocks on the 12-column grid — drag, resize, add, remove — driven by GridStack, persisting `PageBlock` positions.

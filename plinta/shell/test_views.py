@@ -1264,3 +1264,90 @@ def test_a_detail_page_the_viewer_may_not_see_is_not_linked_to(screen, client):
 
     body = client.get(page.get_absolute_url()).content.decode()
     assert "-book/" not in body
+
+
+# --- saving a page's filters ------------------------------------------------
+
+
+@pytest.fixture
+def may_filter(screen):
+    page, block, ada = screen
+    PageFilter.objects.create(page=page, field_name="in_print", label="In print")
+    for codename in ("add_filterset", "change_filterset", "view_filterset",
+                     "delete_filterset", "change_filterset_name",
+                     "change_filterset_values"):
+        perm, _ = Permission.objects.get_or_create(
+            codename=codename,
+            content_type=ContentType.objects.get_for_model(FilterSet),
+            defaults={"name": codename},
+        )
+        ada.user_permissions.add(perm)
+    return page, User.objects.get(pk=ada.pk)
+
+
+def test_the_bar_offers_to_save_what_is_on_screen(may_filter, client):
+    page, ada = may_filter
+    client.force_login(ada)
+    body = client.get(page.get_absolute_url(), {"in_print": "True"}).content.decode()
+    assert "Save these" in body
+    assert "in_print=True" in body, "the trigger carries the current filters"
+
+
+def test_the_editor_draws_the_pages_own_controls(may_filter, client):
+    page, ada = may_filter
+    client.force_login(ada)
+    body = client.get(f"/pages/{page.pk}/filters/").content.decode()
+    assert 'name="in_print"' in body
+
+
+def test_saving_stores_what_the_bar_had(may_filter, client):
+    page, ada = may_filter
+    client.force_login(ada)
+    response = client.post(f"/pages/{page.pk}/filters/",
+                           {"name": "In print", "in_print": "True"})
+    assert response.status_code == 302
+    assert FilterSet.objects.get().values == {"in_print": "True"}
+
+
+def test_saving_returns_to_the_page_using_it(may_filter, client):
+    page, ada = may_filter
+    client.force_login(ada)
+    response = client.post(f"/pages/{page.pk}/filters/", {"name": "Mine"})
+    assert response["Location"].endswith(f"?filterset={FilterSet.objects.get().pk}")
+
+
+def test_publishing_without_the_permission_is_refused(may_filter, client):
+    page, ada = may_filter
+    client.force_login(ada)
+    response = client.post(f"/pages/{page.pk}/filters/",
+                           {"name": "All", "public": "on"})
+    assert response.status_code == 403
+    assert not FilterSet.objects.exists()
+
+
+def test_a_set_can_be_deleted(may_filter, client):
+    page, ada = may_filter
+    client.force_login(ada)
+    saved = FilterSet.objects.create(page=page, name="Mine", owner=ada, values={})
+    response = client.post(f"/pages/{page.pk}/filters/",
+                           {"set": str(saved.pk), "action": "delete"})
+    assert response.status_code == 302
+    assert not FilterSet.objects.exists()
+
+
+def test_someone_elses_set_is_not_deletable(may_filter, client):
+    page, ada = may_filter
+    client.force_login(ada)
+    other = User.objects.create_user(username="zed", password="x")  # noqa: S106
+    saved = FilterSet.objects.create(page=page, name="Theirs", owner=other, values={})
+    assert client.post(f"/pages/{page.pk}/filters/",
+                       {"set": str(saved.pk), "action": "delete"}).status_code == 404
+    assert FilterSet.objects.filter(pk=saved.pk).exists()
+
+
+def test_a_page_the_viewer_may_not_see_has_no_editor(may_filter, client):
+    page, ada = may_filter
+    other = User.objects.create_user(username="mo", password="x")  # noqa: S106
+    hidden = Page.objects.create(name="Hidden", slug="hidden", owner=other)
+    client.force_login(ada)
+    assert client.get(f"/pages/{hidden.pk}/filters/").status_code == 404

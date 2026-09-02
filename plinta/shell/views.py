@@ -38,8 +38,15 @@ from plinta.permissions import can
 RESERVED = {"tab", "page", "sort", "reset", "view", "filterset"}
 
 
-def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None:
-    """The filter values in the query string, or None if it carries none.
+def submitted_filters(
+    request: HttpRequest, page: Page, source: Any = None
+) -> dict[str, Any] | None:
+    """The filter values submitted, or None if none were.
+
+    ``source`` is the query string by default and the POST body when the
+    editor is saving a set — the same controls either way, so the same
+    parsing reads them and there is one place that knows how a range or a
+    multi-select spells itself.
 
     Only fields the page declares are read. A query string naming anything
     else is ignored, because the bar is what the page exposes and a URL is
@@ -52,9 +59,10 @@ def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None
     """
     from plinta.pages.widgets import find
 
+    sent_in = request.GET if source is None else source
     declared = {control.field_name: control for control in controls_of(page)}
     sent: dict[str, Any] = {}
-    for name in request.GET:
+    for name in sent_in:
         if name in RESERVED or name not in declared:
             continue
         widget = find(declared[name].widget)
@@ -64,16 +72,16 @@ def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None
             # `GET[name]` keeps only the last of a repeated key, so a
             # multi-valued control would silently filter on whichever option
             # happened to be last in the form.
-            sent[name] = [v for v in request.GET.getlist(name) if v != ""]
+            sent[name] = [v for v in sent_in.getlist(name) if v != ""]
         else:
-            sent[name] = request.GET[name]
+            sent[name] = sent_in[name]
 
         # A control offering a choice of operator submits it as its own key,
         # `<field>__op`. The **path** is never assembled from input: only
         # which operator, and only from what this control offers.
         control = declared[name]
         if control.allowed_lookups:
-            asked = request.GET.get(f"{name}__op", "")
+            asked = sent_in.get(f"{name}__op", "")
             sent[name] = {
                 "op": asked if asked in control.allowed_lookups else control.lookup,
                 "value": sent[name],
@@ -86,12 +94,12 @@ def submitted_filters(request: HttpRequest, page: Page) -> dict[str, Any] | None
         if widget is None or not widget.bounds:
             continue
         bounds = {
-            edge: request.GET.get(f"{name}__{edge}", "").strip()
+            edge: sent_in.get(f"{name}__{edge}", "").strip()
             for edge in ("from", "to")
         }
         if any(bounds.values()):
             sent[name] = {k: v for k, v in bounds.items() if v}
-        elif f"{name}__from" in request.GET or f"{name}__to" in request.GET:
+        elif f"{name}__from" in sent_in or f"{name}__to" in sent_in:
             # Present and empty is a cleared range, not an absent one — the
             # same reason a multi-select ships a hidden companion.
             sent[name] = {}
@@ -516,6 +524,111 @@ def _save_view(request: HttpRequest, page, slot, component, mine):
     )
 
 
+@login_required
+def page_filters(request: HttpRequest, pk: int) -> HttpResponse:
+    """Manage the saved filter sets on one page.
+
+    Page-scoped, not placement-scoped: a filter set belongs to the bar, and
+    the bar belongs to the page. Otherwise the same shape as the view editor —
+    a plain form in the dialog, posted and redirected, because saving one
+    changes what the page shows.
+
+    Opened with the current query string, so "save these filters" means the
+    ones on screen rather than an empty form to fill in again.
+    """
+    from plinta.pages import filter_sets
+    from plinta.permissions import can
+
+    page = visible_page(request, pk)
+    mine = filter_sets.visible_sets(page, request.user)
+    chosen = next(
+        (s for s in mine if str(s.pk) == (request.GET.get("set") or "")), None
+    )
+
+    if request.method == "POST":
+        return _save_filter_set(request, page, mine)
+
+    # What the bar is showing: the set being edited, else whatever the URL
+    # carries, else where the page starts.
+    values = (
+        dict(chosen.values)
+        if chosen
+        else (submitted_filters(request, page) or default_filters(page, request.user))
+    )
+    return render(
+        request,
+        "plinta/pages/filter_set_editor.html",
+        {
+            "cls": _classes(),
+            "page": page,
+            "sets": mine,
+            "set": chosen,
+            "filter_controls": drawn_controls(page, values, request.user),
+            "may_publish": filter_sets.may_publish(request.user),
+            "may_default": filter_sets.may_default(request.user),
+            "may_delete": chosen is not None and can(request.user, "delete", chosen),
+            "action": f"/pages/{pk}/filters/",
+            "errors": {},
+        },
+    )
+
+
+def _save_filter_set(request: HttpRequest, page, mine):
+    """Create, update or delete one set, then send the viewer back to it."""
+    from django.core.exceptions import ValidationError
+
+    from plinta.blocks.write import WriteDenied
+    from plinta.pages import filter_sets
+    from plinta.permissions import can
+
+    asked = request.POST.get("set") or ""
+    existing = next((s for s in mine if str(s.pk) == asked), None)
+
+    if request.POST.get("action") == "delete":
+        if existing is None or not can(request.user, "delete", existing):
+            raise Http404("no such filter set")
+        existing.delete()
+        return redirect(page.get_absolute_url())
+
+    try:
+        saved = filter_sets.save(
+            page,
+            request.user,
+            name=request.POST.get("name") or "Untitled",
+            values=submitted_filters(request, page, request.POST) or {},
+            filter_set=existing,
+            public=bool(request.POST.get("public")),
+            default=bool(request.POST.get("is_default")),
+        )
+    except WriteDenied as exc:
+        return HttpResponseForbidden(str(exc))
+    except ValidationError as exc:
+        return render(
+            request,
+            "plinta/pages/filter_set_editor.html",
+            {
+                "cls": _classes(),
+                "page": page,
+                "sets": mine,
+                "set": existing,
+                "filter_controls": drawn_controls(
+                    page,
+                    submitted_filters(request, page, request.POST) or {},
+                    request.user,
+                ),
+                "may_publish": filter_sets.may_publish(request.user),
+                "may_default": filter_sets.may_default(request.user),
+                "may_delete": existing is not None
+                and can(request.user, "delete", existing),
+                "action": request.path,
+                "errors": exc.message_dict,
+            },
+            status=422,
+        )
+
+    return redirect(f"{page.get_absolute_url()}?filterset={saved.pk}")
+
+
 def page_view(
     request: HttpRequest, pk: int, slug: str = "", record: str | None = None
 ) -> HttpResponse:
@@ -569,6 +682,9 @@ def page_view(
             "filter_controls": drawn_controls(page, values, request.user),
             "filter_sets": sets,
             "chosen_set": chosen,
+            # Whether the bar offers to save what is on screen. The permission
+            # decides the control; the pipeline decides the save.
+            "may_save_filters": request.user.has_perm("plinta_pages.add_filterset"),
         },
     )
 

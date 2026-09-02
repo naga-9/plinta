@@ -151,10 +151,7 @@ def test_the_pages_own_filters_travel_with_the_request(
 ):
     """A widget shows what the screen is filtered to, not what it was
     filtered to when the block was configured."""
-    subject, _, _ = screen
-    from plinta.pages.models import PageFilter
-
-    PageFilter.objects.create(page=subject, field_name="in_print", label="In print")
+    # The `screen` fixture declares the filter; this only applies it.
     open_page(page, live_server, screen, query="?in_print=True")
     assert rows(page).count() == PAGE_SIZE
     # Half the books are in print, so the total is halved, not the page size.
@@ -917,3 +914,65 @@ def test_the_priority_is_the_row_order(page, live_server, signed_in, screen):
     assert [row["field"] for row in SavedView.objects.get().config["sort"]] == [
         "region", "title",
     ]
+
+
+# --- saving a page's filters ------------------------------------------------
+
+
+def test_saving_the_filters_on_screen(page, live_server, signed_in, screen):
+    """"Save these" means the ones showing, not an empty form to fill in
+    again — so the trigger carries the query string."""
+    from plinta.pages.models import FilterSet
+
+    subject, _, _ = screen
+    page.goto(f"{live_server.url}{subject.get_absolute_url()}?in_print=True")
+    page.wait_for_selector(".tabulator-row", timeout=15000)
+
+    page.click(".pl-filters [data-plinta-open-form]")
+    page.wait_for_selector("dialog form", timeout=15000)
+    assert page.locator('dialog [name="in_print"]').input_value() == "True"
+
+    page.fill('dialog [name="name"]', "In print only")
+    page.click('dialog button[type="submit"]')
+    page.wait_for_url("**/*filterset=*", timeout=15000)
+
+    assert FilterSet.objects.get().values == {"in_print": "True"}
+
+
+def test_a_saved_set_narrows_the_page(page, live_server, signed_in, screen):
+    from plinta.pages.models import FilterSet
+    from tests.testapp.models import Book
+
+    subject, _, _ = screen
+    FilterSet.objects.create(
+        page=subject, name="In print", owner=subject.owner,
+        values={"in_print": "True"},
+    )
+    page.goto(f"{live_server.url}{subject.get_absolute_url()}")
+    page.wait_for_selector(".tabulator-row", timeout=15000)
+
+    # The picker has its own Apply: choosing a set and applying the bar are
+    # separate acts, so selecting does not navigate on its own.
+    page.select_option("#pl-filterset", str(FilterSet.objects.get().pk))
+    page.click("form:has(#pl-filterset) button[type='submit']")
+    page.wait_for_url("**/*filterset=*", timeout=15000)
+    page.wait_for_selector(".tabulator-row", timeout=15000)
+
+    body = page.evaluate("""async () => {
+        var m = document.querySelector('[data-plinta-mount]');
+        var r = await fetch(m.dataset.plintaUrl + '?page=1&size=5',
+                            {credentials: 'same-origin'});
+        return (await r.json()).page.total;
+    }""")
+    assert body == Book.objects.filter(in_print=True).count()
+
+
+def test_publishing_a_set_is_not_offered_without_the_permission(
+    page, live_server, signed_in, screen
+):
+    subject, _, _ = screen
+    page.goto(f"{live_server.url}{subject.get_absolute_url()}")
+    page.wait_for_selector(".pl-filters", timeout=15000)
+    page.click(".pl-filters [data-plinta-open-form]")
+    page.wait_for_selector("dialog form", timeout=15000)
+    assert page.locator('dialog [name="public"]').count() == 0

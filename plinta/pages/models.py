@@ -6,7 +6,7 @@ lives in `blocks`: each sits with the thing it is a delta over.
 from __future__ import annotations
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 
 
 class PageType(models.TextChoices):
@@ -417,6 +417,21 @@ class FilterSet(models.Model):
                 name="unique_public_filterset_name_per_page",
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        """Save, and leave at most one default per page per owner.
+
+        The same rule and the same reason as `SavedView`: `default_filters`
+        takes the first it finds, so two would mean whichever the query
+        happened to return. Cleared rather than refused, because "make this my
+        default" is a request to move the default.
+        """
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            if self.is_default:
+                FilterSet.objects.filter(
+                    page_id=self.page_id, owner=self.owner, is_default=True
+                ).exclude(pk=self.pk).update(is_default=False)
 
     def __str__(self) -> str:
         return f"{self.page.name}: {self.name}"

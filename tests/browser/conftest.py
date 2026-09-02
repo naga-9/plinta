@@ -17,7 +17,14 @@ from django.contrib.sessions.backends.db import SessionStore
 
 from plinta.blocks.models import Block, SavedView
 from plinta.datasources.models import DataSource, DataSourceField, Sorter
-from plinta.pages.models import FilterSet, MenuGroup, MenuSection, Page, PageBlock
+from plinta.pages.models import (
+    FilterSet,
+    MenuGroup,
+    MenuSection,
+    Page,
+    PageBlock,
+    PageFilter,
+)
 from plinta.permissions.fields import sync_model
 from tests.testapp.models import Book, Region
 
@@ -55,6 +62,8 @@ def viewer(db):
     # The pickers' own models: a related row nobody may see is not one they
     # may be asked to choose.
     grant(user, Region, "view_region")
+    grant(user, FilterSet, "add_filterset", "change_filterset", "view_filterset",
+          "delete_filterset", "change_filterset_name", "change_filterset_values")
     grant(user, User, "view_user")
     grant(user, Book, "view_book_watchers", "change_book_watchers")
     for model in CONFIG_MODELS:
@@ -128,6 +137,7 @@ def screen(viewer):
             "row_form": True,
         },
     )
+    PageFilter.objects.create(page=page, field_name="in_print", label="In print")
     placement = PageBlock.objects.create(
         page=page, block=block, column=0, row=0, width=12, height=6
     )

@@ -23,6 +23,14 @@
     <div class="pl-filters__actions">
         <button type="submit" class="pl-btn pl-btn--primary pl-btn--sm">Apply</button>
         <a class="pl-btn pl-btn--sm" href="?reset=1">Clear</a>
+        {% if may_save_filters %}
+            {% comment %} Carries the query string, so "save these filters"
+            means the ones on screen rather than an empty form. {% endcomment %}
+            <button type="button" class="pl-btn pl-btn--sm"
+                    data-plinta-open-form="{% url 'plinta:page_filters' page.pk %}?{{ request.GET.urlencode }}">
+                Save these
+            </button>
+        {% endif %}
     </div>
 </form>
 {% endif %}

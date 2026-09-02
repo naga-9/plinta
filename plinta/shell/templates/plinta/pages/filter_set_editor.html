@@ -1,0 +1,85 @@
+{% load plinta_tags %}
+{% comment %} Saving a page's filters.
+
+The same controls the bar draws, because they are the same filters — a set is
+the answers, not a second way of asking. Posted and redirected, since saving
+one changes what the page shows.
+{% endcomment %}
+<form method="post" action="{{ action }}" class="{{ cls.form }}">
+    {% csrf_token %}
+    <input type="hidden" name="set" value="{{ set.pk|default_if_none:'' }}">
+
+    <h2 class="{{ cls.card_title }}">
+        {% if set %}{{ set.name }}{% else %}Save these filters{% endif %}
+    </h2>
+
+    {% if sets %}
+        <div class="{{ cls.field }}">
+            <label class="{{ cls.label }}">Saved on this page</label>
+            <ul class="pl-views">
+                {% for each in sets %}
+                    <li>
+                        <a href="{{ action }}?set={{ each.pk }}"
+                           data-plinta-open-form="{{ action }}?set={{ each.pk }}">{{ each.name }}</a>
+                        {% if not each.owner %}<span class="{{ cls.chip }}">Everyone</span>{% endif %}
+                    </li>
+                {% endfor %}
+                {% if set %}
+                    <li><a href="{{ action }}" data-plinta-open-form="{{ action }}">New set…</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <div class="{{ cls.field }}">
+        <label class="{{ cls.label }}" for="pl-set-name">Name</label>
+        <input class="{{ cls.input }}" type="text" id="pl-set-name" name="name"
+               value="{{ set.name|default_if_none:'' }}" required>
+        {% for message in errors.name %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+    </div>
+
+    {% for drawn in filter_controls %}
+        <div class="{{ cls.field }}">
+            <label class="{{ cls.label }}" for="{{ drawn.control_id }}">{{ drawn.control.label }}</label>
+            {% include drawn.template with control=drawn.control value=drawn.value options=drawn.options truncated=drawn.truncated control_id=drawn.control_id lookups=drawn.lookups lookup=drawn.lookup %}
+        </div>
+    {% endfor %}
+
+    {% if may_publish %}
+        <div class="{{ cls.field }}">
+            <label class="{{ cls.label }}">
+                <input class="{{ cls.checkbox }}" type="checkbox" name="public"
+                       data-plinta-public
+                       {% if set and not set.owner %}checked{% endif %}>
+                Everyone can use this set
+            </label>
+        </div>
+    {% endif %}
+
+    {% if may_default %}
+        <div class="{{ cls.field }}">
+            <label class="{{ cls.label }}">
+                <input class="{{ cls.checkbox }}" type="checkbox" name="is_default"
+                       {% if set.is_default %}checked{% endif %}>
+                Open the page with these filters
+            </label>
+            <div class="{{ cls.help }}" data-plinta-default-scope="personal">
+                Yours: it applies when you have not filtered the page yourself.
+            </div>
+            {% if may_publish %}
+                <div class="{{ cls.help }}" data-plinta-default-scope="shared">
+                    Shared, so this is <strong>everyone's</strong> starting point —
+                    for anyone who has not saved their own.
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <div class="{{ cls.form_actions }}">
+        <button type="submit" class="{{ cls.btn }} {{ cls.btn_primary }}">Save</button>
+        {% if may_delete %}
+            <button type="submit" name="action" value="delete"
+                    class="{{ cls.btn }} {{ cls.btn_danger }}">Delete</button>
+        {% endif %}
+    </div>
+</form>

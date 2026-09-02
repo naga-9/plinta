@@ -18,6 +18,9 @@ urlpatterns = [
     # others' current selections, so the cascade happens while choosing.
     path("pages/<int:pk>/filter-options/", views.filter_options,
          name="filter_options"),
+    # The saved filter sets on a page. Page-scoped, because a filter set
+    # belongs to the bar and the bar belongs to the page.
+    path("pages/<int:pk>/filters/", views.page_filters, name="page_filters"),
     # The rows one card fetches. Placement-scoped, so the view and the context
     # filter are read from the row rather than trusted from the query string.
     path("pages/<int:pk>/blocks/<int:placement>/data/", views.block_data,

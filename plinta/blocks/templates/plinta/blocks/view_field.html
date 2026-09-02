@@ -17,8 +17,14 @@ at a time.
     {% if control.template %}
         {% include control.template %}
     {% elif control.widget == "bool" %}
-        <input class="{{ cls.checkbox }}" type="checkbox" name="{{ control.name }}"
-               {% if control.value %}checked{% endif %}>
+        {% comment %} Its own label: the row's heading belongs to the override
+        checkbox above, so without one this is a second tick box with nothing
+        beside it and no way to tell which is which. {% endcomment %}
+        <label class="{{ cls.label }}">
+            <input class="{{ cls.checkbox }}" type="checkbox" name="{{ control.name }}"
+                   {% if control.value %}checked{% endif %}>
+            Yes
+        </label>
     {% elif control.widget == "choice" %}
         {% comment %} A closed set, so it is offered rather than typed: the
         alternative is a text box where two thirds of what fits is refused.
@@ -41,7 +47,17 @@ at a time.
     {% endif %}
 
     {% if not control.overridden %}
-        <div class="{{ cls.help }}">Inherited from the block: {{ control.inherited_value|default_if_none:"—" }}</div>
+        {% comment %} `default_if_none` does not fire on an empty string, and
+        a boolean reads as `True` rather than as the word beside its own
+        checkbox — so each kind says what it is. {% endcomment %}
+        <div class="{{ cls.help }}">
+            Inherited from the block:
+            {% if control.widget == "bool" %}
+                {{ control.inherited_value|yesno:"Yes,No" }}
+            {% else %}
+                {{ control.inherited_value|default:"nothing" }}
+            {% endif %}
+        </div>
     {% endif %}
     {% if control.help %}<div class="{{ cls.help }}">{{ control.help }}</div>{% endif %}
     {% for message in errors|dictsort:0 %}{% endfor %}

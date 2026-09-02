@@ -478,3 +478,33 @@ def test_a_shared_default_is_everyones(client, may_save):
     view = SavedView.objects.get()
     assert view.is_default is True
     assert view.owner is None
+
+
+def test_a_boolean_value_box_has_its_own_label(client, may_save):
+    """The row's heading belongs to the override checkbox, so without one a
+    boolean is two tick boxes and no way to tell which is which."""
+    page, placement, _, _ = may_save
+    body = client.get(views_url(page, placement)).content.decode()
+
+    striped = body.split('data-plinta-field="striped"')[1].split("</div>")[0]
+    assert 'name="striped"' in striped
+    assert "Yes" in striped
+
+
+def test_an_inherited_boolean_reads_as_a_word(client, may_save):
+    """`True` is not what the checkbox beside it says."""
+    page, placement, block, _ = may_save
+    Block.objects.filter(pk=block.pk).update(config={"striped": True})
+    body = client.get(views_url(page, placement)).content.decode()
+    assert "Inherited from the block:" in body
+    assert "True" not in body.split('data-plinta-field="striped"')[1][:400]
+
+
+def test_an_inherited_empty_value_says_so(client, may_save):
+    """`default_if_none` does not fire on an empty string, so the line read
+    "Inherited from the block:" and then stopped."""
+    page, placement, block, _ = may_save
+    Block.objects.filter(pk=block.pk).update(config={})
+    body = client.get(views_url(page, placement)).content.decode()
+    assert "Inherited from the block:\n                nothing" in body or \
+        "nothing" in body

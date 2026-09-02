@@ -17,10 +17,11 @@ from django.http import (
     HttpResponseForbidden,
     JsonResponse,
 )
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from django.db.models import Q
 
+from plinta.blocks.models import Block
 from plinta.pages.models import Page, PageBlock, PageType
 from plinta.pages.rendering import (
     controls_of,
@@ -627,6 +628,217 @@ def _save_filter_set(request: HttpRequest, page, mine):
         )
 
     return redirect(f"{page.get_absolute_url()}?filterset={saved.pk}")
+
+
+# --- the authoring screens (§12) --------------------------------------------
+
+
+@login_required
+def data_sources(request: HttpRequest) -> HttpResponse:
+    """Every model plinta may draw, and a form to register another.
+
+    Permission-gated like any screen, with no separate admin concept: holding
+    `view_datasource` is what makes this visible, and `add_datasource` is what
+    makes the form appear.
+    """
+    from plinta.datasources.models import DataSource
+    from plinta.shell.authoring import DataSourceForm
+
+    if not request.user.has_perm("plinta_datasources.view_datasource"):
+        raise Http404("no such page")
+
+    may_add = request.user.has_perm("plinta_datasources.add_datasource")
+    form = DataSourceForm(request.POST or None) if may_add else None
+    if request.method == "POST" and form is not None and form.is_valid():
+        created = form.save()
+        return redirect(f"/data-sources/{created.pk}/")
+
+    return render(
+        request,
+        "plinta/authoring/data_sources.html",
+        {
+            "cls": _classes(),
+            "sources": DataSource.objects.select_related("content_type")
+            .order_by("label"),
+            "form": form,
+            "may_add": may_add,
+        },
+    )
+
+
+@login_required
+def data_source(request: HttpRequest, pk: int) -> HttpResponse:
+    """One model's columns.
+
+    Saving here is what mints, renames and removes field permissions — the
+    signals on `DataSourceField` do it — so this screen is the entry point for
+    the permission surface as well as the column surface (§5.7).
+    """
+    from plinta.datasources.models import DataSource, DataSourceField
+    from plinta.shell.authoring import (
+        ColumnFormSet,
+        DataSourceForm,
+        field_paths,
+        split,
+    )
+
+    if not request.user.has_perm("plinta_datasources.view_datasource"):
+        raise Http404("no such page")
+    source = get_object_or_404(
+        DataSource.objects.select_related("content_type"), pk=pk
+    )
+    may_change = request.user.has_perm("plinta_datasources.change_datasource")
+    columns = DataSourceField.objects.filter(data_source=source).order_by(
+        "order", "pk"
+    )
+
+    details = DataSourceForm(
+        request.POST if request.POST.get("what") == "source" else None,
+        instance=source,
+    )
+    formset = ColumnFormSet(
+        request.POST if request.POST.get("what") == "columns" else None,
+        queryset=columns,
+    )
+
+    if request.method == "POST" and may_change:
+        if request.POST.get("what") == "source" and details.is_valid():
+            details.save()
+            return redirect(f"/data-sources/{pk}/")
+        if request.POST.get("what") == "columns" and formset.is_valid():
+            for column in formset.save(commit=False):
+                column.data_source = source
+                column.save()
+            for column in formset.deleted_objects:
+                column.delete()
+            return redirect(f"/data-sources/{pk}/")
+
+    return render(
+        request,
+        "plinta/authoring/data_source.html",
+        {
+            "cls": _classes(),
+            "source": source,
+            "details": details,
+            "formset": formset,
+            "rows": split(formset),
+            "paths": field_paths(source.model),
+            "may_change": may_change,
+        },
+    )
+
+
+@login_required
+def blocks(request: HttpRequest) -> HttpResponse:
+    """Every block this viewer may see, and the three things you do to one.
+
+    Create, duplicate, delete. Sharing is the inspector's, because it is a
+    decision about one block rather than a bulk action.
+    """
+    from plinta.blocks.inspector import duplicate, visible_blocks
+    from plinta.shell.authoring import BlockCreateForm
+
+    # `change_block`, not `view_block`: every signed-in person needs the
+    # latter for a dashboard to draw at all, so gating on it would show an
+    # authoring screen to everybody. Reaching this screen is authoring.
+    if not request.user.has_perm("plinta_blocks.change_block"):
+        raise Http404("no such page")
+
+    may_add = request.user.has_perm("plinta_blocks.add_block")
+    form = BlockCreateForm(request.POST or None) if may_add else None
+
+    if request.method == "POST":
+        action = request.POST.get("action") or "create"
+        if action in {"duplicate", "delete"}:
+            block = get_object_or_404(Block, pk=request.POST.get("block") or 0)
+            if not can(request.user, "view", block):
+                raise Http404("no such block")
+            if action == "duplicate" and may_add:
+                return redirect(f"/blocks/{duplicate(block, request.user).pk}/")
+            if action == "delete" and can(request.user, "delete", block):
+                block.delete()
+            return redirect("/blocks/")
+        if form is not None and form.is_valid():
+            created = form.save(commit=False)
+            # Owned, not public. Publishing is a separate decision, made in
+            # the inspector by somebody who can see what they are publishing.
+            created.owner = request.user
+            created.save()
+            return redirect(f"/blocks/{created.pk}/")
+
+    return render(
+        request,
+        "plinta/authoring/blocks.html",
+        {
+            "cls": _classes(),
+            "blocks": visible_blocks(request.user),
+            "form": form,
+            "may_add": may_add,
+        },
+    )
+
+
+@login_required
+def block_inspector(request: HttpRequest, pk: int) -> HttpResponse:
+    """One block: its own fields, and its config derived from the schema.
+
+    Two forms, told apart by a hidden `what`, for the reason the Data Sources
+    screen has two: renaming a block and rearranging its settings are
+    different intentions, and one failing should not discard the other.
+    """
+    from plinta.blocks.inspector import save_config, settings_for
+    from plinta.components.registry import find
+    from plinta.forms.layouts import layout_for
+    from plinta.shell.authoring import BlockForm
+
+    if not request.user.has_perm("plinta_blocks.change_block"):
+        raise Http404("no such page")
+    block = get_object_or_404(Block.objects.select_related("data_source"), pk=pk)
+    if not can(request.user, "view", block):
+        raise Http404("no such block")
+    may_change = can(request.user, "change", block)
+    component = find(block.component_type)
+
+    what = request.POST.get("what") if request.method == "POST" else None
+    details = BlockForm(request.POST if what == "block" else None, instance=block)
+    errors: dict = {}
+
+    if request.method == "POST" and may_change:
+        if what == "block":
+            if details.is_valid():
+                saved = details.save(commit=False)
+                # `owner = None` is public, the same one field a saved view
+                # publishes through (§6.1b).
+                saved.owner = None if request.POST.get("public") else request.user
+                saved.save()
+                return redirect(f"/blocks/{pk}/")
+        elif what == "config":
+            errors = save_config(block, request.user, request.POST)
+            if not errors:
+                return redirect(f"/blocks/{pk}/")
+
+    settings = settings_for(component, block, request.user) if component else []
+    return render(
+        request,
+        "plinta/authoring/block.html",
+        {
+            "cls": _classes(),
+            "block": block,
+            "component": component,
+            "details": details,
+            "settings": settings,
+            "settings_by_name": {s["name"]: s for s in settings},
+            "layout": layout_for(component.config_schema) if component else "",
+            "may_change": may_change,
+            # Flattened: a template cannot read the `_general` key, and the
+            # derived controls have nowhere to hang a per-field message yet.
+            "errors": [
+                message if name == "_general" else f"{name}: {message}"
+                for name, messages in errors.items()
+                for message in messages
+            ],
+        },
+    )
 
 
 def page_view(

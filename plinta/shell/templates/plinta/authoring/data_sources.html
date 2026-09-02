@@ -1,0 +1,80 @@
+{% extends "plinta/shell/base.html" %}
+{% comment %} Every model plinta may draw.
+
+Not an admin screen: it is a page behind `view_datasource`, and the form only
+appears for somebody holding `add_datasource`. Registering a model here is
+what makes it available to a block (§6.1).
+{% endcomment %}
+
+{% block title %}Data sources · {{ site_name }}{% endblock %}
+
+{% block body %}
+    <div class="{{ cls.page_header }}">
+        <div class="{{ cls.page_heading }}">
+            <h1>Data sources</h1>
+            <p class="{{ cls.page_description }}">
+                The models plinta may draw, and the columns each one offers.
+            </p>
+        </div>
+    </div>
+
+    <div class="{{ cls.card }}">
+        <div class="{{ cls.table_wrap }}">
+            <table class="{{ cls.table }} {{ cls.table_striped }}">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Model</th>
+                        <th class="{{ cls.table_numeric }}">Columns</th>
+                        <th>Active</th>
+                        <th>In the API</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for source in sources %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'plinta:data_source' source.pk %}">{{ source.label }}</a>
+                                <div class="{{ cls.muted }}">{{ source.name }}</div>
+                            </td>
+                            <td>{{ source.content_type.app_label }}.{{ source.content_type.model }}</td>
+                            <td class="{{ cls.table_numeric }}">{{ source.fields.count }}</td>
+                            <td>{% if source.is_active %}Yes{% else %}No{% endif %}</td>
+                            <td>{% if source.show_in_api %}Yes{% else %}No{% endif %}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="{{ cls.table_empty }}">
+                                No model is registered yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if may_add %}
+        <div class="{{ cls.card }}">
+            <div class="{{ cls.card_header }}">
+                <h2 class="{{ cls.card_title }}">Register a model</h2>
+            </div>
+            <div class="{{ cls.card_body }}">
+                <form method="post" class="{{ cls.form }}">
+                    {% csrf_token %}
+                    {% for field in form %}
+                        <div class="{{ cls.field }}">
+                            <label class="{{ cls.label }}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}<div class="{{ cls.help }}">{{ field.help_text }}</div>{% endif %}
+                            {% for message in field.errors %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+                        </div>
+                    {% endfor %}
+                    <div class="{{ cls.form_actions }}">
+                        <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Register</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

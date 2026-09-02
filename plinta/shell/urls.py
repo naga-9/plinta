@@ -44,6 +44,12 @@ urlpatterns = [
     # page is what somebody sends a colleague.
     path("pages/<int:pk>-<slug:slug>/<str:record>/", views.page_view, name="record"),
     path("pages/<int:pk>/<str:record>/", views.page_view, name="record_by_id"),
+    # The authoring screens (§12). Ordinary permission-gated pages, not an
+    # admin: `view_datasource` is what makes this one visible.
+    path("data-sources/", views.data_sources, name="data_sources"),
+    path("data-sources/<int:pk>/", views.data_source, name="data_source"),
+    path("blocks/", views.blocks, name="block_list"),
+    path("blocks/<int:pk>/", views.block_inspector, name="block_inspector"),
     path("accounts/login/", auth_views.LoginView.as_view(
         template_name="plinta/auth/login.html"), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),

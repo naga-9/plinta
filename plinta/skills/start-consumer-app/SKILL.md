@@ -46,7 +46,9 @@ circular import waiting to happen.
 ## 2. Register a DataSource
 
 A DataSource is the model plus the columns a screen may use. It is a database
-row, not code, so it is created by a seeder or in the admin:
+row, not code, so it is created at `/data-sources/` (the screen plinta ships,
+behind `view_datasource`), in the admin, or by a seeder. Write a seeder when
+you want the registration reproducible across environments:
 
 ```python
 source, _ = DataSource.objects.update_or_create(

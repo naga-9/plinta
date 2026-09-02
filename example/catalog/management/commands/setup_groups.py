@@ -25,7 +25,6 @@ PLINTA_READ = [
     "plinta_blocks.view_block",
     "plinta_blocks.view_savedview",
     "plinta_pages.view_filterset",
-    "plinta_datasources.view_datasource",
 ]
 
 #: The columns, named one at a time.
@@ -155,6 +154,9 @@ ADMINISTRATOR = [
     # Head office. Also what `StorePolicy` reads to decide who sees every
     # branch rather than only the ones they manage.
     "catalog.change_store",
+    # Reaching the Data sources screen (§12.1). Nothing in the render path
+    # asks for it, so it belongs to the administrator rather than to everyone.
+    "plinta_datasources.view_datasource",
     "plinta_datasources.add_datasource",
     "plinta_datasources.change_datasource",
     "plinta_datasources.add_datasourcefield",

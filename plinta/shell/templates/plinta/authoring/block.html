@@ -1,0 +1,97 @@
+{% extends "plinta/shell/base.html" %}
+{% comment %} One block: its own fields, then its settings.
+
+The settings below are **derived from the component's pydantic schema** and
+arranged by the component's own layout — the same controls the saved-view
+editor draws, one layer lower. Nothing here knows what a table is (§12.3).
+{% endcomment %}
+
+{% block title %}{{ block.name }} · Blocks · {{ site_name }}{% endblock %}
+
+{% block body %}
+    <div class="{{ cls.page_header }}">
+        <div class="{{ cls.page_heading }}">
+            <h1>{{ block.name }}</h1>
+            <p class="{{ cls.page_description }}">
+                {{ block.component_type }}
+                {% if block.data_source %}· {{ block.data_source.label }}{% endif %}
+                · <a href="{% url 'plinta:block_list' %}">All blocks</a>
+            </p>
+        </div>
+    </div>
+
+    {% if not component %}
+        <div class="{{ cls.alert }} {{ cls.alert_warning }}">
+            <strong>{{ block.component_type }}</strong> is not registered, so its
+            settings cannot be shown. The block renders an empty slot until the
+            app that provides it is installed.
+        </div>
+    {% endif %}
+
+    <div class="{{ cls.card }}">
+        <div class="{{ cls.card_header }}">
+            <h2 class="{{ cls.card_title }}">Details</h2>
+        </div>
+        <div class="{{ cls.card_body }}">
+            <form method="post" class="{{ cls.form }}">
+                {% csrf_token %}
+                <input type="hidden" name="what" value="block">
+                {% for field in details %}
+                    <div class="{{ cls.field }}">
+                        <label class="{{ cls.label }}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<div class="{{ cls.help }}">{{ field.help_text }}</div>{% endif %}
+                        {% for message in field.errors %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+                    </div>
+                {% endfor %}
+
+                <div class="{{ cls.field }}">
+                    <label class="{{ cls.label }}">
+                        <input class="{{ cls.checkbox }}" type="checkbox" name="public"
+                               {% if not block.owner %}checked{% endif %}>
+                        Everyone can use this block
+                    </label>
+                    {% comment %} `owner = None` is public, so this is one
+                    field rather than a second concept (§6.1b). {% endcomment %}
+                </div>
+
+                {% if may_change %}
+                    <div class="{{ cls.form_actions }}">
+                        <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Save</button>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    {% if component %}
+        <div class="{{ cls.card }}">
+            <div class="{{ cls.card_header }}">
+                <h2 class="{{ cls.card_title }}">Settings</h2>
+                <p class="{{ cls.card_subtitle }}">
+                    A blank control uses the component's own default.
+                </p>
+            </div>
+            <div class="{{ cls.card_body }}">
+                <form method="post" class="{{ cls.form }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="what" value="config">
+                    {% for message in errors %}
+                        <div class="{{ cls.error }}">{{ message }}</div>
+                    {% endfor %}
+
+                    {% comment %} The component's own arrangement, or the
+                    stacked default. Core draws the controls; the component
+                    decides where they go. {% endcomment %}
+                    {% include layout %}
+
+                    {% if may_change %}
+                        <div class="{{ cls.form_actions }}">
+                            <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Save settings</button>
+                        </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

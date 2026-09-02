@@ -2981,17 +2981,39 @@ The authoring screens are a **convenience layer** over configuration that is, an
 
 ### 12.1 The Data Sources screen
 
-Registers a model and manages its columns. One screen, two levels: a list of DataSources, and per DataSource its `DataSourceField` rows with their thirteen options (§6.2).
+Registers a model and manages its columns. One screen, two levels: `/data-sources/` lists the DataSources and registers another, `/data-sources/<pk>/` edits one and its `DataSourceField` rows with their sixteen options (§6.2).
 
 Creating a DataSourceField mints its field permissions; renaming one renames the codename; deleting removes them (§5.7). The screen is therefore the entry point for the permission surface as well as the column surface — which is worth knowing before changing it.
 
+**Not the write pipeline.** `DataSource` and `DataSourceField` are configuration models and are deliberately not registered as DataSources themselves (§6.1b), so they carry no field permissions and `authorise` would deny every field. They are gated whole by ordinary model permissions, which makes a Django `ModelForm` — and a `modelformset` for the columns — the honest tool. That is the one place in plinta where a write does not go through §8.5, and the reason is that there is nothing per-field to enforce.
+
+**The model a DataSource is about does not change.** Field permissions are minted per model, so moving a registered DataSource to another one would orphan every grant on its columns. The control is absent after creation rather than disabled.
+
+**A column's `field_name` is offered as a hint, not a constraint.** The screen lists the model's own concrete fields in a `datalist`; a traversal (`author__name`), an annotation or a property is legitimate and is not in that list (§6.2).
+
 ### 12.2 The Blocks catalogue
 
-Lists every block a viewer may see, with its component type, DataSource and owner. Create, duplicate, share, delete.
+`/blocks/` lists every block a viewer may see, with its component type, DataSource and owner. Create, duplicate, delete.
+
+**Gated by `change_block`, then narrowed by the row policy.** Not `view_block`: every signed-in person needs that for a dashboard to draw at all (§13.2), so gating on it would put an authoring screen in front of everybody. Reaching this screen *is* authoring. The row policy then narrows what it lists to a person's own blocks and the public ones — which is the whole difference between this screen and the admin, where every owner's rows appear.
+
+**A new block is owned, never public.** Creating one asks for three fields — name, component, DataSource — because config cannot be edited before the component is known. Publishing is a separate decision, made in the inspector by somebody who can see what they are publishing.
+
+**A duplicate is owned by whoever asked for it**, numbered rather than randomised (`-copy`, `-copy-2`) because the name is what somebody reads in the catalogue. Copying is how you start from another person's work; publishing the result is again separate.
+
+Sharing lives in the inspector rather than here: it is a decision about one block, not a bulk action.
 
 ### 12.3 The block inspector
 
 Edits one block's config. It **derives its form from the component's pydantic schema** — walking `model_fields`, choosing a widget per annotation, coercing the POST back (§8.9).
+
+**It is the saved-view editor with a different base.** A view is a delta over its block; the inspector is a delta over the **schema's own defaults**. So a blank control means *same as the block* in one and *the component's default* in the other, and both are the one mechanism in `blocks/settings.py`. Component owners get the inspector for free from the same `register_config_layout` they registered for the view editor (§12.3a).
+
+**A block stores its config sparsely, for the reason a view does** (ADR 0004). `parse` returns the *resolved* config with every default filled in; stored whole, that is a copy of the component's defaults at the moment of saving, and a component that later changes one leaves every block showing the old value with nothing to indicate why. Only the settings actually submitted are kept. Containers stay pinned, as in a view.
+
+**`component_type` is fixed after creation.** Config is validated against the component's schema with `extra='forbid'`, so changing the component would invalidate every setting at once. The control is absent rather than disabled — the same rule, and the same reason, as a DataSource's model (§12.1).
+
+**Not the write pipeline.** `Block` is a configuration model with no field permissions (§6.1b), so it is gated whole by `view_block` plus its row policy — `can(user, "change", block)` — exactly as §12.1 gates a DataSource.
 
 **Thirteen config fields carry a hand-written editor today**, one template each under `overrides/fields/<component_type>_<field>.html`, replacing the derived widget for that one row:
 
@@ -3079,6 +3101,12 @@ It also edits page settings: name, menu placement, type, filters.
 | Authoring screens | **ship with plinta** — they are the product, not tooling |
 | Django admin | **every app registers its models**; the screens are a convenience layer over rows, not the only door (§12.0) |
 | Gating | ordinary model and instance permissions; no admin concept |
+| Editing config models | `ModelForm`, not the write pipeline — config models have no field permissions to enforce (§12.1) |
+| A DataSource's model | fixed after registration; changing it would orphan its field permissions |
+| A block's component | fixed after creation; changing it would invalidate its whole config (§12.3) |
+| A block's stored config | **sparse**, like a view's — a resolved copy forks it from the component (ADR 0004) |
+| The inspector and the view editor | **one mechanism, two bases** — schema defaults beneath one, the block beneath the other |
+| A new or duplicated block | owned, never public; publishing is a separate decision |
 | Form derivation | from the component's pydantic schema (§8.9) |
 | Untyped config fields (`list[dict[str, Any]]`) | **typed sub-models**, so the engine can derive a repeating sub-form and validation is real |
 | Editors typing cannot produce | an **override registry** — a component declares a template per config field |

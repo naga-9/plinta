@@ -23,7 +23,7 @@ order they were declared in.
 | `choice` | the values your `Literal` or `Enum` admits |
 | `column` | the columns of the block's DataSource, asked for by name |
 | `text` `number` `bool` | derived from the annotation |
-| *inherit* | a blank control means "same as the block" — every mechanism has this |
+| *inherit* | a blank control means "the value beneath" — every mechanism has this |
 
 **You own the arrangement.** Which settings appear, in what order, under what
 headings. Core would arrange a chart, a gantt and a table wrong, so it does not
@@ -69,13 +69,24 @@ setting out, which is visible.
 
 ## What to expect
 
-**A blank control means "same as the block".** There is no override checkbox —
-a scalar shows only its override with the block's value as a placeholder, and
+**A blank control means "the value beneath".** There is no override checkbox —
+a scalar shows only its override with the value beneath as a placeholder, and
 a boolean is a three-state select. If you are writing help text, do not explain
 inheritance; the control already says it.
 
+What sits beneath depends on which screen your layout is drawn in, and it is
+the same layout in both:
+
+| screen | beneath | blank means |
+|---|---|---|
+| saved-view editor | the block's config | same as the block |
+| block inspector | your schema's defaults | your `Field(default=…)` |
+
+So a default you declare is a real answer on both screens, not a placeholder
+somebody has to retype. Neither screen stores what it did not ask for.
+
 **A container is always stored.** A list has no blank, so `columns`, `sort` and
-any `list[…]` of yours are the view's own whatever they hold. That is what
+any `list[…]` of yours are the screen's own whatever they hold. That is what
 keeps a column added to the DataSource later out of a view saved before it.
 
 **A setting you never place is absent from the form** — and still in the

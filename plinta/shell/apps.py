@@ -15,3 +15,28 @@ class ShellConfig(AppConfig):
         from plinta.utils import icons
 
         icons.register_defaults()
+
+        # The authoring screens are ordinary pages behind ordinary model
+        # permissions, so they reach the sidebar the way a contrib app's do.
+        from plinta.shell.links import register_shell_link
+
+        register_shell_link(
+            "data_sources",
+            "Data sources",
+            url_name="plinta:data_sources",
+            permission="plinta_datasources.view_datasource",
+            icon="table",
+            section="Administration",
+            group="Authoring",
+            order=900,
+        )
+        register_shell_link(
+            "blocks",
+            "Blocks",
+            url_name="plinta:block_list",
+            permission="plinta_blocks.change_block",
+            icon="dashboard",
+            section="Administration",
+            group="Authoring",
+            order=910,
+        )

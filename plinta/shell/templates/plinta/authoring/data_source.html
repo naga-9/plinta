@@ -1,0 +1,115 @@
+{% extends "plinta/shell/base.html" %}
+{% comment %} One model's columns.
+
+Saving here mints, renames or removes field permissions, because a
+`DataSourceField` is the only thing that does (§5.7). So this screen is the
+entry point for the permission surface as much as the column surface.
+
+Two forms, told apart by a hidden `what`: the source itself, and its columns
+as a formset. Separate because renaming a source and reordering its columns
+are different intentions, and one failing should not discard the other.
+{% endcomment %}
+
+{% block title %}{{ source.label }} · Data sources · {{ site_name }}{% endblock %}
+
+{% block body %}
+    <div class="{{ cls.page_header }}">
+        <div class="{{ cls.page_heading }}">
+            <h1>{{ source.label }}</h1>
+            <p class="{{ cls.page_description }}">
+                {{ source.content_type.app_label }}.{{ source.content_type.model }}
+                · <a href="{% url 'plinta:data_sources' %}">All data sources</a>
+            </p>
+        </div>
+    </div>
+
+    <div class="{{ cls.card }}">
+        <div class="{{ cls.card_header }}">
+            <h2 class="{{ cls.card_title }}">Details</h2>
+        </div>
+        <div class="{{ cls.card_body }}">
+            <form method="post" class="{{ cls.form }}">
+                {% csrf_token %}
+                <input type="hidden" name="what" value="source">
+                {% for field in details %}
+                    <div class="{{ cls.field }}">
+                        <label class="{{ cls.label }}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<div class="{{ cls.help }}">{{ field.help_text }}</div>{% endif %}
+                        {% for message in field.errors %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+                    </div>
+                {% endfor %}
+                {% if may_change %}
+                    <div class="{{ cls.form_actions }}">
+                        <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Save</button>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="{{ cls.card }}">
+        <div class="{{ cls.card_header }}">
+            <h2 class="{{ cls.card_title }}">Columns</h2>
+            <p class="{{ cls.card_subtitle }}">
+                A column may name a field, a traversal like
+                <code>author__name</code>, an annotation or a property.
+            </p>
+        </div>
+        <div class="{{ cls.card_body }}">
+            <form method="post" class="{{ cls.form }}">
+                {% csrf_token %}
+                <input type="hidden" name="what" value="columns">
+                {{ formset.management_form }}
+                {% for message in formset.non_form_errors %}
+                    <div class="{{ cls.error }}">{{ message }}</div>
+                {% endfor %}
+
+                {% comment %} A datalist rather than a select: the hints are the
+                   model's own fields, but a traversal is legitimate and is not
+                   in that list. {% endcomment %}
+                <datalist id="pl-field-paths">
+                    {% for path in paths %}<option value="{{ path }}">{% endfor %}
+                </datalist>
+
+                {% for row in rows %}
+                    <div class="{{ cls.stack }}">
+                        {{ row.form.id }}
+                        <div class="{{ cls.row }}">
+                            {% for field in row.identity %}
+                                <div class="{{ cls.field }}">
+                                    <label class="{{ cls.label }}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% for message in field.errors %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <details>
+                            <summary>Presentation</summary>
+                            <div class="{{ cls.row }}">
+                                {% for field in row.presentation %}
+                                    <div class="{{ cls.field }}">
+                                        <label class="{{ cls.label }}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                        {{ field }}
+                                        {% for message in field.errors %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </details>
+                        {% if row.delete %}
+                            <label class="{{ cls.label }}">
+                                {{ row.delete }} Remove this column
+                            </label>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                {% if may_change %}
+                    <div class="{{ cls.form_actions }}">
+                        <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Save columns</button>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+{% endblock %}

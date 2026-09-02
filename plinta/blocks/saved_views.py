@@ -136,186 +136,55 @@ def save(
 def settings_for(
     component, block, user, view: SavedView | None
 ) -> list[dict[str, Any]]:
-    """The view editor's fields, derived from the component's own schema.
+    """The view editor's fields, over the block's config.
 
-    Nothing here knows what a table is. A consumer's component declares a
-    config schema and gets an editor for it, which is what `plinta.forms` was
-    built for — and why a component overriding one field (`columns` is the
-    obvious one) registers a widget rather than a whole form.
-
-    Each field carries whether this view **overrides** it. That is the
-    difference between a delta and a copy: a control showing 25 because the
-    block says 25 must be told apart from one showing 25 because somebody
-    chose it, or the first save turns every inherited field into an override.
+    The same mechanism the block inspector uses, with the block beneath rather
+    than the schema's defaults (§12.3) — so here a blank control means *same
+    as the block*.
     """
-    from plinta.forms.fields import fields_for
-    from plinta.forms.overrides import overrides_for
+    from plinta.blocks import settings
 
-    schema = component.config_schema
     base = block.config or {}
     stored = (view.config if view else None) or {}
-
-    drawn = []
-    for field in fields_for(schema, overrides=overrides_for(schema)):
-        fallback = base.get(field.name, field.default)
-        # A container has no blank, so it is always the view's own and shows
-        # the effective value. A scalar shows only its *override*, with the
-        # block's value behind it as a placeholder — empty means inherited,
-        # which is the whole mechanism.
-        pinned = field.widget == "json"
-        drawn.append(
-            {
-                "name": field.name,
-                "label": field.title or field.name.replace("_", " ").capitalize(),
-                "widget": field.widget,
-                "choices": field.choices,
-                "kinds": field.kinds,
-                "template": field.override_template,
-                "help": field.description or "",
-                "pinned": pinned,
-                "value": (
-                    stored.get(field.name, fallback)
-                    if pinned
-                    else stored.get(field.name)
-                ),
-                # What the block gives it, drawn as the placeholder or as the
-                # first option of a select — so a control says where its
-                # value comes from without a second control to explain it.
-                "inherited_value": fallback,
-                "overridden": field.name in stored,
-            }
-        )
-
-    # The two mechanisms that need more than a value: a chooser needs the
-    # columns this viewer may see, and a builder needs its rows.
-    available = column_choices(block, user, view)
-    for setting in drawn:
-        if setting["widget"] == "column":
-            setting["columns"] = of_kind(available, setting["kinds"])
-        elif setting["name"] == "columns":
-            setting["columns"] = available
-        elif setting["name"] == "sort":
-            setting["columns"] = available
-            setting["rows"] = [
-                {"field": row.get("field", ""), "direction": row.get("direction", "asc")}
-                for row in (setting["value"] or [])
-                if isinstance(row, dict)
-            ]
-    return drawn
-
-
-def of_kind(choices: list, kinds: tuple) -> list:
-    """``choices`` narrowed to the kinds a setting admits.
-
-    Empty ``kinds`` offers everything, which is right for a link: any column
-    can carry one. A setting that will be summed says ``("number",)``, because
-    offered a title it returns zero — worse than an error, since nothing says
-    anything is wrong.
-    """
-    if not kinds:
-        return choices
-    return [choice for choice in choices if choice["kind"] in kinds]
+    return settings.settings_for(
+        component,
+        block,
+        user,
+        base=base,
+        stored=stored,
+        effective={**base, **stored},
+    )
 
 
 def column_choices(block, user, view: SavedView | None = None) -> list[dict[str, Any]]:
     """Every column this viewer may see, in the order this view shows them.
 
-    Chosen ones first and in their order, then the rest unchecked — so a
-    column added to the DataSource after a view was saved appears as
-    something to select rather than something that appeared.
-
     Read from the **effective** config, because the editor is editing a view:
     reading the block's order would show the author's arrangement to somebody
     who had already made their own.
     """
-    from plinta.datasources.services import get_available_fields
+    from plinta.blocks import settings
 
-    available = {f.field_name: f for f in get_available_fields(block.data_source, user)}
-    effective = {**(block.config or {}), **((view.config if view else None) or {})}
-    named = [name for name in effective.get("columns") or [] if name in available]
-    # An empty list means *every visible column* to `choose_columns`, not
-    # none — so a chooser opened on it must show them ticked. Opened empty,
-    # saving would post nothing, store an empty list, and the view would then
-    # pick up every column added afterwards: the opposite of pinning.
-    chosen = named or [
-        name for name, field in available.items() if getattr(field, "visible", True)
-    ]
-    from plinta.datasources.kinds import kind_of
+    stored = (view.config if view else None) or {}
+    return settings.column_choices(block, user, {**(block.config or {}), **stored})
 
-    model = block.data_source.model
-    return [
-        {
-            "name": name,
-            "label": available[name].label or name,
-            "chosen": chosen_flag,
-            # What it holds, so a setting can say which kinds it admits. A
-            # computed column resolves to no model field, so its own `sorter`
-            # is the fallback — which is the work `sorter` still does there.
-            "kind": kind_of(
-                model, name, getattr(available[name], "sorter", "") or "string"
-            ),
-        }
-        for name, chosen_flag in (
-            [(n, True) for n in chosen]
-            + [(n, False) for n in available if n not in chosen]
-        )
-    ]
+
+def of_kind(choices: list, kinds: tuple) -> list:
+    """``choices`` narrowed to the kinds a setting admits."""
+    from plinta.blocks import settings
+
+    return settings.of_kind(choices, kinds)
 
 
 def submitted_settings(schema, post) -> dict[str, Any]:
-    """What a settings form is asking to store.
+    """What the view editor is asking to store; a blank scalar is absent."""
+    from plinta.blocks import settings
 
-    A **blank scalar is absent**, which is how "same as the block" reaches
-    here without a control of its own. A container is read whatever it holds,
-    because a list has no blank — an empty one is a real answer.
-
-    The two builders post their own shape: a column chooser posts the names it
-    ticked in the order they appear, and a sort builder posts two parallel
-    lists, which is what a browser sends for repeated controls.
-    """
-    from plinta.forms.fields import widget_for
-
-    values: dict[str, Any] = {}
-    for name, info in schema.model_fields.items():
-        widget = widget_for(info.annotation)
-
-        if name == "columns":
-            values[name] = post.getlist("columns")
-            continue
-        if name == "sort":
-            fields = post.getlist("sort_field")
-            directions = post.getlist("sort_direction")
-            values[name] = [
-                {"field": field, "direction": direction or "asc"}
-                for field, direction in zip(fields, directions)
-                if field
-            ]
-            continue
-        if widget == "json":
-            # Another container, with no builder: it arrives as JSON text.
-            raw = post.get(name, "")
-            if raw:
-                values[name] = raw
-            continue
-
-        raw = post.get(name, "")
-        if raw == "":
-            continue  # same as the block
-        values[name] = raw
-    return values
+    return settings.submitted(schema, post)
 
 
 def pinned_settings(schema) -> set[str]:
-    """The settings a view always stores, blank or not.
+    """The settings a view always stores, blank or not."""
+    from plinta.blocks import settings
 
-    Containers: a list has no blank state, so "the columns I chose" cannot be
-    told from "I chose none". Storing them always is also what keeps a column
-    added to the DataSource later out of a view saved before it.
-    """
-    from plinta.forms.fields import widget_for
-
-    return {
-        name
-        for name, info in schema.model_fields.items()
-        if widget_for(info.annotation) == "json"
-    }
+    return settings.pinned(schema)

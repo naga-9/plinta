@@ -223,7 +223,13 @@ def test_a_capability_probes_the_generic_relation(demo):
 def test_a_shell_link_is_gated(demo):
     from plinta.shell.links import visible_links
 
-    assert [link.label for link in visible_links(person("ada"))] == ["Catalogue admin"]
+    # "Data sources" is core's own (§12.1); "Catalogue admin" is this app's.
+    # Both are gated the same way, which is the point of the assertion.
+    assert [link.label for link in visible_links(person("ada"))] == [
+        "Catalogue admin",
+        "Data sources",
+        "Blocks",
+    ]
     assert visible_links(person("sam")) == []
 
 

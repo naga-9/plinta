@@ -314,11 +314,21 @@ def test_a_closed_set_is_offered_rather_than_typed(chart, ada):
     assert drawn["chart_type"]["inherited_value"] == "bar"
 
 
-def test_it_inherits_the_column_chooser_without_asking(chart, ada):
-    """`columns` is declared on `ComponentConfig`, so the widget registered
-    for it reaches a component written next year."""
+def test_a_component_with_no_columns_is_offered_no_chooser(chart, ada):
+    """The chooser follows the *setting*, not the component. A chart has no
+    columns to choose between, and a column list on its card was a control
+    for something that meant nothing."""
     component, block = chart
     drawn = {c["name"]: c for c in settings_for(component, block, ada, None)}
+    assert "columns" not in drawn
+
+
+def test_a_component_that_does_draw_columns_inherits_the_chooser(block, ada):
+    """Registered on `ColumnsConfig`, so it reaches every component that
+    declares it has columns — including one written next year."""
+    from plinta.components.registry import get
+
+    drawn = {c["name"]: c for c in settings_for(get("table_plinta"), block, ada, None)}
     assert drawn["columns"]["template"] == "plinta/settings/columns.html"
 
 

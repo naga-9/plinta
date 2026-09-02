@@ -14,7 +14,7 @@ from django.contrib.contenttypes.models import ContentType
 from plinta.blocks.models import Block, SavedView
 from pydantic import Field
 
-from plinta.components.base import Component, ComponentConfig
+from plinta.components.base import ColumnsConfig, Component, ComponentConfig
 from plinta.components.registry import register_component
 from plinta.datasources.models import DataSource, DataSourceField
 from plinta.pages.models import MenuGroup, MenuSection, Page, PageBlock
@@ -43,7 +43,7 @@ def writing_component(component_registry):
     the endpoint's own behaviour should not wait on a component's.
     """
 
-    class WriterConfig(ComponentConfig):
+    class WriterConfig(ColumnsConfig):
         page_size: int = Field(default=25, gt=0)
         striped: bool = False
 

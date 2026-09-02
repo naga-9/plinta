@@ -20,7 +20,7 @@ from typing import Any
 from django.template.loader import render_to_string
 from pydantic import Field
 
-from plinta.components.base import Component, ComponentConfig, Mode, Padding
+from plinta.components.base import ColumnsConfig, Component, Mode, Padding
 from plinta.components.registry import register_component
 
 #: What each kind is edited with. A control per kind and no registry yet: a
@@ -37,7 +37,7 @@ CONTROLS = {
 }
 
 
-class FormConfig(ComponentConfig):
+class FormConfig(ColumnsConfig):
     """A form's stored configuration.
 
     Which fields appear is **not** freely chosen here either: `columns` may

@@ -20,7 +20,7 @@ from django.core.paginator import Page, Paginator
 from django.db.models import Q
 from pydantic import Field
 
-from plinta.components.base import ComponentConfig
+from plinta.components.base import ColumnsConfig, ComponentConfig
 
 #: How a column is searched, by what it **holds** — never by `sorter`, which
 #: says how to compare it. Read from the sort hint, every non-text column
@@ -57,7 +57,7 @@ class Sort(ComponentConfig):
     direction: Literal["asc", "desc"] = "asc"
 
 
-class TabularConfig(ComponentConfig):
+class TabularConfig(ColumnsConfig):
     """What every row-drawing component is configured with.
 
     A base rather than a shared schema: each component still declares its own

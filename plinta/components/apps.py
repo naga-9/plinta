@@ -26,10 +26,10 @@ class ComponentsConfig(AppConfig):
         # order. Registered on `ComponentConfig`, so every component's config
         # inherits it — `columns` is declared there, and a chooser each author
         # had to re-register is one an author will forget.
-        from plinta.components.base import ComponentConfig
+        from plinta.components.base import ColumnsConfig
         from plinta.forms.overrides import register_widget
 
-        register_widget(ComponentConfig, "columns", "plinta/settings/columns.html")
+        register_widget(ColumnsConfig, "columns", "plinta/settings/columns.html")
 
         # And the other setting no annotation can describe: a list of columns
         # and directions, which is a builder rather than the JSON a

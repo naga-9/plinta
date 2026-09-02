@@ -58,6 +58,20 @@ class ComponentConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+
+class ColumnsConfig(ComponentConfig):
+    """For a component that draws a **chosen set of columns**.
+
+    Not every component does. A KPI reads one aggregate and a gauge one
+    number: they name the field they want and have nothing to choose between,
+    so a column list on them is a setting that means nothing — and, once the
+    settings form derived itself from the schema, a column chooser on a card
+    that has no columns.
+
+    Declared here rather than on `ComponentConfig` for that reason. A
+    component that wants one inherits this; the rest are not asked.
+    """
+
     #: Which columns to draw, in order. Empty means every permitted one, in
     #: the DataSource's order. This is where a saved view's column choice
     #: arrives, already merged (§8.2).

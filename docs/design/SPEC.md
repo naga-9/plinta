@@ -3138,7 +3138,7 @@ Plinta ships working screens, not just the machinery to build them. A consumer r
 
 | Screen | Type | Provided by |
 |---|---|---|
-| Home | shell | the shell |
+| Home | shell view (not a `Page`) | the shell |
 | Account settings | `custom-template` | core |
 | Permission console | `custom-template` | core (§5.11) |
 | Capability matrix | `custom-template` | core |
@@ -3146,19 +3146,18 @@ Plinta ships working screens, not just the machinery to build them. A consumer r
 | Workflow permissions, Permission audit | `custom-template` | core (§5.11) |
 | Platform architecture | `custom-template` | core |
 | Log out | `custom-template` | the shell |
-| Lookups, Users | `dashboard` | core |
+| Users | `dashboard` | core |
 | Organizations, Labels, Notifications, Workflows, Reports | `dashboard` | the contrib package that owns each |
 
 Blocks and Data Sources are **not** seeded — they are fixed sidebar links to authoring screens (§12), not `Page` rows.
 
 ### 13.2 Seeding
 
-Nine commands: one orchestrator and eight per-app seeders. Every one is **idempotent**.
+Eight commands: one orchestrator and seven per-app seeders. Every one is **idempotent**.
 
 | Command | Owner in v2 | Seeds |
 |---|---|---|
-| `seed_platform_pages` | `pages` | menu groups, the core `custom-template` pages, then calls whichever of the rest are installed |
-| `seed_lookups_page` | core | Lookups |
+| `seed_platform_pages` | `pages` | the menu sections and groups, then calls whichever of the rest are installed |
 | `seed_users_page` | **core** — see below | Users |
 | `seed_audit_page` | **`contrib.audit`** — new | the audit log viewer |
 | `seed_reports_page` | **`contrib.reports`** — new | Reports |
@@ -3169,13 +3168,21 @@ Nine commands: one orchestrator and eight per-app seeders. Every one is **idempo
 
 The orchestrator calls a contrib seeder only when that package is installed, which is how a minimal install seeds the core screens and nothing else.
 
+**`seed_lookups_page` is dropped.** v1's "Lookups" was a screen over generic reference-data tables, and v2 has no such model. A consumer's reference data is their own model, registered through the Data Sources screen (§12.1) — inventing a core model to give the seeder something to seed would be the ERP residue the rebuild exists to remove.
+
+**Seeders are discovered, not listed.** The orchestrator asks Django's own command registry which of them exist, so a contrib package ships a seeder the way it ships anything else and core never imports the package that owns it. Order is fixed, because the menu a page hangs from must exist first, and `seed_shareables` must run before any page: it is what gives `FilterSet.owner` and `SavedView.owner` a permission (§6.1b), and a page seeded before it is shareable by anybody.
+
+**The home screen is the shell's, not a `Page`.** It lists whatever the viewer may open, so it cannot be one of the things being listed, and it is built from the same permission-filtered menu the sidebar draws — one answer to "what can I open", not two that drift. It also carries the empty state: a fresh install says to run `seed_platform_pages` rather than showing a blank shell.
+
 Two are new. `seed_audit_page` takes over the viewer the orchestrator builds inline today. `seed_reports_page` replaces the hard-coded "Excel Reports" link in the v1 base template — a contrib screen reached through core chrome, which §10.2 does not allow. A contrib package's screen is a `Page` it seeds, so it appears in the menu through the same permission-filtered path as every other page and disappears when the package is uninstalled.
 
 **A seeder belongs to the app whose screens it creates.** That keeps a package's screens with the package that can be uninstalled — uninstall `contrib.labels` and its page goes with it, rather than leaving a dead `Page` row core would have to clean up.
 
 **The orchestrator is the current violation.** `seed_platform_pages` today builds the audit viewer inline — a seven-field DataSource, three page filters — and seeds three permission-console pages by naming `accounts` templates. The one file whose job is delegation is the one hard-coding two other apps' screens. v2 moves the audit viewer to `contrib.audit`; the permission console is core (§5.11) and stays.
 
-**`seed_users_page` has no owner once `accounts` dissolves** (ADR 0002). Core takes it: core already registers `AUTH_USER_MODEL` as a DataSource so DSF-driven field permissions cover it, so the DataSource the page needs exists either way.
+**`seed_users_page` has no owner once `accounts` dissolves** (ADR 0002). Core takes it, and it is what registers `AUTH_USER_MODEL` as a DataSource, so DSF-driven field permissions cover the user model like any other.
+
+**`password` is not among its columns, and that is the security property.** A `DataSourceField` is the only thing that mints a field permission (§5.7), so declaring one would create `view_user_password` and make the hash something a screen could be configured to show. `is_staff` is declared read-only for the same kind of reason: it decides who reaches Django's admin, and granting that from a dashboard cell is not a thing a dashboard cell should do.
 
 ### 13.3 Seeded configuration is still configuration
 
@@ -3192,6 +3199,10 @@ These screens are `Page`, `Block` and `DataSource` rows — the same rows a user
 | Ship working screens | **yes** — a consumer runs one command and has an application |
 | Seeder ownership | the app whose screens it creates — the audit viewer moves to `contrib.audit`, the users page to core |
 | Idempotency | required |
+| Finding the seeders | Django's command registry — core never imports the package that owns one |
+| `seed_lookups_page` | **dropped** — v1 residue; a consumer's reference data is their own model |
+| Home | the **shell's own view**, not a `Page` — it lists what a page row would be |
+| The user model's columns | no `password`, ever; `is_staff` read-only |
 | Seeded rows | ordinary configuration, deletable, restorable, exportable |
 | `is_system` protection | **dropped** — permissions, not a flag |
 

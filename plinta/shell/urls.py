@@ -10,6 +10,9 @@ from plinta.shell import views
 app_name = "plinta"
 
 urlpatterns = [
+    # Where signing in lands. The shell's own, so an install with no pages
+    # seeded still has somewhere to be (§13.1).
+    path("", views.home, name="home"),
     # The id resolves the page; the slug is decorative and is not checked, so
     # a rename does not break a link someone shared (§9.0).
     path("pages/<int:pk>-<slug:slug>/", views.page_view, name="page"),

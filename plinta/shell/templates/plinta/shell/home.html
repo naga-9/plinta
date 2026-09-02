@@ -1,0 +1,71 @@
+{% extends "plinta/shell/base.html" %}
+{% load plinta_tags %}
+{% comment %} Where signing in lands.
+
+Everything here is already in the sidebar. That is deliberate: a landing
+screen that showed something *else* would be a second answer to "what can I
+open", and the two would drift. This one is wider, so a new person can read
+what a thing is before clicking it.
+
+Empty is a real state, and it says what to do about it — a fresh install has
+no pages until somebody seeds or builds them.
+{% endcomment %}
+
+{% block title %}{{ site_name }}{% endblock %}
+
+{% block body %}
+    <div class="{{ cls.page_header }}">
+        <div class="{{ cls.page_heading }}">
+            <h1>{{ site_name }}</h1>
+            <p class="{{ cls.page_description }}">
+                Everything you can open.
+            </p>
+        </div>
+    </div>
+
+    {% for section in sections %}
+        {% for group in section.groups %}
+            <div class="{{ cls.card }}">
+                <div class="{{ cls.card_header }}">
+                    <h2 class="{{ cls.card_title }}">
+                        {% if not section.is_top %}{{ section.name }} · {% endif %}{{ group.name }}
+                    </h2>
+                </div>
+                <div class="{{ cls.card_body }}">
+                    <ul class="{{ cls.menu }}">
+                        {% for page_item in group.pages %}
+                            <li class="{{ cls.menu_item }}">
+                                <a class="{{ cls.menu_link }}" href="{{ page_item.get_absolute_url }}">
+                                    {% icon page_item.menu_icon %}
+                                    <span>{{ page_item.name }}</span>
+                                </a>
+                                {% if page_item.description %}
+                                    <div class="{{ cls.muted }}">{{ page_item.description }}</div>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                        {% for link in group.links %}
+                            <li class="{{ cls.menu_item }}">
+                                <a class="{{ cls.menu_link }}" href="{% url link.url_name %}">
+                                    {% icon link.icon %}
+                                    <span>{{ link.label }}</span>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% endfor %}
+    {% empty %}
+        <div class="{{ cls.card }}">
+            <div class="{{ cls.card_body }}">
+                <p>There is nothing here yet.</p>
+                <p class="{{ cls.muted }}">
+                    Someone with the right permissions can seed the shipped
+                    screens with <code>manage.py seed_platform_pages</code>, or
+                    build one from the authoring screens.
+                </p>
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}

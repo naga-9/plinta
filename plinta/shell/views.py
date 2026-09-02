@@ -967,6 +967,25 @@ def page_positions(request: HttpRequest, pk: int) -> JsonResponse:
     return JsonResponse({"moved": [placement.pk for placement in moved]})
 
 
+@login_required
+def home(request: HttpRequest) -> HttpResponse:
+    """Where signing in lands.
+
+    The shell's, not a `Page` row (§13.1): it lists whatever the viewer may
+    open, so it cannot itself be one of the things being listed. Built from
+    the same menu the sidebar draws, which is already permission-filtered — so
+    this screen has no access rule of its own and cannot disagree with the
+    navigation beside it.
+    """
+    from plinta.shell.menu import build
+
+    return render(
+        request,
+        "plinta/shell/home.html",
+        {"cls": _classes(), "sections": build(request.user)},
+    )
+
+
 def page_view(
     request: HttpRequest, pk: int, slug: str = "", record: str | None = None
 ) -> HttpResponse:

@@ -75,6 +75,18 @@ MIDDLEWARE = [
 version of the whole list — it is in this repository rather than in the wheel,
 so clone it to read it.
 
+Then one command gives you a working application:
+
+```bash
+python manage.py migrate
+python manage.py seed_platform_pages
+```
+
+It creates the menu and calls whichever per-app seeders are installed, so a
+minimal install gets core's screens and nothing else. Install a contrib
+package later and re-run it — every seeder is idempotent, so running it again
+is always safe.
+
 ## The shape of it
 
 Nine layers, each importing only what is below it, enforced by a test rather

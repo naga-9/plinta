@@ -22,6 +22,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.db.models import Q
 
 from plinta.blocks.models import Block
+from plinta.pages.actions import visible_actions
 from plinta.pages.models import Page, PageBlock, PageType
 from plinta.pages.rendering import (
     controls_of,
@@ -841,6 +842,131 @@ def block_inspector(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
 
+@login_required
+def pages(request: HttpRequest) -> HttpResponse:
+    """Every page this viewer may compose, and a form to start another."""
+    from plinta.permissions import allowed
+    from plinta.shell.authoring import PageForm
+
+    if not request.user.has_perm("plinta_pages.change_page"):
+        raise Http404("no such page")
+
+    may_add = request.user.has_perm("plinta_pages.add_page")
+    form = PageForm(request.POST or None) if may_add else None
+    if request.method == "POST" and form is not None and form.is_valid():
+        created = form.save(commit=False)
+        created.owner = request.user
+        created.save()
+        return redirect(f"/pages/{created.pk}/compose/")
+
+    return render(
+        request,
+        "plinta/authoring/pages.html",
+        {
+            "cls": _classes(),
+            "pages": allowed(request.user, "view", Page.objects.all()),
+            "form": form,
+            "may_add": may_add,
+        },
+    )
+
+
+@login_required
+def page_composer(request: HttpRequest, pk: int) -> HttpResponse:
+    """One page: its settings, the blocks on it, and where each one sits.
+
+    The grid is a form of plain numbers. `contrib.composer` makes the same
+    four integers draggable and posts them to the same rule (§12.4), so this
+    screen is complete on its own and better with it.
+    """
+    from plinta.pages.composition import (
+        CompositionError,
+        placed,
+        positions,
+        submitted_positions,
+    )
+    from plinta.shell.authoring import PageForm, PlacementForm
+
+    if not request.user.has_perm("plinta_pages.change_page"):
+        raise Http404("no such page")
+    page = get_object_or_404(Page, pk=pk)
+    if not can(request.user, "view", page):
+        raise Http404("no such page")
+    may_change = can(request.user, "change", page)
+
+    what = request.POST.get("what") if request.method == "POST" else None
+    settings_form = PageForm(request.POST if what == "page" else None, instance=page)
+    placement_form = PlacementForm(
+        request.POST if what == "place" else None, page=page, user=request.user
+    )
+
+    if request.method == "POST" and may_change:
+        if what == "page" and settings_form.is_valid():
+            settings_form.save()
+            return redirect(f"/pages/{pk}/compose/")
+        if what == "place" and placement_form.is_valid():
+            placement = placement_form.save(commit=False)
+            placement.page = page
+            # Beneath whatever is there, full width. A block that lands on top
+            # of another is a page somebody has to repair before reading.
+            placement.row = max(
+                (p.row + p.height for p in page.placements.all()), default=0
+            )
+            placement.column, placement.width = 0, 12
+            placement.save()
+            return redirect(f"/pages/{pk}/compose/")
+        if what == "remove":
+            page.placements.filter(pk=request.POST.get("placement") or 0).delete()
+            return redirect(f"/pages/{pk}/compose/")
+        if what == "positions":
+            try:
+                positions(page, request.user, submitted_positions(request.POST))
+            except CompositionError as exc:
+                raise Http404("no such page") from exc
+            return redirect(f"/pages/{pk}/compose/")
+
+    return render(
+        request,
+        "plinta/authoring/page.html",
+        {
+            "cls": _classes(),
+            "subject": page,
+            "settings_form": settings_form,
+            "placement_form": placement_form,
+            "placements": placed(page, request.user),
+            "may_change": may_change,
+        },
+    )
+
+
+@require_POST
+@login_required
+def page_positions(request: HttpRequest, pk: int) -> JsonResponse:
+    """Persist a drag. The endpoint `contrib.composer` posts to.
+
+    JSON rather than form fields, because a drag has no reason to speak in
+    them — but the same rule, so an enhancement cannot move a block its
+    viewer could not move by typing.
+    """
+    from plinta.pages.composition import CompositionError, positions
+
+    page = get_object_or_404(Page, pk=pk)
+    if not can(request.user, "view", page):
+        raise Http404("no such page")
+    try:
+        wanted = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "unreadable"}, status=400)
+    if not isinstance(wanted, dict):
+        return JsonResponse({"error": "unreadable"}, status=400)
+
+    try:
+        moved = positions(page, request.user, wanted)
+    except CompositionError as exc:
+        return JsonResponse({"error": str(exc)}, status=403)
+    return JsonResponse({"moved": [placement.pk for placement in moved]})
+
+
 def page_view(
     request: HttpRequest, pk: int, slug: str = "", record: str | None = None
 ) -> HttpResponse:
@@ -897,6 +1023,9 @@ def page_view(
             # Whether the bar offers to save what is on screen. The permission
             # decides the control; the pipeline decides the save.
             "may_save_filters": request.user.has_perm("plinta_pages.add_filterset"),
+            # Whatever an app puts in this page's header (§12.4). Core names
+            # no package; it draws what is registered.
+            "page_actions": visible_actions(page, request.user),
         },
     )
 

@@ -106,3 +106,80 @@ def test_a_column_can_be_added_to_a_data_source(
 
     assert source.fields.count() == before + 1
     assert source.fields.filter(field_name="published_on").exists()
+
+
+# --- the composer, which is contrib ----------------------------------------
+
+
+@pytest.fixture
+def composing(viewer, screen):
+    """``viewer`` allowed to rearrange the page the composer is drawn on."""
+    from plinta.pages.models import Page, PageBlock
+
+    for model, actions in ((Page, ("change",)), (PageBlock, ("change",))):
+        content_type = ContentType.objects.get_for_model(model)
+        for action in actions:
+            codename = f"{action}_{model._meta.model_name}"
+            permission, _ = Permission.objects.get_or_create(
+                codename=codename,
+                content_type=content_type,
+                defaults={"name": codename},
+            )
+            viewer.user_permissions.add(permission)
+    return screen
+
+
+def test_the_layout_is_not_draggable_until_asked(
+    page, live_server, signed_in, composing
+):
+    """The control turns it on. A dashboard nobody is composing must not move
+    when somebody drags to select text."""
+    subject, _, _ = composing
+    page.goto(f"{live_server.url}{subject.get_absolute_url()}")
+    page.wait_for_selector("[data-plinta-compose]", timeout=15000)
+    assert not page.locator("body.pl-composing").count()
+
+    page.click("[data-plinta-compose]")
+    assert page.locator("body.pl-composing").count() == 1
+
+
+def test_dragging_a_card_moves_it_and_persists(
+    page, live_server, signed_in, composing
+):
+    """The whole point of the app, and the reason it is a browser test: none
+    of this is reachable from Python."""
+    from plinta.pages.models import PageBlock
+
+    subject, _, placement = composing
+    # Half width, because a card already spanning all twelve columns has
+    # nowhere to move sideways — which is the clamp working, not a bug.
+    placement.width = 6
+    placement.save()
+
+    page.goto(f"{live_server.url}{subject.get_absolute_url()}")
+    page.wait_for_selector("[data-plinta-compose]", timeout=15000)
+    page.click("[data-plinta-compose]")
+
+    card = page.locator("[data-plinta-placement]").first
+    box = card.bounding_box()
+    grid_box = page.locator(".pl-grid").bounding_box()
+    column = grid_box["width"] / 12
+
+    page.mouse.move(box["x"] + 20, box["y"] + 8)
+    page.mouse.down()
+    page.mouse.move(box["x"] + 20 + column * 3, box["y"] + 8, steps=10)
+    page.mouse.up()
+
+    page.wait_for_timeout(500)
+    moved = PageBlock.objects.get(pk=placement.pk)
+    assert moved.column == 3
+
+
+def test_the_control_is_absent_without_the_permission(
+    page, live_server, signed_in, screen
+):
+    """`screen`'s viewer may read the page and not rearrange it."""
+    subject, _, _ = screen
+    page.goto(f"{live_server.url}{subject.get_absolute_url()}")
+    page.wait_for_selector(".pl-grid", timeout=15000)
+    assert page.locator("[data-plinta-compose]").count() == 0

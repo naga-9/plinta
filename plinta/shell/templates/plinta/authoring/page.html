@@ -1,0 +1,163 @@
+{% extends "plinta/shell/base.html" %}
+{% comment %} Composing one page.
+
+The grid below is a form of plain numbers, and that is deliberate: the four
+integers map straight onto CSS grid (§9.3), so a viewer renders the layout
+with no JavaScript. `contrib.composer` makes the same four draggable and
+posts them to the same rule — so this screen is complete without it.
+{% endcomment %}
+
+{% block title %}{{ subject.name }} · Pages · {{ site_name }}{% endblock %}
+
+{% block body %}
+    <div class="{{ cls.page_header }}">
+        <div class="{{ cls.page_heading }}">
+            <h1>{{ subject.name }}</h1>
+            <p class="{{ cls.page_description }}">
+                {{ subject.get_page_type_display }}
+                · <a href="{% url 'plinta:page_list' %}">All pages</a>
+                · <a href="{{ subject.get_absolute_url }}">View this page</a>
+            </p>
+        </div>
+    </div>
+
+    <div class="{{ cls.card }}">
+        <div class="{{ cls.card_header }}">
+            <h2 class="{{ cls.card_title }}">Blocks on this page</h2>
+            <p class="{{ cls.card_subtitle }}">
+                Twelve columns. A block starting at column 0 with width 6 fills
+                the left half of its row.
+            </p>
+        </div>
+        <div class="{{ cls.card_body }}">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="what" value="positions">
+                <div class="{{ cls.table_wrap }}">
+                    <table class="{{ cls.table }}">
+                        <thead>
+                            <tr>
+                                <th>Block</th>
+                                <th class="{{ cls.table_numeric }}">Column</th>
+                                <th class="{{ cls.table_numeric }}">Row</th>
+                                <th class="{{ cls.table_numeric }}">Width</th>
+                                <th class="{{ cls.table_numeric }}">Height</th>
+                                <th>Tab</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for placement in placements %}
+                                <tr>
+                                    <td>
+                                        {{ placement.title|default:placement.block.name }}
+                                        <div class="{{ cls.muted }}">{{ placement.block.component_type }}</div>
+                                    </td>
+                                    <td class="{{ cls.table_numeric }}">
+                                        <input class="{{ cls.input }}" type="number" min="0" max="11"
+                                               name="position-{{ placement.pk }}-column" value="{{ placement.column }}">
+                                    </td>
+                                    <td class="{{ cls.table_numeric }}">
+                                        <input class="{{ cls.input }}" type="number" min="0"
+                                               name="position-{{ placement.pk }}-row" value="{{ placement.row }}">
+                                    </td>
+                                    <td class="{{ cls.table_numeric }}">
+                                        <input class="{{ cls.input }}" type="number" min="1" max="12"
+                                               name="position-{{ placement.pk }}-width" value="{{ placement.width }}">
+                                    </td>
+                                    <td class="{{ cls.table_numeric }}">
+                                        <input class="{{ cls.input }}" type="number" min="1"
+                                               name="position-{{ placement.pk }}-height" value="{{ placement.height }}">
+                                    </td>
+                                    <td>{{ placement.tab|default:"—" }}</td>
+                                    <td></td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="7" class="{{ cls.table_empty }}">
+                                        Nothing placed on this page yet.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if may_change and placements %}
+                    <div class="{{ cls.form_actions }}">
+                        <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Save layout</button>
+                    </div>
+                {% endif %}
+            </form>
+
+            {% comment %} Removing is its own form: a submit button inside the
+            layout form would post the layout too, and a mis-click would then
+            save whatever was half-typed. {% endcomment %}
+            {% if may_change %}
+                {% for placement in placements %}
+                    <form method="post" class="{{ cls.form_actions }}">
+                        {% csrf_token %}
+                        <input type="hidden" name="what" value="remove">
+                        <input type="hidden" name="placement" value="{{ placement.pk }}">
+                        <button class="{{ cls.btn }} {{ cls.btn_sm }} {{ cls.btn_danger }}" type="submit">
+                            Remove {{ placement.title|default:placement.block.name }}
+                        </button>
+                    </form>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    {% if may_change %}
+        <div class="{{ cls.card }}">
+            <div class="{{ cls.card_header }}">
+                <h2 class="{{ cls.card_title }}">Place a block</h2>
+                <p class="{{ cls.card_subtitle }}">
+                    It lands full width beneath what is already here. Move it
+                    afterwards.
+                </p>
+            </div>
+            <div class="{{ cls.card_body }}">
+                <form method="post" class="{{ cls.form }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="what" value="place">
+                    {% for field in placement_form %}
+                        <div class="{{ cls.field }}">
+                            <label class="{{ cls.label }}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}<div class="{{ cls.help }}">{{ field.help_text }}</div>{% endif %}
+                            {% for message in field.errors %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+                        </div>
+                    {% endfor %}
+                    <div class="{{ cls.form_actions }}">
+                        <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Place</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="{{ cls.card }}">
+        <div class="{{ cls.card_header }}">
+            <h2 class="{{ cls.card_title }}">Page settings</h2>
+        </div>
+        <div class="{{ cls.card_body }}">
+            <form method="post" class="{{ cls.form }}">
+                {% csrf_token %}
+                <input type="hidden" name="what" value="page">
+                {% for field in settings_form %}
+                    <div class="{{ cls.field }}">
+                        <label class="{{ cls.label }}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<div class="{{ cls.help }}">{{ field.help_text }}</div>{% endif %}
+                        {% for message in field.errors %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+                    </div>
+                {% endfor %}
+                {% if may_change %}
+                    <div class="{{ cls.form_actions }}">
+                        <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Save settings</button>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+{% endblock %}

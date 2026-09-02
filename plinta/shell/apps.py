@@ -40,3 +40,13 @@ class ShellConfig(AppConfig):
             group="Authoring",
             order=910,
         )
+        register_shell_link(
+            "pages",
+            "Pages",
+            url_name="plinta:page_list",
+            permission="plinta_pages.change_page",
+            icon="dashboard",
+            section="Administration",
+            group="Authoring",
+            order=920,
+        )

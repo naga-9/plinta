@@ -16,5 +16,6 @@ INSTALLED_APPS = [  # noqa: F405
     "plinta.contrib.styles_bootstrap5",
     "plinta.contrib.filters_tomselect",
     "plinta.contrib.components.table_tabulator",
+    "plinta.contrib.composer",
     "tests.contribapp",
 ]

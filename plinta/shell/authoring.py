@@ -16,6 +16,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from plinta.blocks.models import Block
 from plinta.datasources.models import DataSource, DataSourceField
+from plinta.pages.models import Page, PageBlock
 from plinta.utils.styles import classes
 
 #: What a column carries beyond its identity. Kept apart in the form so the
@@ -215,4 +216,42 @@ class BlockForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        style(self)
+
+
+class PageForm(forms.ModelForm):
+    """A page's own settings: what it is called and where it appears."""
+
+    class Meta:
+        model = Page
+        fields = ["name", "slug", "description", "page_type", "template_name",
+                  "primary_data_source", "context_param", "show_in_menu",
+                  "menu_group", "menu_order", "menu_icon", "is_active"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        style(self)
+
+
+class PlacementForm(forms.ModelForm):
+    """Putting one block on a page.
+
+    Position is absent: it is edited by the grid form, or by dragging when
+    `contrib.composer` is installed. Adding a block and arranging it are
+    different acts, and one form doing both makes every drag a chance to
+    re-point a card at another block.
+    """
+
+    class Meta:
+        model = PageBlock
+        fields = ["block", "title", "tab", "is_visible"]
+
+    def __init__(self, *args, page=None, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if page is not None and user is not None:
+            from plinta.blocks.inspector import visible_blocks
+
+            # A block this viewer cannot see is not one they can place: the
+            # picker would otherwise be a way to learn that it exists.
+            self.fields["block"].queryset = visible_blocks(user)
         style(self)

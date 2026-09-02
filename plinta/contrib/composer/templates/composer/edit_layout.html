@@ -1,0 +1,14 @@
+{% comment %} The control that turns dragging on.
+
+A button, not a link: it changes what this page does rather than going
+somewhere. Without JavaScript it does nothing, which is why the page composer
+in core keeps the same four numbers in a form (§12.4).
+
+**The URL is handed over, not built.** A page's own address carries a
+decorative slug (`/pages/6-catalog/`), so a script deriving the endpoint from
+`location.pathname` gets a 404 — the same rule §9.0 states for every other
+URL a component is given.
+{% endcomment %}
+<button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}"
+        data-plinta-compose="{% url 'plinta:page_positions' page.pk %}"
+        aria-pressed="false">Edit layout</button>

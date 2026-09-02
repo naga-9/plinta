@@ -198,6 +198,43 @@
         };
     }
 
+    /**
+     * Send one JSON POST. For a script that is not a component.
+     *
+     * `saver` above is the *write pipeline's* shape — a record and the fields
+     * being written — and most things that ask the server are that. Some are
+     * not: the layout composer posts where cards sit, which is not a write to
+     * anybody's data. They still may not call `fetch` themselves, because the
+     * CSRF token and the error shape are what the boundary keeps in one place,
+     * so they get this instead.
+     */
+    plinta.post = function (url, body) {
+        return fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': token(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(body || {})
+        }).then(function (response) {
+            return response.json().catch(function () {
+                return {};
+            }).then(function (payload) {
+                if (response.ok) {
+                    return payload;
+                }
+                var error = new Error(
+                    payload.error || 'the server answered ' + response.status
+                );
+                error.status = response.status;
+                error.refused = response.status === 403;
+                throw error;
+            });
+        });
+    };
+
     function mountOne(mount) {
         var name = mount.dataset.plintaMount;
         var adapter = adapters[name];

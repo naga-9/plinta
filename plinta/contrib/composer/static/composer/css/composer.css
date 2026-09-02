@@ -1,0 +1,29 @@
+/* The composer's own styling. Nothing here applies until `pl-composing` is
+   on the body, so a page that never enters edit mode looks untouched. */
+
+.pl-composing .pl-grid__item {
+    cursor: move;
+    outline: 1px dashed var(--pl-border);
+    outline-offset: 2px;
+    touch-action: none;
+}
+
+.pl-composing .pl-grid__item.is-moving {
+    opacity: 0.75;
+    z-index: 2;
+}
+
+.pl-resize {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
+    background: var(--pl-border);
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.pl-composing .pl-grid__item {
+    position: relative;
+}

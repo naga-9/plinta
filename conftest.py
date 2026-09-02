@@ -250,3 +250,15 @@ def annotation_registry():
     yield annotations
     annotations._registry.clear()
     annotations._registry.update(saved)
+
+
+@pytest.fixture
+def page_action_registry():
+    """Empty page-action registry, restored afterwards."""
+    from plinta.pages import actions as page_actions
+
+    saved = dict(page_actions._registry)
+    page_actions._registry.clear()
+    yield page_actions
+    page_actions._registry.clear()
+    page_actions._registry.update(saved)

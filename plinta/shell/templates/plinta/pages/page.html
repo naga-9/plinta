@@ -35,6 +35,11 @@
                             <button type="submit" class="{{ cls.btn }} {{ cls.btn_sm }}">Apply</button>
                         </form>
                     {% endif %}
+                    {% comment %} Whatever an app contributes to this page's
+                       header. Core draws them and names no package, which is
+                       what lets the layout composer be contrib (§12.4).
+                       {% endcomment %}
+                    {% for action in page_actions %}{% include action.template %}{% endfor %}
                 {% endblock %}
             </div>
         </div>
@@ -70,7 +75,12 @@
     {% block page_body %}
         <div class="pl-grid">
             {% for slot in placements %}
+                {% comment %} `data-plinta-placement` is a hook, not behaviour:
+                   core never reads it. It is what lets a composer address one
+                   card without core knowing a composer exists (§12.4).
+                   {% endcomment %}
                 <div class="pl-grid__item{% if slot.is_empty %} pl-slot--empty{% endif %}"
+                     data-plinta-placement="{{ slot.placement.pk }}"
                      style="--col: {{ slot.column }}; --row: {{ slot.row }}; --w: {{ slot.width }}; --h: {{ slot.height }}">
                     {% include "plinta/pages/block.html" %}
                 </div>

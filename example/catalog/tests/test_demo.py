@@ -229,6 +229,7 @@ def test_a_shell_link_is_gated(demo):
         "Catalogue admin",
         "Data sources",
         "Blocks",
+        "Pages",
     ]
     assert visible_links(person("sam")) == []
 

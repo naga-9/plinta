@@ -40,6 +40,12 @@ urlpatterns = [
     # Managing the saved views on a card's block.
     path("pages/<int:pk>/blocks/<int:placement>/views/", views.block_views,
          name="block_views"),
+    # Above the record routes: `pages/<pk>/<record>/` would otherwise match
+    # "compose" and "positions" as record ids.
+    path("pages/", views.pages, name="page_list"),
+    path("pages/<int:pk>/compose/", views.page_composer, name="page_composer"),
+    # What a drag posts to. Core owns the rule; contrib.composer owns the drag.
+    path("pages/<int:pk>/positions/", views.page_positions, name="page_positions"),
     # A detail page: the record in the path, so the URL is shareable and the
     # page is what somebody sends a colleague.
     path("pages/<int:pk>-<slug:slug>/<str:record>/", views.page_view, name="record"),

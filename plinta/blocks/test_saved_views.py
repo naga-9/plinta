@@ -11,9 +11,8 @@ from django.contrib.contenttypes.models import ContentType
 from plinta.blocks.models import Block, SavedView
 from plinta.blocks.rendering import effective_config
 from plinta.blocks.saved_views import (
-    INHERIT,
     column_choices,
-    controls,
+    settings_for,
     delta,
     inherited,
     may_publish,
@@ -60,9 +59,16 @@ def test_a_field_set_to_what_it_already_was_is_not(block):
     assert delta({"page_size": 25}, {"page_size": 25}) == {}
 
 
-def test_inherit_drops_an_override():
-    """The way back. Without it a form can only ever add overrides."""
-    assert delta({"page_size": INHERIT}, {"page_size": 25}) == {}
+def test_a_blank_control_never_reaches_here():
+    """"Same as the block" is a control left empty, which the form omits — so
+    there is no sentinel to carry and nothing to operate."""
+    assert delta({}, {"page_size": 25}) == {}
+
+
+def test_a_pinned_field_is_stored_whatever_it_equals():
+    """A list has no blank: an empty one is a real answer, so a view's
+    columns are always its own."""
+    assert delta({"columns": []}, {"columns": []}, {"columns"}) == {"columns": []}
 
 
 def test_a_field_the_block_never_set_is_stored():
@@ -124,7 +130,7 @@ def test_saving_stores_the_delta_and_not_the_form(block, ada):
         name="Mine",
         values={"page_size": 25, "striped": True, "columns": []},
     )
-    assert view.config == {"striped": True}
+    assert view.config == {"striped": True}, "page_size equalled the block's"
 
 
 # --- ownership --------------------------------------------------------------
@@ -169,25 +175,25 @@ def test_the_fields_come_from_the_components_own_schema(block, ada):
     declares a schema and gets an editor for it."""
     from plinta.components.registry import get
 
-    drawn = {c["name"] for c in controls(get("table_plinta"), block, ada, None)}
+    drawn = {c["name"] for c in settings_for(get("table_plinta"), block, ada, None)}
     assert {"page_size", "striped", "columns", "height"} <= drawn
 
 
-def test_a_field_says_whether_this_view_overrides_it(block, ada):
-    """The difference between a delta and a copy. A control showing 25
-    because the block says so must be told from one showing 25 because
-    somebody chose it."""
+def test_a_scalar_carries_its_override_and_the_blocks_value_apart(block, ada):
+    """A control showing 25 because the block says 25 must be told from
+    one showing 25 because somebody chose it — so the value is the
+    override, and the block's is what the control shows behind it."""
     from plinta.components.registry import get
 
     view = save(block, ada, name="Mine", values={"page_size": 10})
-    drawn = {c["name"]: c for c in controls(get("table_plinta"), block, ada, view)}
+    drawn = {c["name"]: c for c in settings_for(get("table_plinta"), block, ada, view)}
 
-    assert drawn["page_size"]["overridden"] is True
     assert drawn["page_size"]["value"] == 10
     assert drawn["page_size"]["inherited_value"] == 25
 
-    assert drawn["striped"]["overridden"] is False
-    assert drawn["striped"]["value"] is False
+    # Not overridden: nothing in the box, the block's value behind it.
+    assert drawn["striped"]["value"] is None
+    assert drawn["striped"]["inherited_value"] is False
 
 
 # --- the column chooser -----------------------------------------------------
@@ -287,7 +293,7 @@ def chart(component_registry, block):
 
 def test_a_consumers_component_gets_an_editor_for_free(chart, ada):
     component, block = chart
-    drawn = {c["name"]: c for c in controls(component, block, ada, None)}
+    drawn = {c["name"]: c for c in settings_for(component, block, ada, None)}
 
     assert drawn["x_field"]["widget"] == "text"
     assert drawn["stacked"]["widget"] == "bool"
@@ -298,19 +304,22 @@ def test_a_closed_set_is_offered_rather_than_typed(chart, ada):
     """A text box would accept every string and validation would refuse all
     but three, so the writer finds the answer by being wrong."""
     component, block = chart
-    drawn = {c["name"]: c for c in controls(component, block, ada, None)}
+    drawn = {c["name"]: c for c in settings_for(component, block, ada, None)}
 
     assert drawn["chart_type"]["widget"] == "choice"
     assert drawn["chart_type"]["choices"] == ("line", "bar", "area")
-    assert drawn["chart_type"]["value"] == "bar"
+    # The block says "bar" and this view overrides nothing, so the control is
+    # empty and offers "same as the block — bar" as its first option.
+    assert drawn["chart_type"]["value"] is None
+    assert drawn["chart_type"]["inherited_value"] == "bar"
 
 
 def test_it_inherits_the_column_chooser_without_asking(chart, ada):
     """`columns` is declared on `ComponentConfig`, so the widget registered
     for it reaches a component written next year."""
     component, block = chart
-    drawn = {c["name"]: c for c in controls(component, block, ada, None)}
-    assert drawn["columns"]["template"] == "plinta/blocks/columns_widget.html"
+    drawn = {c["name"]: c for c in settings_for(component, block, ada, None)}
+    assert drawn["columns"]["template"] == "plinta/settings/columns.html"
 
 
 def test_a_delta_over_a_consumers_config_is_still_a_delta(chart, ada):

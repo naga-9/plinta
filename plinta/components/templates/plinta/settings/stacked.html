@@ -1,0 +1,9 @@
+{% load plinta_form %}
+{% comment %} Every setting, one after another.
+
+What a component that registers no layout gets. A component wanting headings,
+columns or a different order registers its own and places settings with
+`{% setting "name" %}` — core owns the controls, the component owns where
+they go.
+{% endcomment %}
+{% for field in settings %}{% setting field.name %}{% endfor %}

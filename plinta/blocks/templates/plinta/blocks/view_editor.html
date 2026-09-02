@@ -46,9 +46,9 @@ what a table is.
                value="{{ view.name|default_if_none:'' }}" required>
     </div>
 
-    {% for control in controls %}
-        {% include "plinta/blocks/view_field.html" %}
-    {% endfor %}
+    {% comment %} The component's own arrangement, or the stacked default.
+    Core draws the controls; the component decides where they go. {% endcomment %}
+    {% include layout %}
 
     {% if may_publish %}
         <div class="{{ cls.field }}">

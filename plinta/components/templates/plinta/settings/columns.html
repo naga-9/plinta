@@ -8,7 +8,7 @@ Order is DOM order: a browser posts checkboxes in the order they appear, so
 dragging a row is all the reordering there is.
 {% endcomment %}
 <ul class="pl-columns" data-plinta-reorder>
-    {% for column in columns %}
+    {% for column in setting.columns %}
         <li class="pl-columns__item" draggable="true">
             <span class="pl-columns__grip" aria-hidden="true">⠿</span>
             <label class="{{ cls.label }}">

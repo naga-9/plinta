@@ -731,13 +731,16 @@ def test_saving_a_view_stores_only_what_was_ticked(
     page.wait_for_selector("dialog form", timeout=15000)
 
     page.fill('dialog [name="name"]', "Wide")
-    page.check('dialog [name="override_page_size"]')
     page.fill('dialog [name="page_size"]', "5")
     page.click('dialog button[type="submit"]')
     page.wait_for_url("**/*view=*", timeout=15000)
 
     view = SavedView.objects.get()
-    assert view.config == {"page_size": 5}
+    assert view.config["page_size"] == 5
+    # `columns` is stored whatever it holds — a list has no blank — and it
+    # opens on what the block draws, so saving pins those rather than an
+    # empty list that would let a new column in later.
+    assert view.config["columns"] == ["title", "in_print", "region", "watchers"]
     assert view.owner is not None  # personal, since nothing published it
 
 
@@ -748,7 +751,6 @@ def test_a_saved_view_is_what_the_card_then_draws(
     page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
     page.wait_for_selector("dialog form", timeout=15000)
     page.fill('dialog [name="name"]', "Five")
-    page.check('dialog [name="override_page_size"]')
     page.fill('dialog [name="page_size"]', "5")
     page.click('dialog button[type="submit"]')
 
@@ -788,7 +790,6 @@ def test_an_existing_view_opens_in_the_dialog(page, live_server, signed_in, scre
     )
     assert page.locator("dialog[open]").count() == 1
     # And it opens showing what that view overrides, not the block's values.
-    assert page.is_checked('dialog [name="override_page_size"]')
     assert page.locator('dialog [name="page_size"]').input_value() == "3"
 
 
@@ -816,7 +817,7 @@ def test_editing_an_existing_view_updates_it(page, live_server, signed_in, scree
 
     view.refresh_from_db()
     assert view.name == "Renamed"
-    assert view.config == {"page_size": 7}
+    assert view.config["page_size"] == 7
     assert SavedView.objects.count() == 1, "updated, not duplicated"
 
 

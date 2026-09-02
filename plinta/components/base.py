@@ -61,7 +61,11 @@ class ComponentConfig(BaseModel):
     #: Which columns to draw, in order. Empty means every permitted one, in
     #: the DataSource's order. This is where a saved view's column choice
     #: arrives, already merged (§8.2).
-    columns: list[str] = PydanticField(default_factory=list)
+    columns: list[str] = PydanticField(
+        default_factory=list,
+        title="Columns",
+        description="Tick what to show. Drag to reorder.",
+    )
 
 
 class ConfigError(Exception):

@@ -181,7 +181,9 @@ would refuse is a promise the page cannot keep.
 **Your component gets saved views for free.** The editor derives its fields
 from your `config_schema`, so a consumer arranging your chart can save one,
 publish it and set a default without you writing a form, an endpoint or a
-template. Two things follow from that:
+template. **Give every field a `title`** — without one the label is the field
+name with the underscores taken out, and it reads like one. See
+`add-settings-layout` for arranging them. Two more things follow:
 
 - **Declare a closed set as a `Literal` or an `Enum`** and it is drawn as a
   select. A plain `str` is a text box, so every value fits and validation
@@ -189,8 +191,9 @@ template. Two things follow from that:
 - **A field the annotation cannot describe** — a list of series, a nested
   model — derives to a JSON textarea. Register a widget for it:
   `register_widget(YourConfig, "series", "yourapp/series.html")`. Core does
-  exactly this for `columns`, on `ComponentConfig`, and the MRO carries it to
-  you.
+  exactly this for `columns` and `sort`, and the MRO carries them to you.
+- **A container is always stored in a saved view**, because a list has no
+  blank. Scalars inherit when their control is left empty.
 
 **If your component has a layout worth varying, register the template rather
 than reading a path from config** — see `add-form-layout`. And keep the mount,

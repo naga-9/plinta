@@ -1,0 +1,44 @@
+{% comment %} Sort by one column or several, in priority order.
+
+A list of columns and directions, never JSON: the reader should not have to
+know a key name or quote it. Rows are read in the order they appear, so
+dragging is the priority and there is no number to keep in step.
+{% endcomment %}
+<div class="pl-sort" data-plinta-sort>
+    {% for row in setting.rows %}
+        <div class="pl-sort__row">
+            <select class="{{ cls.select }}" name="sort_field">
+                {% for column in setting.columns %}
+                    <option value="{{ column.name }}"
+                            {% if column.name == row.field %}selected{% endif %}>{{ column.label }}</option>
+                {% endfor %}
+            </select>
+            <select class="{{ cls.select }}" name="sort_direction">
+                <option value="asc" {% if row.direction == "asc" %}selected{% endif %}>A → Z</option>
+                <option value="desc" {% if row.direction == "desc" %}selected{% endif %}>Z → A</option>
+            </select>
+            <button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}"
+                    data-plinta-sort-remove aria-label="Remove this column">✕</button>
+        </div>
+    {% endfor %}
+
+    <template data-plinta-sort-template>
+        <div class="pl-sort__row">
+            <select class="{{ cls.select }}" name="sort_field">
+                {% for column in setting.columns %}
+                    <option value="{{ column.name }}">{{ column.label }}</option>
+                {% endfor %}
+            </select>
+            <select class="{{ cls.select }}" name="sort_direction">
+                <option value="asc">A → Z</option>
+                <option value="desc">Z → A</option>
+            </select>
+            <button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}"
+                    data-plinta-sort-remove aria-label="Remove this column">✕</button>
+        </div>
+    </template>
+
+    <button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}" data-plinta-sort-add>
+        + Add another
+    </button>
+</div>

@@ -65,8 +65,14 @@ class TabularConfig(ComponentConfig):
     validated at save like any other config change.
     """
 
-    page_size: int = Field(default=50, gt=0)
-    sort: list[Sort] = Field(default_factory=list)
+    page_size: int = Field(
+        default=50, gt=0, title="Rows per page",
+    )
+    sort: list[Sort] = Field(
+        default_factory=list,
+        title="Sort by",
+        description="Ties are broken by the next row down.",
+    )
 
 
 def ordered(rows: Any, sort: list[Sort]) -> Any:

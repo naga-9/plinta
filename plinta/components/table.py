@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from django.core.paginator import Page
+from pydantic import Field
 
 from plinta.components.base import Component, Mode, Padding
 from plinta.components.registry import register_component
@@ -36,12 +37,21 @@ class TableConfig(TabularConfig):
     # this one was declared and read by nothing.
     #
     # `page_size` and `sort` come from `TabularConfig`.
-    #: CSS length, passed through to the widget. Empty lets it decide.
-    height: str = ""
-    #: A column whose value links to the row's detail page.
-    row_link_field: str = ""
-    #: What the table says when nothing matched. Blank uses the default.
-    empty_text: str = ""
+    height: str = Field(
+        default="",
+        title="Table height",
+        description="A CSS length. Leave empty to fit the rows.",
+    )
+    row_link_field: str = Field(
+        default="",
+        title="Clicking a row opens the record via",
+        description="The column that carries the link. Needs a detail page "
+        "for this data source.",
+    )
+    empty_text: str = Field(
+        default="",
+        title="Message when nothing matches",
+    )
 
     # --- appearance ---------------------------------------------------------
     # Config rather than CSS, because density is a property of *this* screen:
@@ -49,12 +59,20 @@ class TableConfig(TabularConfig):
     # screen, from the same DataSource. Each maps to one modifier class, so a
     # style pack renames them like anything else.
 
-    #: Alternate row shading, for a wide table the eye has to track across.
-    striped: bool = False
-    #: Tighter rows. More on screen, at the cost of scanning comfort.
-    compact: bool = False
-    #: Vertical rules between columns.
-    bordered: bool = False
+    striped: bool = Field(
+        default=False,
+        title="Shade alternate rows",
+        description="Easier to follow a wide row across.",
+    )
+    compact: bool = Field(
+        default=False,
+        title="Tighter rows",
+        description="More on screen, at the cost of scanning comfort.",
+    )
+    bordered: bool = Field(
+        default=False,
+        title="Lines between columns",
+    )
 
 
 @register_component("table_plinta", label="Table")

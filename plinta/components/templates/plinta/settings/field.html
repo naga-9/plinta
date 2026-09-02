@@ -1,0 +1,44 @@
+{% comment %} One setting: its label, its control, and where its value comes
+from. Dispatches on the mechanism, and a field with a registered widget uses
+that instead.
+
+There is no "override" checkbox. A blank control means "same as the block",
+which is the whole mechanism and needs no second control to operate it.
+{% endcomment %}
+<div class="{{ cls.field }}" data-plinta-setting="{{ setting.name }}">
+    <label class="{{ cls.label }}" for="pl-set-{{ setting.name }}">{{ setting.label }}</label>
+
+    {% if setting.template %}
+        {% include setting.template %}
+
+    {% elif setting.widget == "bool" %}
+        {% comment %} Three states need three options: a checkbox cannot say
+        "same as the block" as well as yes and no. {% endcomment %}
+        <select class="{{ cls.select }}" id="pl-set-{{ setting.name }}" name="{{ setting.name }}">
+            <option value="">Same as the block — {{ setting.inherited_value|yesno:"yes,no" }}</option>
+            <option value="true" {% if setting.value is True %}selected{% endif %}>Yes</option>
+            <option value="false" {% if setting.value is False %}selected{% endif %}>No</option>
+        </select>
+
+    {% elif setting.widget == "choice" %}
+        <select class="{{ cls.select }}" id="pl-set-{{ setting.name }}" name="{{ setting.name }}">
+            <option value="">Same as the block — {{ setting.inherited_value|default:"unset" }}</option>
+            {% for choice in setting.choices %}
+                <option value="{{ choice }}" {% if choice == setting.value %}selected{% endif %}>{{ choice }}</option>
+            {% endfor %}
+        </select>
+
+    {% elif setting.widget == "number" %}
+        <input class="{{ cls.input }}" type="number" id="pl-set-{{ setting.name }}"
+               name="{{ setting.name }}" value="{{ setting.value|default_if_none:'' }}"
+               placeholder="{{ setting.inherited_value|default_if_none:'' }}">
+
+    {% else %}
+        <input class="{{ cls.input }}" type="text" id="pl-set-{{ setting.name }}"
+               name="{{ setting.name }}" value="{{ setting.value|default_if_none:'' }}"
+               placeholder="{{ setting.inherited_value|default_if_none:'' }}">
+    {% endif %}
+
+    {% if setting.help %}<div class="{{ cls.help }}">{{ setting.help }}</div>{% endif %}
+    <div class="{{ cls.error }}" data-plinta-error hidden></div>
+</div>

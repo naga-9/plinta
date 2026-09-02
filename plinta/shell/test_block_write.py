@@ -317,7 +317,15 @@ def test_the_editor_draws_the_components_own_fields(client, may_save):
     page, placement, _, _ = may_save
     body = client.get(views_url(page, placement)).content.decode()
     assert 'name="page_size"' in body
-    assert 'name="override_page_size"' in body
+    assert 'name="striped"' in body
+
+
+def test_there_is_no_second_control_for_overriding(client, may_save):
+    """A blank control means "same as the block". A checkbox beside it was a
+    delta model asking to be operated."""
+    page, placement, _, _ = may_save
+    body = client.get(views_url(page, placement)).content.decode()
+    assert "override_" not in body
 
 
 def test_saving_stores_only_the_delta(client, may_save):
@@ -325,24 +333,41 @@ def test_saving_stores_only_the_delta(client, may_save):
     Block.objects.filter(pk=block.pk).update(config={"page_size": 25})
 
     response = client.post(views_url(page, placement), {
-        "name": "Mine",
-        "override_page_size": "on",
-        "page_size": "10",
+        "name": "Mine", "page_size": "10",
     })
     assert response.status_code == 302
     view = SavedView.objects.get()
-    assert view.config == {"page_size": 10}
+    # `columns` is stored whatever it holds; this component has no `sort`.
+    assert view.config == {"page_size": 10, "columns": []}
 
 
-def test_a_field_not_overridden_is_not_stored(client, may_save):
-    """Unticked means inherited, which means absent — the whole delta."""
+def test_a_blank_control_is_not_stored(client, may_save):
+    """The whole of "same as the block": empty means absent."""
     page, placement, block, _ = may_save
     Block.objects.filter(pk=block.pk).update(config={"page_size": 25})
 
-    client.post(views_url(page, placement), {
-        "name": "Mine", "page_size": "10",   # value sent, override not ticked
-    })
-    assert SavedView.objects.get().config == {}
+    client.post(views_url(page, placement), {"name": "Mine", "page_size": ""})
+    assert "page_size" not in SavedView.objects.get().config
+
+
+def test_a_value_equal_to_the_blocks_is_not_stored_either(client, may_save):
+    """Typing what the block already says leaves the view inheriting it, so a
+    later change to the block still reaches here."""
+    page, placement, block, _ = may_save
+    Block.objects.filter(pk=block.pk).update(config={"page_size": 25})
+
+    client.post(views_url(page, placement), {"name": "Mine", "page_size": "25"})
+    assert "page_size" not in SavedView.objects.get().config
+
+
+def test_columns_are_stored_even_when_they_match(client, may_save):
+    """A list has no blank, so a view's columns are always its own — which is
+    what keeps a column added later out of a view saved before it."""
+    page, placement, block, _ = may_save
+    Block.objects.filter(pk=block.pk).update(config={"columns": []})
+
+    client.post(views_url(page, placement), {"name": "Mine"})
+    assert SavedView.objects.get().config["columns"] == []
 
 
 def test_saving_returns_to_this_placements_view(client, may_save):
@@ -356,7 +381,7 @@ def test_saving_returns_to_this_placements_view(client, may_save):
 def test_an_invalid_value_is_answered_not_saved(client, may_save):
     page, placement, _, _ = may_save
     response = client.post(views_url(page, placement), {
-        "name": "Mine", "override_page_size": "on", "page_size": "0",
+        "name": "Mine", "page_size": "0",
     })
     assert response.status_code == 422
     assert not SavedView.objects.exists()
@@ -480,31 +505,24 @@ def test_a_shared_default_is_everyones(client, may_save):
     assert view.owner is None
 
 
-def test_a_boolean_value_box_has_its_own_label(client, may_save):
-    """The row's heading belongs to the override checkbox, so without one a
-    boolean is two tick boxes and no way to tell which is which."""
-    page, placement, _, _ = may_save
-    body = client.get(views_url(page, placement)).content.decode()
-
-    striped = body.split('data-plinta-field="striped"')[1].split("</div>")[0]
-    assert 'name="striped"' in striped
-    assert "Yes" in striped
-
-
-def test_an_inherited_boolean_reads_as_a_word(client, may_save):
-    """`True` is not what the checkbox beside it says."""
+def test_a_boolean_is_a_select_with_three_states(client, may_save):
+    """A checkbox cannot say "same as the block" as well as yes and no."""
     page, placement, block, _ = may_save
     Block.objects.filter(pk=block.pk).update(config={"striped": True})
     body = client.get(views_url(page, placement)).content.decode()
-    assert "Inherited from the block:" in body
-    assert "True" not in body.split('data-plinta-field="striped"')[1][:400]
+
+    striped = body.split('data-plinta-setting="striped"')[1].split("</select>")[0]
+    assert "<select" in striped
+    assert "Same as the block — yes" in striped
+    assert ">Yes<" in striped and ">No<" in striped
 
 
-def test_an_inherited_empty_value_says_so(client, may_save):
-    """`default_if_none` does not fire on an empty string, so the line read
-    "Inherited from the block:" and then stopped."""
+def test_a_scalar_shows_the_blocks_value_as_its_placeholder(client, may_save):
+    """Where the value comes from, said by the control rather than beside
+    it — which is what a whole extra checkbox used to be for."""
     page, placement, block, _ = may_save
-    Block.objects.filter(pk=block.pk).update(config={})
+    Block.objects.filter(pk=block.pk).update(config={"page_size": 25})
     body = client.get(views_url(page, placement)).content.decode()
-    assert "Inherited from the block:\n                nothing" in body or \
-        "nothing" in body
+
+    size = body.split('data-plinta-setting="page_size"')[1].split("</div>")[0]
+    assert 'placeholder="25"' in size

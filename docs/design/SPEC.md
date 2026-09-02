@@ -2193,6 +2193,16 @@ The row is reached through the block's own narrowing, the same gate the write ap
 
 A trigger carries `data-plinta-open-form`, which is deliberately **not** the attribute a mount carries for the same URL: the listener matches with `closest`, which walks upwards, so a shared name made every click inside a table open a form — including the click that was opening a cell editor.
 
+**Mechanism is core's; arrangement is the component's.** A chart, a gantt and a table have nothing in common but the mechanisms, so core owns those and does not guess the rest: `register_config_layout(ChartConfig, "yourapp/chart_settings.html")`, and the layout places settings with `{% setting "x_field" %}`. Registered against the **schema**, walked up the MRO, and the stacked default serves a component that registers nothing. The same layout serves the block inspector, since the settings are the same either way — a delta in one, the base in the other.
+
+**A blank control means "same as the block", and there is no second control.** The editor first carried an override checkbox per field, which is the delta model asking to be operated: two tick boxes on a boolean, and no way to tell which was which. v1 had the answer and it is simply `placeholder="Default"` — a scalar shows only its override with the block's value behind it, a boolean is a three-state select, and a field left blank is absent from the submission. The delta falls out of what was typed.
+
+**A container is always stored.** A list has no blank — an empty one is a real answer, not an absent one — so `columns`, `sort` and any list a consumer declares are the view's own whatever they hold. It is also what keeps a column added to the DataSource later out of a view saved before it. A chooser opened on an empty `columns` therefore shows every visible column **ticked**, because that is what an empty list draws: opened blank it would save one, and the view would then pick up every column added afterwards.
+
+**`sort` is a builder, never JSON.** Rows of column and direction, read in the order they appear, so priority is position and nothing tracks an index.
+
+**Labels live in the schema.** `Field(title=…, description=…)` on the config, because the same titles serve the saved-view editor, the block inspector and a consumer's own component — and a field without one is labelled by its name with the underscores taken out.
+
 **Layout is a registered template, and it owns the body only.** Forms get complicated in ways a config field cannot express, so past a point the honest answer is a template — `register_form_layout("book", "catalog/book_form.html")`, named by key from the block's config. A key and not a path, for the reason `queryset_modifier` takes a registered name: a template path stored in a row is a string in the database that decides what code runs.
 
 The split is the load-bearing part. The **component** owns the mount, the payload, the field names, the submit and the error plumbing; the **layout** places controls with `{% control "title" %}`. A layout that owned the shell could get one thing subtly wrong and the form would render perfectly and silently never save, which is the failure this codebase has hit three times. The worst a layout can do is omit a field, which is visible.

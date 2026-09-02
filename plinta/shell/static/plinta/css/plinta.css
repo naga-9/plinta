@@ -1023,3 +1023,14 @@ hr {
 .pl-columns__item:last-child { border-bottom: 0; }
 .pl-columns__item.is-dragging { opacity: 0.4; }
 .pl-columns__grip { cursor: grab; color: var(--pl-fg-muted); }
+
+/* A sort builder: a column, a direction, and a way to remove the row. */
+.pl-sort { display: block; }
+
+.pl-sort__row {
+    display: flex;
+    gap: var(--pl-space-2);
+    align-items: center;
+    margin-bottom: var(--pl-space-2);
+}
+.pl-sort__row .pl-select { flex: 1; }

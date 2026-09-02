@@ -407,6 +407,7 @@ def block_views(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
     idea what a table is (§12.3).
     """
     from plinta.blocks import saved_views
+    from plinta.forms.layouts import layout_for
     from plinta.permissions import can
 
     page, slot, component = placement_of(request, pk, placement)
@@ -419,6 +420,8 @@ def block_views(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
     if request.method == "POST":
         return _save_view(request, page, slot, component, mine)
 
+    # Once: it reads the schema and asks which columns this viewer may see.
+    settings = saved_views.settings_for(component, block, request.user, chosen)
     return render(
         request,
         "plinta/blocks/view_editor.html",
@@ -426,8 +429,9 @@ def block_views(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
             "cls": _classes(),
             "views": mine,
             "view": chosen,
-            "controls": saved_views.controls(component, block, request.user, chosen),
-            "columns": saved_views.column_choices(block, request.user, chosen),
+            "settings": settings,
+            "settings_by_name": {s["name"]: s for s in settings},
+            "layout": layout_for(component.config_schema),
             "may_publish": saved_views.may_publish(request.user),
             "may_default": saved_views.may_default(request.user),
             "may_delete": chosen is not None and can(request.user, "delete", chosen),
@@ -446,6 +450,7 @@ def _classes() -> dict:
 def _save_view(request: HttpRequest, page, slot, component, mine):
     """Create, update or delete one view, then send the viewer back to it."""
     from plinta.blocks import saved_views
+    from plinta.forms.layouts import layout_for
     from plinta.forms.parse import parse
     from plinta.permissions import can
 
@@ -460,19 +465,11 @@ def _save_view(request: HttpRequest, page, slot, component, mine):
         view.delete()
         return redirect(page.get_absolute_url())
 
-    # Only the overridden fields are read. A field nobody ticked is inherited,
-    # and inherited means absent — which is what keeps the delta a delta.
-    submitted = {}
-    for field in schema.model_fields:
-        if not request.POST.get(f"override_{field}"):
-            continue
-        values = request.POST.getlist(field)
-        submitted[field] = values if len(values) > 1 or field == "columns" else (
-            request.POST.get(field)
-        )
-
+    # A blank control is absent, which is the whole of "same as the block".
+    submitted = saved_views.submitted_settings(schema, request.POST)
     config, errors = parse(schema, submitted)
     if errors:
+        settings = saved_views.settings_for(component, block, request.user, view)
         return render(
             request,
             "plinta/blocks/view_editor.html",
@@ -480,8 +477,9 @@ def _save_view(request: HttpRequest, page, slot, component, mine):
                 "cls": _classes(),
                 "views": mine,
                 "view": view,
-                "controls": saved_views.controls(component, block, request.user, view),
-                "columns": saved_views.column_choices(block, request.user, view),
+                "settings": settings,
+                "settings_by_name": {s["name"]: s for s in settings},
+                "layout": layout_for(component.config_schema),
                 "may_publish": saved_views.may_publish(request.user),
                 "may_default": saved_views.may_default(request.user),
                 "may_delete": view is not None and can(request.user, "delete", view),
@@ -493,7 +491,7 @@ def _save_view(request: HttpRequest, page, slot, component, mine):
 
     # `parse` validates and returns the **whole** config, defaults included,
     # which is what a block inspector wants and the opposite of what a delta
-    # is. Only the fields somebody ticked survive.
+    # is. Only what was actually submitted survives.
     overridden = {name: config[name] for name in submitted if name in config}
 
     try:
@@ -502,6 +500,7 @@ def _save_view(request: HttpRequest, page, slot, component, mine):
             request.user,
             name=request.POST.get("name") or "Untitled",
             values=overridden,
+            pinned=saved_views.pinned_settings(schema),
             view=view,
             public=bool(request.POST.get("public")),
             default=bool(request.POST.get("is_default")),

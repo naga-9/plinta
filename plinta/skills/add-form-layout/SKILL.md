@@ -91,4 +91,5 @@ Use the `form_layout_registry` fixture so a test's registration does not leak.
 ## Related
 
 - `make-records-editable` — what has to be true before a form has any fields
+- `add-settings-layout` — the same idea for a component's **settings**
 - `add-component` — a widget that writes something a form does not

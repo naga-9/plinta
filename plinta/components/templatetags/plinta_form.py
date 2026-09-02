@@ -1,4 +1,10 @@
-"""`{% control %}` — draw one of a form's fields where the layout wants it."""
+"""The tags a layout places things with.
+
+`{% control %}` puts one **record** field where a form layout wants it;
+`{% setting %}` puts one **config** field where a component's settings layout
+wants it. Two subjects, one idea: core draws the control, the layout decides
+where it goes.
+""" 
 from __future__ import annotations
 
 from django import template
@@ -24,5 +30,25 @@ def control(context, name: str) -> SafeString:
         render_to_string(
             "plinta/components/control.html",
             {"control": drawn, "cls": context.get("cls") or {}},
+        )
+    )
+
+
+@register.simple_tag(takes_context=True)
+def setting(context, name: str) -> SafeString:
+    """One config setting by field name.
+
+    Draws nothing when the schema has no such field, which is what a layout
+    naming a setting the component later dropped should do: the rest of the
+    form still draws, and a system check reports the layout rather than the
+    page failing.
+    """
+    drawn = (context.get("settings_by_name") or {}).get(name)
+    if drawn is None:
+        return SafeString("")
+    return SafeString(
+        render_to_string(
+            "plinta/settings/field.html",
+            {"setting": drawn, "cls": context.get("cls") or {}},
         )
     )

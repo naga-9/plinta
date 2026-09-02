@@ -20,6 +20,7 @@ class ComponentsConfig(AppConfig):
         # contrib range so a package's adapter still lands after it.
         register_script("plinta/js/form.js", order=200)
         register_script("plinta/js/column-order.js", order=200)
+        register_script("plinta/js/sort-builder.js", order=200)
 
         # The one config field no schema can describe: which columns, in what
         # order. Registered on `ComponentConfig`, so every component's config
@@ -28,6 +29,11 @@ class ComponentsConfig(AppConfig):
         from plinta.components.base import ComponentConfig
         from plinta.forms.overrides import register_widget
 
-        register_widget(
-            ComponentConfig, "columns", "plinta/blocks/columns_widget.html"
-        )
+        register_widget(ComponentConfig, "columns", "plinta/settings/columns.html")
+
+        # And the other setting no annotation can describe: a list of columns
+        # and directions, which is a builder rather than the JSON a
+        # `list[Sort]` would otherwise become.
+        from plinta.components.tabular import TabularConfig
+
+        register_widget(TabularConfig, "sort", "plinta/settings/sort.html")

@@ -189,7 +189,9 @@ def settings_for(
     # columns this viewer may see, and a builder needs its rows.
     available = column_choices(block, user, view)
     for setting in drawn:
-        if setting["name"] == "columns":
+        if setting["widget"] == "column":
+            setting["columns"] = available
+        elif setting["name"] == "columns":
             setting["columns"] = available
         elif setting["name"] == "sort":
             setting["columns"] = available

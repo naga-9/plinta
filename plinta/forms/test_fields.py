@@ -136,3 +136,36 @@ def test_an_ordinary_string_is_not():
     field = fields_for(Config)[0]
     assert field.widget == "text"
     assert field.choices == ()
+
+
+# --- a setting that names a column ------------------------------------------
+
+
+def test_a_field_may_ask_for_a_mechanism_by_name():
+    """`total_field="sale_total"` is a string to the type system and a choice
+    to a person. Derived from `str` it is a text box, and whatever is typed
+    passes validation and fails at the query."""
+    from pydantic import Field as PydanticField
+
+    class Config(BaseModel):
+        total_field: str = PydanticField(
+            default="", json_schema_extra={"widget": "column"}
+        )
+
+    assert fields_for(Config)[0].widget == "column"
+
+
+def test_a_declared_widget_beats_the_derived_one():
+    from pydantic import Field as PydanticField
+
+    class Config(BaseModel):
+        count: int = PydanticField(default=0, json_schema_extra={"widget": "column"})
+
+    assert fields_for(Config)[0].widget == "column"
+
+
+def test_a_field_that_asks_for_nothing_still_derives():
+    class Config(BaseModel):
+        title: str = ""
+
+    assert fields_for(Config)[0].widget == "text"

@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 from django.db.models import DecimalField, F
 from django.utils.html import format_html, format_html_join
+from pydantic import Field as PydanticField
 
 from plinta.blocks.capabilities import register_capability
 from plinta.components.base import Component, ComponentConfig, Mode
@@ -221,7 +222,12 @@ class StatConfig(ComponentConfig):
 
     label: str = ""
     #: A column to total. Blank counts the rows instead.
-    total_field: str = ""
+    total_field: str = PydanticField(
+        default="",
+        title="Field to total",
+        description="Summed across the rows. Leave empty to count them.",
+        json_schema_extra={"widget": "column"},
+    )
     prefix: str = ""
     suffix: str = ""
     #: How many places the figure shows. A sum over an annotation carries

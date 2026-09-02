@@ -20,6 +20,17 @@ which is the whole mechanism and needs no second control to operate it.
             <option value="false" {% if setting.value is False %}selected{% endif %}>No</option>
         </select>
 
+    {% elif setting.widget == "column" %}
+        {% comment %} A column is chosen, never typed: a name that is not one
+        passes validation and fails at the query. {% endcomment %}
+        <select class="{{ cls.select }}" id="pl-set-{{ setting.name }}" name="{{ setting.name }}">
+            <option value="">Same as the block — {{ setting.inherited_value|default:"none" }}</option>
+            {% for column in setting.columns %}
+                <option value="{{ column.name }}"
+                        {% if column.name == setting.value %}selected{% endif %}>{{ column.label }}</option>
+            {% endfor %}
+        </select>
+
     {% elif setting.widget == "choice" %}
         <select class="{{ cls.select }}" id="pl-set-{{ setting.name }}" name="{{ setting.name }}">
             <option value="">Same as the block — {{ setting.inherited_value|default:"unset" }}</option>

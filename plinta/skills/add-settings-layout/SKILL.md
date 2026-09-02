@@ -18,6 +18,7 @@ where the settings go.
 | `columns` | which columns this viewer may see, ticked and draggable |
 | `sort` | column and direction rows, priority by order |
 | `choice` | the values your `Literal` or `Enum` admits |
+| `column` | the columns of the block's DataSource, asked for by name |
 | `text` `number` `bool` | derived from the annotation |
 | *inherit* | a blank control means "same as the block" — every mechanism has this |
 
@@ -76,6 +77,23 @@ keeps a column added to the DataSource later out of a view saved before it.
 
 **A setting you never place is absent from the form** — and still in the
 config. That is a choice your layout makes, so make it on purpose.
+
+**A setting that names a column must ask for the picker.** A string to the
+type system is a choice to a person, and derived from `str` it is a text box —
+whatever is typed validates and then fails at the query, which is a 500 on
+somebody else's screen:
+
+```python
+total_field: str = Field(
+    default="",
+    title="Field to total",
+    json_schema_extra={"widget": "column"},
+)
+```
+
+The annotation cannot carry this, because the columns are not known until a
+block names a DataSource. So the field asks for the mechanism and core
+supplies one that knows which columns this viewer may see.
 
 **Name your settings in the schema, not the template:**
 

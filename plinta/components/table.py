@@ -47,6 +47,7 @@ class TableConfig(TabularConfig):
         title="Clicking a row opens the record via",
         description="The column that carries the link. Needs a detail page "
         "for this data source.",
+        json_schema_extra={"widget": "column"},
     )
     empty_text: str = Field(
         default="",

@@ -347,3 +347,32 @@ def test_a_delta_over_a_consumers_config_is_still_a_delta(chart, ada):
     effective = effective_config(block, ada, view)
     assert effective["stacked"] is True       # overridden
     assert effective["chart_type"] == "area"  # inherited, and the block moved
+
+
+def test_a_column_setting_is_offered_the_blocks_columns(
+    block, columns, component_registry
+):
+    """The bug this closes: a text box took `Me?`, which validated, and the
+    aggregate then raised FieldError on everybody's page."""
+    from pydantic import Field as PydanticField
+
+    from plinta.components.base import Component, ComponentConfig
+    from plinta.components.registry import register_component
+
+    class StatConfig(ComponentConfig):
+        total_field: str = PydanticField(
+            default="", json_schema_extra={"widget": "column"}
+        )
+
+    @register_component("stat_probe", label="Stat")
+    class Stat(Component):
+        config_schema = StatConfig
+
+        def render(self, config, user, **context):
+            return ""
+
+    drawn = {c["name"]: c for c in settings_for(Stat(), block, columns, None)}
+    assert drawn["total_field"]["widget"] == "column"
+    assert [c["name"] for c in drawn["total_field"]["columns"]] == [
+        "title", "in_print", "region__name",
+    ]

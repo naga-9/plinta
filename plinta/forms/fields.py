@@ -55,6 +55,26 @@ def choices_for(annotation: Any) -> tuple:
     return ()
 
 
+def declared_widget(info: Any) -> str:
+    """The mechanism a field asked for by name, or empty.
+
+    Some settings are a string to the type system and a **choice** to a
+    person. `total_field="sale_total"` names a column, and derived from `str`
+    it is a text box: whatever is typed passes validation and fails at the
+    query, which is a five hundred on somebody else's screen.
+
+        total_field: str = Field(
+            default="", json_schema_extra={"widget": "column"}
+        )
+
+    An annotation cannot carry that, because the columns are not known until
+    a block names a DataSource. So the field says which mechanism it wants
+    and core supplies one that knows.
+    """
+    extra = getattr(info, "json_schema_extra", None) or {}
+    return extra.get("widget", "") if isinstance(extra, dict) else ""
+
+
 def widget_for(annotation: Any) -> str:
     """Pick a widget from a type annotation.
 
@@ -97,7 +117,7 @@ def fields_for(
         out.append(
             FormField(
                 name=name,
-                widget=widget_for(info.annotation),
+                widget=declared_widget(info) or widget_for(info.annotation),
                 choices=choices_for(info.annotation),
                 annotation=info.annotation,
                 required=info.is_required(),

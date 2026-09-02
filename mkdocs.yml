@@ -58,4 +58,5 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Reading the code: reading-the-code.md
   - v2 Specification: design/SPEC.md

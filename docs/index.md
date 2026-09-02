@@ -10,7 +10,9 @@ The package is being rebuilt from the bottom up, one layer at a time, against a 
 
 **[The v2 specification](design/SPEC.md)** is the only authoritative document here. It states what each layer is, what it may import, what it must not know, and what is deliberately not being built.
 
-Nothing else is published yet, because nothing else is true yet. Documentation for a layer is written when that layer lands — a page describing code that does not exist is the failure mode the specification's own §21.11 catalogues.
+**[Reading the code](reading-the-code.md)** is where to start with the repository open. The specification is organised by decision, which makes it a reference and a poor introduction; that guide follows one page render through all nine layers, then one write, and says where the awkward parts are.
+
+Beyond those two, documentation for a layer is written when that layer lands — a page describing code that does not exist is the failure mode the specification's own §21.11 catalogues.
 
 ## v1
 

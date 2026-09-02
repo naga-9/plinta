@@ -91,8 +91,12 @@ party would use, which is what keeps that door real.
 
 ## Documentation
 
+- [`docs/reading-the-code.md`](docs/reading-the-code.md) — **start here with
+  the repository open.** Follows one page render through all nine layers,
+  then one write, and says where the awkward parts are.
 - [`docs/design/SPEC.md`](docs/design/SPEC.md) — the specification: every
-  decision, and why it was taken rather than the alternative.
+  decision, and why it was taken rather than the alternative. Organised by
+  decision, so it answers questions rather than introducing the code.
 - [`plinta/skills/`](plinta/skills/) — one guide per extension point:
   adding a component, a policy, a computed column, a renderer, a capability.
   A contrib app ships its own beside it, in `plinta/contrib/<app>/skills/`.

@@ -15,6 +15,29 @@ python manage.py seed_catalog
 python manage.py runserver
 ```
 
+### Updating an existing copy
+
+`seed_catalog` is idempotent, so pulling and re-running it is the whole update
+— it re-seeds the data, registers plinta's shareables and rebuilds the roles
+in the right order:
+
+```
+git pull
+pip install -e ..
+python manage.py migrate
+python manage.py seed_catalog --no-users   # keeps your logins and passwords
+python manage.py runserver
+```
+
+**Re-running it is not optional after a pull.** Permissions are minted when a
+`DataSourceField` is saved, so a role built before a new column exists grants
+nothing for it — and new controls appear only for people who hold the new
+permission. If a button you expected is missing, this is the first thing to
+check and the second is which user you signed in as.
+
+**Restart the server.** `--noreload` is convenient and will happily serve the
+code you had before the pull.
+
 Django and pydantic, on Python 3.14 — `pip install -e ..` from here gets both.
 `manage.py` puts the repository root on the path, so a clone runs the plinta
 beside it rather than any other copy on the machine. A real consumer installs
@@ -28,6 +51,22 @@ Sign in as `ada`, `mira`, `noor` or `sam` — password `demo`.
 | `mira` | Store Manager, Hale Street | Hale Street's sales and orders |
 | `noor` | Store Manager, Marsh Lane | Marsh Lane's |
 | `sam` | Catalogue Viewer | the catalogue, and no sales at all |
+
+The roles differ in what they may *do*, not only what they may see — the
+saved-view controls on a card are the clearest case:
+
+| | `sam` | `mira` | `ada` |
+|---|---|---|---|
+| **Views** button on a card | — | yes | yes |
+| save a view for themselves | — | yes | yes |
+| publish one to everyone | — | — | yes |
+| **Add** button on the books card | — | — | yes |
+
+So a card looks different depending on who is looking, and an empty header on
+`sam`'s screen is the permissions working rather than a missing feature. The
+last row is the one worth reading twice: `mira` may add a **sale** and not a
+**book**, so the Add button follows the block's own model rather than the
+person's seniority.
 
 A fifth login, `root`, is a Django superuser for `/admin/`, where users and
 groups are edited. **Do not browse the demo as `root`:** a superuser is the

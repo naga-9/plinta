@@ -1,0 +1,19 @@
+{% load plinta_form %}
+{% comment %} How a Statistic's settings are arranged.
+
+Core draws the controls — the column picker knows which columns may be
+totalled, and a blank one means "same as the block". This says only where
+they go, which core could not have guessed for a component it has never seen.
+{% endcomment %}
+<fieldset class="pl-fieldset">
+    <legend>What it counts</legend>
+    {% setting "total_field" %}
+</fieldset>
+
+<fieldset class="pl-fieldset">
+    <legend>How it reads</legend>
+    {% setting "label" %}
+    {% setting "prefix" %}
+    {% setting "suffix" %}
+    {% setting "decimals" %}
+</fieldset>

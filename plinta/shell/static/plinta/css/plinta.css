@@ -1034,3 +1034,18 @@ hr {
     margin-bottom: var(--pl-space-2);
 }
 .pl-sort__row .pl-select { flex: 1; }
+
+/* A settings layout may group its fields; core styles the grouping so a
+ * component does not have to ship CSS to arrange four controls. */
+.pl-fieldset {
+    border: 1px solid var(--pl-border);
+    border-radius: var(--pl-radius);
+    padding: var(--pl-space-3);
+    margin: 0 0 var(--pl-space-4);
+}
+
+.pl-fieldset > legend {
+    padding: 0 var(--pl-space-2);
+    color: var(--pl-fg-muted);
+    font-size: var(--pl-font-sm);
+}

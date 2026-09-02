@@ -18,6 +18,7 @@ from plinta.blocks.capabilities import register_capability
 from plinta.components.base import Component, ComponentConfig, Mode
 from plinta.components.registry import register_component
 from plinta.datasources.annotations import register_annotation
+from plinta.forms.layouts import register_config_layout
 from plinta.datasources.modifiers import register_queryset_modifier
 from plinta.events import signals
 from plinta.permissions.actions import register_action
@@ -234,6 +235,12 @@ class StatConfig(ComponentConfig):
     #: whatever precision the arithmetic produced — £253.42000000000000 is
     #: arithmetic showing through, not a number anybody wrote.
     decimals: int | None = None
+
+
+# Its settings, arranged. Core draws the controls; this says where they go —
+# the split a component owns (§12.3a). Without it they stack, which is fine
+# for a table and thin for anything with two kinds of setting.
+register_config_layout(StatConfig, "catalog/stat_settings.html")
 
 
 @register_component("stat_catalog", label="Statistic")

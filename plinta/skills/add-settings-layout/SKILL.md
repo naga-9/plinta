@@ -6,8 +6,11 @@ description: Arrange your component's settings form — headings, columns, order
 # Arrange your component's settings
 
 Your component gets a settings form for free: the saved-view editor and the
-block inspector both derive it from your `config_schema`. This is how you say
-where the settings go.
+block inspector both derive it from your `config_schema`, and without a layout
+the settings stack in declaration order. **That is fine for most components** —
+core's own table registers none. Reach for this when stacking reads badly:
+several kinds of setting that want separating, or an order that is not the
+order they were declared in.
 
 ## The split
 

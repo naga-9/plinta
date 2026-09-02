@@ -528,3 +528,31 @@ def test_a_scalar_shows_the_blocks_value_as_its_placeholder(client, may_save):
 
     size = body.split('data-plinta-setting="page_size"')[1].split("</div>")[0]
     assert 'placeholder="25"' in size
+
+
+def test_a_registered_layout_is_what_the_editor_draws(
+    client, may_save, settings, tmp_path, config_layout_registry
+):
+    """The registry resolving a template is not the same as the editor
+    rendering one. Nothing exercised the second, so a broken `{% include %}`
+    would have shown up on a consumer's screen and nowhere else."""
+    from plinta.forms.layouts import register_config_layout
+
+    page, placement, block, _ = may_save
+    directory = tmp_path / "layouts"
+    directory.mkdir()
+    (directory / "writer.html").write_text(
+        "{% load plinta_form %}<fieldset><legend>Only this</legend>"
+        '{% setting "page_size" %}</fieldset>',
+        encoding="utf-8",
+    )
+    settings.TEMPLATES = [{**settings.TEMPLATES[0], "DIRS": [str(directory)]}]
+
+    from plinta.components.registry import get
+
+    register_config_layout(get("writer").config_schema, "writer.html")
+
+    body = client.get(views_url(page, placement)).content.decode()
+    assert "<legend>Only this</legend>" in body
+    assert 'name="page_size"' in body
+    assert 'name="striped"' not in body, "a setting the layout omits"

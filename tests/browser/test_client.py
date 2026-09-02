@@ -858,3 +858,62 @@ def test_the_label_follows_the_shared_box(page, live_server, signed_in, screen, 
 
     page.check('dialog [name="public"]')
     assert shared.is_visible() and not personal.is_visible()
+
+
+def test_the_sort_builder_adds_and_removes_rows(page, live_server, signed_in, screen):
+    """Rows of column and direction, never JSON. Untested JS is what this
+    suite exists for."""
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector("dialog [data-plinta-sort]", timeout=15000)
+
+    assert page.locator("dialog .pl-sort__row").count() == 0
+    page.click("dialog [data-plinta-sort-add]")
+    assert page.locator("dialog .pl-sort__row").count() == 1
+    page.click("dialog [data-plinta-sort-add]")
+    assert page.locator("dialog .pl-sort__row").count() == 2
+
+    page.locator("dialog [data-plinta-sort-remove]").first.click()
+    assert page.locator("dialog .pl-sort__row").count() == 1
+
+
+def test_a_sort_is_saved_as_column_and_direction(page, live_server, signed_in, screen):
+    """What the JSON textarea used to ask a reader to type."""
+    from plinta.blocks.models import SavedView
+
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector("dialog [data-plinta-sort]", timeout=15000)
+
+    page.fill('dialog [name="name"]', "Newest")
+    page.click("dialog [data-plinta-sort-add]")
+    page.select_option('dialog [name="sort_field"]', "title")
+    page.select_option('dialog [name="sort_direction"]', "desc")
+    page.click('dialog button[type="submit"]')
+    page.wait_for_url("**/*view=*", timeout=15000)
+
+    assert SavedView.objects.get().config["sort"] == [
+        {"field": "title", "direction": "desc"}
+    ]
+
+
+def test_the_priority_is_the_row_order(page, live_server, signed_in, screen):
+    """Read in the order they appear, so nothing tracks an index."""
+    from plinta.blocks.models import SavedView
+
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
+    page.wait_for_selector("dialog [data-plinta-sort]", timeout=15000)
+
+    page.fill('dialog [name="name"]', "Two deep")
+    page.click("dialog [data-plinta-sort-add]")
+    page.click("dialog [data-plinta-sort-add]")
+    fields = page.locator('dialog [name="sort_field"]')
+    fields.nth(0).select_option("region")
+    fields.nth(1).select_option("title")
+    page.click('dialog button[type="submit"]')
+    page.wait_for_url("**/*view=*", timeout=15000)
+
+    assert [row["field"] for row in SavedView.objects.get().config["sort"]] == [
+        "region", "title",
+    ]

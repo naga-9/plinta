@@ -3164,7 +3164,9 @@ Eight commands: one orchestrator and seven per-app seeders. Every one is **idemp
 | `seed_organizations_page` | `contrib.organization` | Company, Site, Business Unit |
 | `seed_labels_page` | `contrib.labels` | Labels |
 | `seed_notifications_page` | `contrib.notifications` | Notifications |
-| `seed_workflows_page` | `contrib.workflow` | Workflows |
+| `seed_workflows_page` | `contrib.workflow` | Workflows — definitions and states |
+
+**A seeder writes no permission rule.** `contrib.notifications` already declares `Owner("recipient")`, so its page shows a person their own and nobody else's without the page knowing that. Registering a DataSource never widens access: the row policy and the field permissions decide, and both are the app's, decided before any screen existed.
 
 The orchestrator calls a contrib seeder only when that package is installed, which is how a minimal install seeds the core screens and nothing else.
 

@@ -40,6 +40,9 @@ GROUPS = [
     ("Administration", "Authoring", 20),
     ("Administration", "People", 30),
     ("Administration", "System", 40),
+    # `contrib.notifications` puts both its preferences link and its page
+    # here, so the order is settled once rather than by whichever ran first.
+    ("Administration", "Me", 50),
 ]
 
 #: Called in this order, and only when present. Every one is a management

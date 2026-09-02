@@ -62,7 +62,7 @@ def viewer(db):
     # Saving views, and publishing one: two different acts (§6.1b).
     grant(user, SavedView, "add_savedview", "change_savedview",
           "delete_savedview", "change_savedview_name",
-          "change_savedview_is_default")
+          "change_savedview_config", "change_savedview_is_default")
     return user
 
 

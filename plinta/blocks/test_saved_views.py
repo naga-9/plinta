@@ -15,6 +15,7 @@ from plinta.blocks.saved_views import (
     settings_for,
     delta,
     inherited,
+    may_default,
     may_publish,
     save,
 )
@@ -57,7 +58,21 @@ def block(db):
 
 @pytest.fixture
 def ada(block):
-    return User.objects.get(username="ada")
+    """Somebody who may save a view, and may neither publish nor default one.
+
+    Every one of these is asked for by the write pipeline, which is what
+    saving a view goes through: the model permission, then a field permission
+    per field changed. The old path checked none of them.
+    """
+    return grant(
+        User.objects.get(username="ada"),
+        SavedView,
+        "add_savedview",
+        "change_savedview",
+        "view_savedview",
+        "change_savedview_name",
+        "change_savedview_config",
+    )
 
 
 # --- what a delta holds -----------------------------------------------------
@@ -155,19 +170,33 @@ def test_a_view_is_personal_by_default(block, ada):
 
 
 def test_publishing_needs_the_field_permission(block, ada):
-    with pytest.raises(PermissionError):
+    """Not a special case: publishing is a change to `owner`, and a field
+    permission is what gates a field."""
+    from plinta.blocks.write import WriteDenied
+
+    with pytest.raises(WriteDenied, match="owner"):
         save(block, ada, name="Everyone's", values={}, public=True)
 
 
+def test_saving_at_all_needs_the_model_permission(block):
+    """The old path checked neither this nor the row policy, so a crafted
+    request could make a view on any block it could see."""
+    from plinta.blocks.write import WriteDenied
+
+    stranger = User.objects.create_user(username="eve", password="x")  # noqa: S106
+    with pytest.raises(WriteDenied):
+        save(block, stranger, name="Theirs", values={})
+
+
+def test_a_field_left_alone_asks_for_no_permission(block, ada):
+    """`is_default` is not submitted when it does not move, so saving an
+    ordinary view does not ask for the permission to set a default."""
+    assert not may_default(ada)
+    assert save(block, ada, name="Mine", values={"striped": True}).is_default is False
+
+
 def test_publishing_with_it_makes_it_public(block, ada):
-    ada.user_permissions.add(
-        Permission.objects.get_or_create(
-            codename="change_savedview_owner",
-            content_type=ContentType.objects.get_for_model(SavedView),
-            defaults={"name": "change_savedview_owner"},
-        )[0]
-    )
-    granted = User.objects.get(pk=ada.pk)
+    granted = grant(ada, SavedView, "change_savedview_owner")
     assert may_publish(granted)
     assert save(block, granted, name="Everyone's", values={}, public=True).owner is None
 
@@ -214,7 +243,7 @@ def test_a_scalar_carries_its_override_and_the_blocks_value_apart(block, ada):
 
 
 @pytest.fixture
-def columns(block):
+def columns(block, ada):
     from plinta.datasources.models import DataSourceField
     from plinta.permissions.fields import sync_model
 
@@ -223,7 +252,6 @@ def columns(block):
             data_source=block.data_source, field_name=name, label=name, order=order
         )
     sync_model(Book, {"title": False, "in_print": False, "region__name": False})
-    ada = User.objects.get(username="ada")
     for name in ("view_book", "view_book_title", "view_book_in_print",
                  "view_book_region__name"):
         ada.user_permissions.add(

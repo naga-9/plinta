@@ -34,6 +34,9 @@ SHAREABLES = [
         "Saved views",
         [
             ("name", "Name", {"editable": True}),
+            # What the view actually holds. Written through the pipeline like
+            # any other field, so it needs a permission like any other field.
+            ("config", "Settings", {"editable": True}),
             ("block", "Block", {}),
             # The one that matters: `change_savedview_owner` gates whether
             # somebody may publish a view to everyone.
@@ -47,6 +50,7 @@ SHAREABLES = [
         "Filter sets",
         [
             ("name", "Name", {"editable": True}),
+            ("values", "Values", {"editable": True}),
             ("page", "Page", {}),
             ("owner", "Owner", {"editable": True}),
             ("is_default", "Default", {"editable": True}),

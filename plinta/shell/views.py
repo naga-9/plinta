@@ -450,6 +450,7 @@ def _classes() -> dict:
 def _save_view(request: HttpRequest, page, slot, component, mine):
     """Create, update or delete one view, then send the viewer back to it."""
     from plinta.blocks import saved_views
+    from plinta.blocks.write import WriteDenied
     from plinta.forms.layouts import layout_for
     from plinta.forms.parse import parse
     from plinta.permissions import can
@@ -505,7 +506,7 @@ def _save_view(request: HttpRequest, page, slot, component, mine):
             public=bool(request.POST.get("public")),
             default=bool(request.POST.get("is_default")),
         )
-    except PermissionError as exc:
+    except WriteDenied as exc:
         return HttpResponseForbidden(str(exc))
 
     # Back to the page, opened on what was just saved — and on *this*

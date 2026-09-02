@@ -305,11 +305,13 @@ def may_save(screen):
     """The viewer, able to save a view but not to publish one."""
     page, placement, block, book = screen
     ada = User.objects.get(username="ada")
-    # `view_savedview` included: without it a viewer cannot see their own
-    # views, so there is nothing to edit or delete. The demo's base role
-    # grants it for the same reason.
+    # Everything the write pipeline asks for when a view is saved: the model
+    # permission, and a field permission per field changed. `view_savedview`
+    # is separate — without it a viewer cannot see their own views, so there
+    # is nothing to edit or delete.
     grant(ada, SavedView, "view_savedview", "add_savedview",
-          "change_savedview", "delete_savedview")
+          "change_savedview", "delete_savedview",
+          "change_savedview_name", "change_savedview_config")
     return page, placement, block, User.objects.get(pk=ada.pk)
 
 

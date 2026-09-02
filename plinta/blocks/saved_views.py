@@ -80,9 +80,9 @@ def may_publish(user) -> bool:
 def may_default(user) -> bool:
     """Whether this viewer may mark a view as one to open on.
 
-    `is_default` is a field, so a field permission is what gates it — the same
-    mechanism as publishing, and the reason `SavedView` is registered as a
-    DataSource at all (§6.1b).
+    For **drawing** the control. The write pipeline is what enforces it — the
+    same split the record form uses, where `writable_fields` decides what is
+    offered and `authorise` decides what is taken.
     """
     return user.has_perm("plinta_blocks.change_savedview_is_default")
 
@@ -100,37 +100,37 @@ def save(
 ) -> SavedView:
     """Create or update a view over ``block``, storing only what differs.
 
-    ``default`` marks it the one to open on. Which default that is follows
-    ``public``: a shared view's is everyone's, a personal view's is this
-    viewer's own. One field, two meanings, decided by who owns the row — and
-    the model keeps at most one of each.
+    Written through the **pipeline**, not saved directly, so the permissions
+    are the ones every other write uses: the model permission, the row policy,
+    and a field permission for each field being changed. Publishing is then
+    not a special case — it is a change to `owner`, and
+    `change_savedview_owner` gates it because it gates that field.
+
+    A field is only submitted when it **changes**, which is what makes that
+    work: setting a view as your own default asks for
+    `change_savedview_is_default`, and saving one that was already the default
+    does not.
 
     Raises:
-        PermissionError: publishing without `change_savedview_owner`, or
-            defaulting without `change_savedview_is_default`. A personal view
-            that is neither needs nothing beyond seeing the block.
+        WriteDenied: the viewer may not make this change.
+        ValidationError: the model refused it — a duplicate name, say.
     """
-    if public and not may_publish(user):
-        raise PermissionError("may not publish a view to everyone")
-    if default and not may_default(user):
-        raise PermissionError("may not set a default view")
+    from plinta.blocks.write import write
 
-    owner = None if public else user
-    config = delta(values, block.config or {}, pinned)
+    instance = view or SavedView(block=block, owner=user)
+    changing: dict[str, Any] = {
+        "name": name,
+        "config": delta(values, block.config or {}, pinned),
+    }
+    # Only when it moves. Owning a view you just made is not "changing the
+    # owner"; publishing one is, which is why the permission lands there.
+    if public != (instance.owner_id is None):
+        changing["owner"] = None if public else user
+    if default != instance.is_default:
+        changing["is_default"] = default
 
-    if view is None:
-        return SavedView.objects.create(
-            block=block, name=name, owner=owner, config=config,
-            is_default=default,
-        )
-    view.name = name
-    view.config = config
-    view.is_default = default
-    if public != (view.owner_id is None):
-        # Changing who owns it is the publish, and is gated above.
-        view.owner = owner
-    view.save()
-    return view
+    saved, _ = write(instance, changing, user, source="view editor")
+    return saved
 
 
 def settings_for(

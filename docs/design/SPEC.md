@@ -3039,6 +3039,17 @@ It sits **below** the viewer's own default deliberately. Somebody arranging a pa
 
 **One default per block per owner, and `owner = None` is an owner.** Enforced on the model, so the admin and a seeder obey it too, and by *clearing* the previous one rather than refusing the new: "make this my default" is a request to move the default, so a constraint that raised would make the obvious act an error and leave every caller clearing the old one by hand. v1 did the same thing at its save path; v2 does it at the model because there are more paths.
 
+**Saving a view goes through the write pipeline.** Not saved directly: a `SavedView` is a row like any other, and since it is a registered DataSource (§6.1b) it has field permissions like any other. So the permissions are the ones every write uses — the model permission, the row policy, and a field permission per field **changed**.
+
+That last word carries it. A field is submitted only when it moves, so publishing asks for `change_savedview_owner` because publishing *is* a change to `owner`, and setting a view as your own default asks for `change_savedview_is_default` while saving one that was already the default does not. Publishing stops being a special case with a bespoke check, which is what it was: `may_publish()` and `may_default()` remain, but only to decide whether the **control is drawn** — the same split the record form uses, where `writable_fields` offers and `authorise` enforces.
+
+Routing it there closed a hole the hand-rolled path had: it checked those two flags and nothing else, so a crafted request could create a view on any block the sender could see, without `add_savedview` and without the row policy being consulted.
+
+**Two things deliberately not built for v1**, recorded so they are decisions rather than omissions:
+
+- **A mechanism vocabulary.** `widget` and `kinds` are two hints that make the form good, and that is where they stop. Nothing further is added until several components exist to design against — a vocabulary assembled one key per screenshot is what produced this note.
+- **`Component.check_config(config, datasource, user)`**, a hook for the errors a schema cannot express because they need the DataSource. Without it a crafted POST can still store a column name that is not one, and the card then draws an error instead of a number. That is a papercut on the sender's own screen, not a data-integrity failure: nothing reaches a consumer's models, and `render_block` degrades to a per-card error. It goes in when a component needs it.
+
 **Publishing is `change_savedview_owner`** — one field, `owner = None`, and a field permission is the only thing that can gate one (§6.1b). Without the permission the control is not drawn and a submitted `public` is refused rather than ignored.
 
 ### 12.4 The page composer

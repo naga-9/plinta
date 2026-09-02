@@ -99,10 +99,12 @@ MANAGER = [
     "plinta_blocks.change_savedview",
     "plinta_blocks.delete_savedview",
     "plinta_blocks.change_savedview_name",
+    "plinta_blocks.change_savedview_config",
     "plinta_blocks.change_savedview_is_default",
     "plinta_pages.add_filterset",
     "plinta_pages.change_filterset",
     "plinta_pages.change_filterset_name",
+    "plinta_pages.change_filterset_values",
     "plinta_pages.change_filterset_is_default",
     "catalog.add_sale",
     "catalog.change_sale",
@@ -128,8 +130,10 @@ AUTHOR = [
     # permission comes from a DataSourceField row and from nothing else
     # (§6.1b).
     "plinta_blocks.change_savedview_name",
+    "plinta_blocks.change_savedview_config",
     "plinta_blocks.change_savedview_is_default",
     "plinta_pages.change_filterset_name",
+    "plinta_pages.change_filterset_values",
     "plinta_pages.change_filterset_is_default",
     # And publishing: `owner = None` is public. A field permission, because
     # it is one field, and the act it names is not "edit a view" (§6.1b).

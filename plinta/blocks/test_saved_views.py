@@ -482,3 +482,25 @@ def test_a_setting_that_admits_anything_is_offered_everything(block, columns):
 
     every = column_choices(block, columns)
     assert of_kind(every, ()) == every
+
+
+def test_a_container_with_no_widget_gets_a_textarea(block, ada, component_registry):
+    """A list the annotation carries no shape for. JSON is a poor control and
+    an honest one — and a single-line text box would be neither."""
+    from plinta.components.base import Component, ComponentConfig
+    from plinta.components.registry import register_component
+
+    class ChartConfig(ComponentConfig):
+        series: list[dict] = []
+
+    @register_component("series_probe", label="Series")
+    class Chart(Component):
+        config_schema = ChartConfig
+
+        def render(self, config, user, **context):
+            return ""
+
+    drawn = {c["name"]: c for c in settings_for(Chart(), block, ada, None)}
+    assert drawn["series"]["widget"] == "json"
+    assert drawn["series"]["template"] is None, "no widget registered for it"
+    assert drawn["series"]["pinned"] is True, "a list has no blank"

@@ -39,6 +39,14 @@ which is the whole mechanism and needs no second control to operate it.
             {% endfor %}
         </select>
 
+    {% elif setting.widget == "json" %}
+        {% comment %} A container with no widget of its own — a consumer's
+        list of series, say. JSON is a poor control and an honest one: the
+        annotation carries no shape to draw, which is the signal to register a
+        widget for it. {% endcomment %}
+        <textarea class="{{ cls.textarea }}" id="pl-set-{{ setting.name }}"
+                  name="{{ setting.name }}" rows="3">{{ setting.value|default_if_none:'' }}</textarea>
+
     {% elif setting.widget == "number" %}
         <input class="{{ cls.input }}" type="number" id="pl-set-{{ setting.name }}"
                name="{{ setting.name }}" value="{{ setting.value|default_if_none:'' }}"

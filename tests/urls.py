@@ -21,3 +21,8 @@ if apps.is_installed("plinta.contrib.notifications"):
 
 if apps.is_installed("plinta.contrib.workflow"):
     urlpatterns += [path("workflow/", include("plinta.contrib.workflow.urls"))]
+
+# The consumer chooses the API's path, because a library must not declare a
+# version whose path somebody else owns (§15.5).
+if apps.is_installed("plinta.contrib.api"):
+    urlpatterns += [path("api/v1/", include("plinta.contrib.api.urls"))]

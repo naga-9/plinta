@@ -3982,6 +3982,36 @@ A saved **filter** is different: it is values, not shape, so it belongs here. Th
 
 `contrib.api`. A machine-to-machine API is not required to turn models into screens, so it fails the sentence test. A project that does not want one does not mount it and does not carry the key table.
 
+#### As built
+
+**Unpublished is a 404, not a 403.** `show_in_api` is curation, so a caller has no business learning that a DataSource exists and was not chosen for them. A row the caller may not see is a 404 for the harder-edged version of the same reason: a pk is a number somebody can guess, and a 403 confirms the guess.
+
+**A filter or an ordering naming a column the caller cannot see is ignored, not refused.** Refusing would answer the question the narrowing exists to withhold. Ordering matters as much as filtering here — the sequence of the rows is a slower way of reading a column's values.
+
+**The key is stored as a SHA-256 hash and the plaintext is returned once.** A plain hash rather than a slow KDF, deliberately: a key is 256 bits of machine-generated randomness with no structure to guess, so the attack a slow hash defends against has nothing to enumerate, and a slow hash would only make every request slow.
+
+**`X-API-Key`, not `Authorization: Bearer`.** That header is where a JWT or an OAuth token goes, and a proxy or a library that assumes so may rewrite it.
+
+**A write body is `{column: value}`, declared with ninja's `Body(...)`.** A `Schema` is not available — the fields differ per DataSource, which is the point of generating this — and a bare `dict` annotation is read by ninja as a *query* parameter, so the payload never arrives and every write answers 422 saying the body is missing.
+
+**A field the caller may not write is dropped, not refused**, the same as the UI, and the response says what the row now holds.
+
+#### Decisions
+
+| Item | Decision |
+|---|---|
+| Handlers | **seven**, for every DataSource there will ever be |
+| Publishing | `show_in_api`, which is **curation**; permissions are the only gate |
+| An unpublished DataSource | **404** — a caller learns nothing about what exists |
+| A row the caller may not see | **404**, because a pk is guessable |
+| A filter or order on an invisible column | **ignored**, never refused |
+| The lookup for a filter | from what the column **holds**, never from the query string |
+| Credential | `X-API-Key`, or a session; both resolve to a user |
+| Key storage | SHA-256 of the key; plaintext returned once and never recoverable |
+| Writes | the **block write pipeline** — same authorisation, validation, events |
+| An unwritable field in the body | dropped, as in the UI |
+| Page size | hard cap; permissions decide *what*, the cap decides *how fast* |
+
 ### 15.2 Each surface uses its framework's shape
 
 **The public API returns what django-ninja returns.** A resource on 200, and ninja's own `{"detail": [...]}` on 422 for a validation failure. No envelope, and no `NinjaValidationError` override to impose one.

@@ -147,7 +147,7 @@ def _no_leaked_receivers():
     """Fail loudly if a test leaves a receiver connected."""
     before = {s: len(s.receivers) for s in signals.ALL}
     yield
-    leaked = {s._plinta_name: len(s.receivers) - before[s]
+    leaked = {s.plinta_name: len(s.receivers) - before[s]
               for s in signals.ALL if len(s.receivers) != before[s]}
     assert not leaked, f"receivers left connected: {leaked}"
 

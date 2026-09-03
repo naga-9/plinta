@@ -169,12 +169,7 @@ says what each one demonstrates and where in the code it lives.
 
 ## Installing it in your own project
 
-Not on PyPI yet, so install from a checkout:
-
-```bash
-git clone https://github.com/naga-9/plinta
-pip install -e ./plinta
-```
+Install it from a checkout, then add the layers you want:
 
 ```python
 INSTALLED_APPS = [

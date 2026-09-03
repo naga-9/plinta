@@ -169,8 +169,11 @@ says what each one demonstrates and where in the code it lives.
 
 ## Installing it in your own project
 
+Not on PyPI yet, so install from a checkout:
+
 ```bash
-pip install plinta-core
+git clone https://github.com/naga-9/plinta
+pip install -e ./plinta
 ```
 
 ```python
@@ -271,8 +274,9 @@ specified in [`SPEC.md`](docs/design/SPEC.md) and simply not built yet.
   other half.
 - **Async and long-running work** — a report or an export that takes a minute
   should not hold a request open.
-- **A published package** — `pip install plinta-core` is what the
-  documentation says; the wheel is not on PyPI yet.
+- **A published package** — the distribution is named `plinta-core` and is
+  not on PyPI; installing means cloning. Publishing it is a release decision,
+  not a code one.
 
 Ideas are welcome. Something that would make plinta name a domain concept —
 an invoice, a ticket, a customer — is very likely a contrib package rather

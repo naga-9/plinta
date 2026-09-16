@@ -770,6 +770,28 @@ def test_the_chooser_offers_every_permitted_column(
     assert offered == ["title", "in_print", "region", "watchers"]
 
 
+def test_a_column_can_be_dragged_into_place(page, live_server, signed_in, screen):
+    """SortableJS does the drag; the DOM order is what the form then posts."""
+    open_page(page, live_server, screen)
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal .pl-columns", timeout=15000)
+    first = "up-modal .pl-columns__item:first-child [name=columns]"
+    assert page.locator(first).get_attribute("value") == "title"
+
+    page.drag_and_drop(
+        "up-modal .pl-columns__item:nth-child(1) .pl-columns__grip",
+        "up-modal .pl-columns__item:nth-child(3)",
+    )
+    page.wait_for_function(
+        f"() => document.querySelector('{first}').value !== 'title'",
+        timeout=15000,
+    )
+    offered = page.locator('up-modal .pl-columns [name="columns"]').evaluate_all(
+        "els => els.map(e => e.value)"
+    )
+    assert offered[0] == "in_print" and "title" in offered[1:]
+
+
 def test_saving_a_view_stores_only_what_was_ticked(
     page, live_server, signed_in, screen
 ):

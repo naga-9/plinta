@@ -1,8 +1,9 @@
-// Sorting by one column or several.
+// Sorting by one column or several: adding a row, and taking one away.
 //
 // Rows are read in the order they appear — a browser posts repeated controls
 // in document order — so moving a row is the priority and there is no number
-// to keep in step with anything.
+// to keep in step with anything. The moving itself is `sortable.js`; this is
+// the add and remove buttons, which were never the drag.
 
 (function () {
     'use strict';

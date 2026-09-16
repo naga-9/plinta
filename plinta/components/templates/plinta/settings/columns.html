@@ -5,11 +5,12 @@ and the rest unticked — so a column added to the DataSource after the view was
 saved is something to *select*, never something that appeared.
 
 Order is DOM order: a browser posts checkboxes in the order they appear, so
-dragging a row is all the reordering there is.
+dragging a row is all the reordering there is — `sortable.js` does the drag.
 {% endcomment %}
-<ul class="pl-columns" data-plinta-reorder>
+<ul class="pl-columns" data-plinta-sortable="li"
+    data-plinta-sortable-handle=".pl-columns__grip">
     {% for column in setting.columns %}
-        <li class="pl-columns__item" draggable="true">
+        <li class="pl-columns__item">
             <span class="pl-columns__grip" aria-hidden="true">⠿</span>
             <label class="{{ cls.label }}">
                 <input class="{{ cls.checkbox }}" type="checkbox"

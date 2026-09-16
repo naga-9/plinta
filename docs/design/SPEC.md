@@ -4167,7 +4167,7 @@ Since plinta is pip-installed, a build could only ever run at **release time in 
 | htmx + `json-enc` | core transport | vendor |
 | Tabulator | `table_tabulator` (contrib) | vendor, with the component |
 | Tom Select | core's multi-select filter | vendor, in the shell |
-| SortableJS | core's column chooser and sort builder | vendor, in the shell |
+| SortableJS | core's column chooser and sort builder, and the kanban later | vendor, in the shell |
 | Luxon | date handling (core) | vendor |
 | GridStack | the page composer (core) | vendor — loaded in edit mode only |
 | Plotly | `contrib.components.chart` | vendor **with that package** |

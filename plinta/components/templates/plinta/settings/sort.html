@@ -2,11 +2,14 @@
 
 A list of columns and directions, never JSON: the reader should not have to
 know a key name or quote it. Rows are read in the order they appear, so
-dragging is the priority and there is no number to keep in step.
+dragging is the priority and there is no number to keep in step —
+`sortable.js` does the drag, `sort-builder.js` the adding and removing.
 {% endcomment %}
-<div class="pl-sort" data-plinta-sort>
+<div class="pl-sort" data-plinta-sort
+     data-plinta-sortable=".pl-sort__row" data-plinta-sortable-handle=".pl-sort__grip">
     {% for row in setting.rows %}
         <div class="pl-sort__row">
+            <span class="pl-sort__grip" aria-hidden="true">⠿</span>
             <select class="{{ cls.select }}" name="sort_field">
                 {% for column in setting.columns %}
                     <option value="{{ column.name }}"
@@ -24,6 +27,7 @@ dragging is the priority and there is no number to keep in step.
 
     <template data-plinta-sort-template>
         <div class="pl-sort__row">
+            <span class="pl-sort__grip" aria-hidden="true">⠿</span>
             <select class="{{ cls.select }}" name="sort_field">
                 {% for column in setting.columns %}
                     <option value="{{ column.name }}">{{ column.label }}</option>

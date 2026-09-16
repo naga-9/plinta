@@ -18,7 +18,7 @@ class ComponentsConfig(AppConfig):
 
         # After core's client. Ordered below the contrib range so a
         # package's adapter still lands after them.
-        register_script("plinta/js/column-order.js", order=200)
+        register_script("plinta/js/sortable.js", order=200)
         register_script("plinta/js/sort-builder.js", order=200)
 
         # The one config field no schema can describe: which columns, in what

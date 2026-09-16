@@ -985,8 +985,11 @@ up-modal-dismiss:hover { color: var(--pl-fg); }
 }
 
 .pl-columns__item:last-child { border-bottom: 0; }
-.pl-columns__item.is-dragging { opacity: 0.4; }
-.pl-columns__grip { cursor: grab; color: var(--pl-fg-muted); }
+.pl-columns__grip,
+.pl-sort__grip { cursor: grab; color: var(--pl-fg-muted); }
+
+/* What SortableJS leaves in place while a row is being dragged. */
+.sortable-ghost { opacity: 0.4; }
 
 /* A sort builder: a column, a direction, and a way to remove the row. */
 .pl-sort { display: block; }

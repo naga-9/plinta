@@ -5,23 +5,23 @@ lands in.
 An unticked box and an emptied multi-select send nothing at all, so each has
 a hidden companion carrying an empty value: the field then reaches the post
 either way, and "not sent" keeps meaning "not on the form". {% endcomment %}
-<div class="{{ cls.field }}{% if control.errors %} is-invalid{% endif %}"
+<div class="pl-field{% if control.errors %} is-invalid{% endif %}"
      data-plinta-field="{{ control.name }}" up-form-group>
-    <label class="{{ cls.label }}" for="pl-form-{{ control.name }}">{{ control.label }}</label>
+    <label class="pl-label" for="pl-form-{{ control.name }}">{{ control.label }}</label>
 
     {% if not control.editable %}
         {% comment %} Shown, not offered. No control at all, so a field the
         save would refuse cannot be sent by accident, whatever a layout does
         with it. {% endcomment %}
-        <div class="{{ cls.readonly }}">{{ control.display|default:"&mdash;" }}</div>
+        <div class="pl-readonly">{{ control.display|default:"&mdash;" }}</div>
 
     {% elif control.control == "checkbox" %}
         <input type="hidden" name="{{ control.name }}" value="">
-        <input class="{{ cls.checkbox }}" type="checkbox" id="pl-form-{{ control.name }}"
+        <input class="pl-checkbox" type="checkbox" id="pl-form-{{ control.name }}"
                name="{{ control.name }}" {% if control.value %}checked{% endif %}>
 
     {% elif control.control == "select" %}
-        <select class="{{ cls.select }}" id="pl-form-{{ control.name }}"
+        <select class="pl-select" id="pl-form-{{ control.name }}"
                 name="{{ control.name }}">
             <option value="">&mdash;</option>
             {% for option in control.options %}
@@ -32,7 +32,7 @@ either way, and "not sent" keeps meaning "not on the form". {% endcomment %}
 
     {% elif control.control == "select-multiple" %}
         <input type="hidden" name="{{ control.name }}" value="">
-        <select class="{{ cls.select }}" id="pl-form-{{ control.name }}" multiple
+        <select class="pl-select" id="pl-form-{{ control.name }}" multiple
                 name="{{ control.name }}">
             {% for option in control.options %}
                 <option value="{{ option.value }}"
@@ -41,13 +41,13 @@ either way, and "not sent" keeps meaning "not on the form". {% endcomment %}
         </select>
 
     {% else %}
-        <input class="{{ cls.input }}" type="{{ control.control }}"
+        <input class="pl-input" type="{{ control.control }}"
                id="pl-form-{{ control.name }}" name="{{ control.name }}"
                value="{{ control.value|default_if_none:'' }}">
     {% endif %}
 
-    {% if control.help %}<div class="{{ cls.help }}">{{ control.help }}</div>{% endif %}
-    <div class="{{ cls.error }}" data-plinta-error {% if not control.errors %}hidden{% endif %}>
+    {% if control.help %}<div class="pl-help">{{ control.help }}</div>{% endif %}
+    <div class="pl-error" data-plinta-error {% if not control.errors %}hidden{% endif %}>
         {% for message in control.errors %}{{ message }}{% if not forloop.last %} {% endif %}{% endfor %}
     </div>
 </div>

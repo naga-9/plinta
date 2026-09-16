@@ -17,7 +17,6 @@ from django.contrib.contenttypes.models import ContentType
 from plinta.blocks.models import Block
 from plinta.datasources.models import DataSource, DataSourceField
 from plinta.pages.models import Page, PageBlock
-from plinta.utils.styles import classes
 
 #: What a column carries beyond its identity. Kept apart in the form so the
 #: screen can fold it away: eight of the sixteen options are presentation, and
@@ -43,21 +42,19 @@ def style(form) -> None:
     """Put plinta's own class names on Django's widgets.
 
     A `ModelForm` renders bare controls, and the shell's stylesheet is written
-    against `pl-input` and friends. Read from `classes()` rather than written
-    in, so a style pack reaches these screens like every other (§10.3).
+    against `pl-input` and friends.
     """
-    cls = classes()
     for name, field in form.fields.items():
         widget = field.widget
         attrs = widget.attrs
         if isinstance(widget, forms.CheckboxInput):
-            attrs["class"] = cls["checkbox"]
+            attrs["class"] = "pl-checkbox"
         elif isinstance(widget, forms.Select):
-            attrs["class"] = cls["select"]
+            attrs["class"] = "pl-select"
         elif isinstance(widget, forms.Textarea):
-            attrs["class"] = cls["textarea"]
+            attrs["class"] = "pl-textarea"
         else:
-            attrs["class"] = cls["input"]
+            attrs["class"] = "pl-input"
         if name == "field_name":
             attrs["list"] = "pl-field-paths"
 

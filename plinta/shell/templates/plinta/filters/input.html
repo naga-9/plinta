@@ -5,17 +5,17 @@
    assembled from input: a viewer chooses which operator, never writes one.
    {% endcomment %}
 {% if lookups %}
-    <div class="{{ cls.row }}">
-        <select class="{{ cls.select }}" name="{{ control.field_name }}__op"
+    <div class="pl-row">
+        <select class="pl-select" name="{{ control.field_name }}__op"
                 aria-label="{{ control.label }} operator">
             {% for op, op_label in lookups %}
                 <option value="{{ op }}" {% if op == lookup %}selected{% endif %}>{{ op_label }}</option>
             {% endfor %}
         </select>
-        <input class="{{ cls.input }}" id="{{ control_id }}" type="text"
+        <input class="pl-input" id="{{ control_id }}" type="text"
                name="{{ control.field_name }}" value="{{ value|default:'' }}">
     </div>
 {% else %}
-    <input class="{{ cls.input }}" id="{{ control_id }}" type="text"
+    <input class="pl-input" id="{{ control_id }}" type="text"
            name="{{ control.field_name }}" value="{{ value|default:'' }}">
 {% endif %}

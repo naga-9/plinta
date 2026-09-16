@@ -10,10 +10,10 @@ same rule; this is the precise-adjust path.
 {% block title %}{{ subject.name }} · Pages · {{ site_name }}{% endblock %}
 
 {% block body %}
-    <div class="{{ cls.page_header }}">
-        <div class="{{ cls.page_heading }}">
+    <div class="pl-page__header">
+        <div class="pl-page__heading">
             <h1>{{ subject.name }}</h1>
-            <p class="{{ cls.page_description }}">
+            <p class="pl-page__description">
                 {{ subject.get_page_type_display }}
                 · <a href="{% url 'plinta:page_list' %}">All pages</a>
                 · <a href="{{ subject.get_absolute_url }}">View this page</a>
@@ -21,27 +21,27 @@ same rule; this is the precise-adjust path.
         </div>
     </div>
 
-    <div class="{{ cls.card }}">
-        <div class="{{ cls.card_header }}">
-            <h2 class="{{ cls.card_title }}">Blocks on this page</h2>
-            <p class="{{ cls.card_subtitle }}">
+    <div class="pl-card">
+        <div class="pl-card__header">
+            <h2 class="pl-card__title">Blocks on this page</h2>
+            <p class="pl-card__subtitle">
                 Twelve columns. A block starting at column 0 with width 6 fills
                 the left half of its row.
             </p>
         </div>
-        <div class="{{ cls.card_body }}" id="pl-placements">
+        <div class="pl-card__body" id="pl-placements">
             <form method="post" up-submit up-target="#pl-placements">
                 {% csrf_token %}
                 <input type="hidden" name="what" value="positions">
-                <div class="{{ cls.table_wrap }}">
-                    <table class="{{ cls.table }}">
+                <div class="pl-table-wrap">
+                    <table class="pl-table">
                         <thead>
                             <tr>
                                 <th>Block</th>
-                                <th class="{{ cls.table_numeric }}">Column</th>
-                                <th class="{{ cls.table_numeric }}">Row</th>
-                                <th class="{{ cls.table_numeric }}">Width</th>
-                                <th class="{{ cls.table_numeric }}">Height</th>
+                                <th class="pl-table__numeric">Column</th>
+                                <th class="pl-table__numeric">Row</th>
+                                <th class="pl-table__numeric">Width</th>
+                                <th class="pl-table__numeric">Height</th>
                                 <th>Tab</th>
                                 <th></th>
                             </tr>
@@ -51,22 +51,22 @@ same rule; this is the precise-adjust path.
                                 <tr>
                                     <td>
                                         {{ placement.title|default:placement.block.name }}
-                                        <div class="{{ cls.muted }}">{{ placement.block.component_type }}</div>
+                                        <div class="pl-muted">{{ placement.block.component_type }}</div>
                                     </td>
-                                    <td class="{{ cls.table_numeric }}">
-                                        <input class="{{ cls.input }}" type="number" min="0" max="11"
+                                    <td class="pl-table__numeric">
+                                        <input class="pl-input" type="number" min="0" max="11"
                                                name="position-{{ placement.pk }}-column" value="{{ placement.column }}">
                                     </td>
-                                    <td class="{{ cls.table_numeric }}">
-                                        <input class="{{ cls.input }}" type="number" min="0"
+                                    <td class="pl-table__numeric">
+                                        <input class="pl-input" type="number" min="0"
                                                name="position-{{ placement.pk }}-row" value="{{ placement.row }}">
                                     </td>
-                                    <td class="{{ cls.table_numeric }}">
-                                        <input class="{{ cls.input }}" type="number" min="1" max="12"
+                                    <td class="pl-table__numeric">
+                                        <input class="pl-input" type="number" min="1" max="12"
                                                name="position-{{ placement.pk }}-width" value="{{ placement.width }}">
                                     </td>
-                                    <td class="{{ cls.table_numeric }}">
-                                        <input class="{{ cls.input }}" type="number" min="1"
+                                    <td class="pl-table__numeric">
+                                        <input class="pl-input" type="number" min="1"
                                                name="position-{{ placement.pk }}-height" value="{{ placement.height }}">
                                     </td>
                                     <td>{{ placement.tab|default:"—" }}</td>
@@ -74,7 +74,7 @@ same rule; this is the precise-adjust path.
                                 </tr>
                             {% empty %}
                                 <tr>
-                                    <td colspan="7" class="{{ cls.table_empty }}">
+                                    <td colspan="7" class="pl-table__empty">
                                         Nothing placed on this page yet.
                                     </td>
                                 </tr>
@@ -83,8 +83,8 @@ same rule; this is the precise-adjust path.
                     </table>
                 </div>
                 {% if may_change and placements %}
-                    <div class="{{ cls.form_actions }}">
-                        <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Save layout</button>
+                    <div class="pl-form__actions">
+                        <button class="pl-btn pl-btn--primary" type="submit">Save layout</button>
                     </div>
                 {% endif %}
             </form>
@@ -94,12 +94,12 @@ same rule; this is the precise-adjust path.
             save whatever was half-typed. {% endcomment %}
             {% if may_change %}
                 {% for placement in placements %}
-                    <form method="post" class="{{ cls.form_actions }}"
+                    <form method="post" class="pl-form__actions"
                           up-submit up-target="#pl-placements">
                         {% csrf_token %}
                         <input type="hidden" name="what" value="remove">
                         <input type="hidden" name="placement" value="{{ placement.pk }}">
-                        <button class="{{ cls.btn }} {{ cls.btn_sm }} {{ cls.btn_danger }}" type="submit">
+                        <button class="pl-btn pl-btn--sm pl-btn--danger" type="submit">
                             Remove {{ placement.title|default:placement.block.name }}
                         </button>
                     </form>
@@ -109,56 +109,56 @@ same rule; this is the precise-adjust path.
     </div>
 
     {% if may_change %}
-        <div class="{{ cls.card }}">
-            <div class="{{ cls.card_header }}">
-                <h2 class="{{ cls.card_title }}">Place a block</h2>
-                <p class="{{ cls.card_subtitle }}">
+        <div class="pl-card">
+            <div class="pl-card__header">
+                <h2 class="pl-card__title">Place a block</h2>
+                <p class="pl-card__subtitle">
                     It lands full width beneath what is already here. Move it
                     afterwards.
                 </p>
             </div>
-            <div class="{{ cls.card_body }}" id="pl-place">
+            <div class="pl-card__body" id="pl-place">
                 {% comment %} Placing changes the list above as well as this
                 form, which comes back empty or with what was wrong. {% endcomment %}
-                <form method="post" class="{{ cls.form }}"
+                <form method="post" class="pl-form"
                       up-submit up-target="#pl-placements, #pl-place">
                     {% csrf_token %}
                     <input type="hidden" name="what" value="place">
                     {% for field in placement_form %}
-                        <div class="{{ cls.field }}">
-                            <label class="{{ cls.label }}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        <div class="pl-field">
+                            <label class="pl-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
                             {{ field }}
-                            {% if field.help_text %}<div class="{{ cls.help }}">{{ field.help_text }}</div>{% endif %}
-                            {% for message in field.errors %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+                            {% if field.help_text %}<div class="pl-help">{{ field.help_text }}</div>{% endif %}
+                            {% for message in field.errors %}<div class="pl-error">{{ message }}</div>{% endfor %}
                         </div>
                     {% endfor %}
-                    <div class="{{ cls.form_actions }}">
-                        <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Place</button>
+                    <div class="pl-form__actions">
+                        <button class="pl-btn pl-btn--primary" type="submit">Place</button>
                     </div>
                 </form>
             </div>
         </div>
     {% endif %}
 
-    <div class="{{ cls.card }}">
-        <div class="{{ cls.card_header }}">
-            <h2 class="{{ cls.card_title }}">Page settings</h2>
+    <div class="pl-card">
+        <div class="pl-card__header">
+            <h2 class="pl-card__title">Page settings</h2>
         </div>
-        <div class="{{ cls.card_body }}">
-            <form method="post" class="{{ cls.form }}" up-submit>
+        <div class="pl-card__body">
+            <form method="post" class="pl-form" up-submit>
                 {% csrf_token %}
                 <input type="hidden" name="what" value="page">
                 {% for field in settings_form %}
-                    <div class="{{ cls.field }}">
-                        <label class="{{ cls.label }}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    <div class="pl-field">
+                        <label class="pl-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
                         {{ field }}
-                        {% if field.help_text %}<div class="{{ cls.help }}">{{ field.help_text }}</div>{% endif %}
-                        {% for message in field.errors %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+                        {% if field.help_text %}<div class="pl-help">{{ field.help_text }}</div>{% endif %}
+                        {% for message in field.errors %}<div class="pl-error">{{ message }}</div>{% endfor %}
                     </div>
                 {% endfor %}
                 {% if may_change %}
-                    <div class="{{ cls.form_actions }}">
-                        <button class="{{ cls.btn }} {{ cls.btn_primary }}" type="submit">Save settings</button>
+                    <div class="pl-form__actions">
+                        <button class="pl-btn pl-btn--primary" type="submit">Save settings</button>
                     </div>
                 {% endif %}
             </form>

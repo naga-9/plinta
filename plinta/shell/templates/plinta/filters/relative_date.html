@@ -5,7 +5,7 @@
    The options are registered ranges (§3.2), not values from the data — no row
    contains "current month". {% endcomment %}
 <input type="hidden" name="{{ control.field_name }}" value="">
-<select class="{{ cls.select }}" id="{{ control_id }}" multiple
+<select class="pl-select" id="{{ control_id }}" multiple
         name="{{ control.field_name }}"
         data-plinta-tags data-placeholder="Any time">
     {% for option_value, option_label in options %}

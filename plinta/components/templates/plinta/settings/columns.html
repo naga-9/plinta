@@ -12,8 +12,8 @@ dragging a row is all the reordering there is — `sortable.js` does the drag.
     {% for column in setting.columns %}
         <li class="pl-columns__item">
             <span class="pl-columns__grip" aria-hidden="true">⠿</span>
-            <label class="{{ cls.label }}">
-                <input class="{{ cls.checkbox }}" type="checkbox"
+            <label class="pl-label">
+                <input class="pl-checkbox" type="checkbox"
                        name="columns" value="{{ column.name }}"
                        {% if column.chosen %}checked{% endif %}>
                 {{ column.label }}

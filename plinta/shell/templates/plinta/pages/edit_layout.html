@@ -11,7 +11,7 @@ URL a component is given. GridStack's own files are handed over the same way,
 because `composer.js` fetches them on the first click rather than every
 viewer downloading 160 KB for a control most of them are never offered.
 {% endcomment %}
-<button type="button" class="{{ cls.btn }} {{ cls.btn_sm }} pl-compose"
+<button type="button" class="pl-btn pl-btn--sm pl-compose"
         data-plinta-compose="{% url 'plinta:page_positions' page.pk %}"
         data-plinta-compose-script="{% static 'plinta/vendor/gridstack-all.js' %}"
         data-plinta-compose-style="{% static 'plinta/vendor/gridstack.min.css' %}"

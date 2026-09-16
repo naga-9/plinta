@@ -29,7 +29,7 @@ def control(context, name: str) -> SafeString:
     return SafeString(
         render_to_string(
             "plinta/components/control.html",
-            {"control": drawn, "cls": context.get("cls") or {}},
+            {"control": drawn},
         )
     )
 
@@ -49,6 +49,6 @@ def setting(context, name: str) -> SafeString:
     return SafeString(
         render_to_string(
             "plinta/settings/field.html",
-            {"setting": drawn, "cls": context.get("cls") or {}},
+            {"setting": drawn},
         )
     )

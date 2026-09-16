@@ -36,19 +36,14 @@ rows:
 
 ```html
 {% load alert_tags %}
-<a class="{{ cls.btn }} {{ cls.btn_ghost }} {{ cls.btn_sm }}"
+<a class="pl-btn pl-btn--ghost pl-btn--sm"
    href="{% url 'alerts:list' %}">
     <span aria-hidden="true">!</span>
     {% with n=request.user|unread_alert_count %}
-        {% if n %}<span class="{{ cls.chip }}">{{ n }}</span>{% endif %}
+        {% if n %}<span class="pl-chip">{{ n }}</span>{% endif %}
     {% endwith %}
 </a>
 ```
-
-**Class names come from `cls`, not typed in.** It is the style vocabulary
-(§10.9), so a project running a Bootstrap style pack gets your control drawn in
-Bootstrap's classes without you knowing. Typing `pl-btn` works today and stops
-working for them.
 
 **That query runs on every page.** The topbar is chrome, so whatever it costs
 is charged to every screen in the product — count with a single aggregate, and

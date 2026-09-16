@@ -7,22 +7,22 @@ one changes what the page shows. `up-main` says which element of this
 document the layer it opens in shows; the layer itself is the opener's.
 {% endcomment %}
 <div class="pl-dialog" up-main>
-<form method="post" action="{{ action }}" class="{{ cls.form }}" up-submit>
+<form method="post" action="{{ action }}" class="pl-form" up-submit>
     {% csrf_token %}
     <input type="hidden" name="set" value="{{ set.pk|default_if_none:'' }}">
 
-    <h2 class="{{ cls.card_title }}">
+    <h2 class="pl-card__title">
         {% if set %}{{ set.name }}{% else %}Save these filters{% endif %}
     </h2>
 
     {% if sets %}
-        <div class="{{ cls.field }}">
-            <label class="{{ cls.label }}">Saved on this page</label>
+        <div class="pl-field">
+            <label class="pl-label">Saved on this page</label>
             <ul class="pl-views">
                 {% for each in sets %}
                     <li>
                         <a href="{{ action }}?set={{ each.pk }}" up-follow>{{ each.name }}</a>
-                        {% if not each.owner %}<span class="{{ cls.chip }}">Everyone</span>{% endif %}
+                        {% if not each.owner %}<span class="pl-chip">Everyone</span>{% endif %}
                     </li>
                 {% endfor %}
                 {% if set %}
@@ -32,24 +32,24 @@ document the layer it opens in shows; the layer itself is the opener's.
         </div>
     {% endif %}
 
-    <div class="{{ cls.field }}">
-        <label class="{{ cls.label }}" for="pl-set-name">Name</label>
-        <input class="{{ cls.input }}" type="text" id="pl-set-name" name="name"
+    <div class="pl-field">
+        <label class="pl-label" for="pl-set-name">Name</label>
+        <input class="pl-input" type="text" id="pl-set-name" name="name"
                value="{{ set.name|default_if_none:'' }}" required>
-        {% for message in errors.name %}<div class="{{ cls.error }}">{{ message }}</div>{% endfor %}
+        {% for message in errors.name %}<div class="pl-error">{{ message }}</div>{% endfor %}
     </div>
 
     {% for drawn in filter_controls %}
-        <div class="{{ cls.field }}">
-            <label class="{{ cls.label }}" for="{{ drawn.control_id }}">{{ drawn.control.label }}</label>
+        <div class="pl-field">
+            <label class="pl-label" for="{{ drawn.control_id }}">{{ drawn.control.label }}</label>
             {% include drawn.template with control=drawn.control value=drawn.value options=drawn.options truncated=drawn.truncated control_id=drawn.control_id lookups=drawn.lookups lookup=drawn.lookup %}
         </div>
     {% endfor %}
 
     {% if may_publish %}
-        <div class="{{ cls.field }}">
-            <label class="{{ cls.label }}">
-                <input class="{{ cls.checkbox }}" type="checkbox" name="public"
+        <div class="pl-field">
+            <label class="pl-label">
+                <input class="pl-checkbox" type="checkbox" name="public"
                        data-plinta-public up-switch="[data-plinta-default-scope]"
                        {% if set and not set.owner %}checked{% endif %}>
                 Everyone can use this set
@@ -58,18 +58,18 @@ document the layer it opens in shows; the layer itself is the opener's.
     {% endif %}
 
     {% if may_default %}
-        <div class="{{ cls.field }}">
-            <label class="{{ cls.label }}">
-                <input class="{{ cls.checkbox }}" type="checkbox" name="is_default"
+        <div class="pl-field">
+            <label class="pl-label">
+                <input class="pl-checkbox" type="checkbox" name="is_default"
                        {% if set.is_default %}checked{% endif %}>
                 Open the page with these filters
             </label>
-            <div class="{{ cls.help }}" data-plinta-default-scope="personal"
+            <div class="pl-help" data-plinta-default-scope="personal"
                  {% if may_publish %}up-show-for=":unchecked"{% endif %}>
                 Yours: it applies when you have not filtered the page yourself.
             </div>
             {% if may_publish %}
-                <div class="{{ cls.help }}" data-plinta-default-scope="shared"
+                <div class="pl-help" data-plinta-default-scope="shared"
                      up-show-for=":checked">
                     Shared, so this is <strong>everyone's</strong> starting point —
                     for anyone who has not saved their own.
@@ -78,11 +78,11 @@ document the layer it opens in shows; the layer itself is the opener's.
         </div>
     {% endif %}
 
-    <div class="{{ cls.form_actions }}">
-        <button type="submit" class="{{ cls.btn }} {{ cls.btn_primary }}">Save</button>
+    <div class="pl-form__actions">
+        <button type="submit" class="pl-btn pl-btn--primary">Save</button>
         {% if may_delete %}
             <button type="submit" name="action" value="delete"
-                    class="{{ cls.btn }} {{ cls.btn_danger }}">Delete</button>
+                    class="pl-btn pl-btn--danger">Delete</button>
         {% endif %}
     </div>
 </form>

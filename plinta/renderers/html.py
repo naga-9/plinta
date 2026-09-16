@@ -15,7 +15,6 @@ from django.utils.safestring import SafeString, mark_safe
 from plinta.renderers.base import Renderer
 from plinta.renderers.fields import render_field
 from plinta.renderers.registry import register_renderer
-from plinta.utils.styles import classes
 
 #: Formats whose value is already markup and is emitted unescaped.
 MARKUP_FORMATS = frozenset({"html"})
@@ -88,10 +87,9 @@ class HtmlRenderer(Renderer):
     ) -> str:
         fields = list(fields)
         config = config or {}
-        cls = classes()
         # Computed once per render rather than per cell: a column's options do
         # not change between its rows, and a table is rows times columns.
-        column_classes = [self.column_class(f, cls) for f in fields]
+        column_classes = [self.column_class(f) for f in fields]
 
         header = format_html_join(
             "",
@@ -131,8 +129,8 @@ class HtmlRenderer(Renderer):
         return format_html(
             '<div class="{}"><table class="{}">'
             "<thead><tr>{}</tr></thead><tbody>{}</tbody></table></div>{}",
-            cls["table_wrap"],
-            self.table_class(cls, config),
+            "pl-table-wrap",
+            self.table_class(config),
             header,
             body,
             self.pager(
@@ -162,7 +160,7 @@ class HtmlRenderer(Renderer):
             return drawn
         return format_html('<a href="{}">{}</a>', template.format(record=pk), drawn)
 
-    def column_class(self, field: Any, cls: dict[str, str]) -> str:
+    def column_class(self, field: Any) -> str:
         """The classes one column's cells carry, from the column's own options.
 
         Read from the **declaration**, never from a value: a null in one row
@@ -173,11 +171,11 @@ class HtmlRenderer(Renderer):
         # A declared precision is a number, and numbers line up on the right
         # so their digits do.
         if getattr(field, "decimals", None) is not None:
-            names.append(cls["table_numeric"])
+            names.append("pl-table__numeric")
         # `textarea` says "long text" and meant nothing until now: every cell
         # was `nowrap`, so a description could only ever scroll the table.
         if getattr(field, "format", "") == "textarea":
-            names.append(cls["table_text_wrap"])
+            names.append("pl-table__text-wrap")
         return " ".join(names)
 
     def attributes(self, names: str = "", style: str = "") -> SafeString:
@@ -199,16 +197,16 @@ class HtmlRenderer(Renderer):
         width = getattr(field, "width", None)
         return f"width: {int(width)}px" if width else ""
 
-    def table_class(self, cls: dict[str, str], config: dict[str, Any]) -> str:
+    def table_class(self, config: dict[str, Any]) -> str:
         """The table's classes: the base one, plus whatever the block asked for.
 
         A fixed order rather than the config's, so the attribute reads the same
         whichever way the flags were set — a diff of two blocks should show
         what differs, not how it was typed.
         """
-        names = [cls["table"]]
+        names = ["pl-table"]
         names += [
-            cls[f"table_{flag}"]
+            f"pl-table--{flag}"
             for flag in ("striped", "compact", "bordered")
             if config.get(flag)
         ]
@@ -226,11 +224,10 @@ class HtmlRenderer(Renderer):
             return escape(field.label)
         direction = (context.get("sorted_by") or {}).get(field.field_name)
         arrow = ARROWS.get(direction, "")
-        cls = classes()
         return format_html(
             '<a class="{}{}" href="{}"{}>{}{}</a>',
-            cls["table_sort"],
-            f" {cls['table_sort_active']}" if direction else "",
+            "pl-table__sort",
+            " is-active" if direction else "",
             url,
             self.swapping(context.get("fragment") or ""),
             field.label,
@@ -256,7 +253,7 @@ class HtmlRenderer(Renderer):
         """
         return format_html(
             '<tr class="{}"><td colspan="{}">{}</td></tr>',
-            classes()["table_empty"],
+            "pl-table__empty",
             max(len(fields), 1),
             text,
         )
@@ -281,20 +278,19 @@ class HtmlRenderer(Renderer):
             links.append(("prev", urls["previous"], "Previous"))
         if page.has_next() and urls.get("next"):
             links.append(("next", urls["next"], "Next"))
-        cls = classes()
         swap = self.swapping(fragment)
         return format_html(
             '<nav class="{}" aria-label="Pages"><span class="{}">{} of {}</span>'
             '<ul class="{}">{}</ul></nav>',
-            cls["pager"],
-            cls["pager_status"],
+            "pl-pager",
+            "pl-pager__status",
             page.number,
             page.paginator.num_pages,
-            cls["pager_list"],
+            "pl-pager__list",
             format_html_join(
                 "",
                 '<li class="{}"><a class="{}" rel="{}" href="{}"{}>{}</a></li>',
-                ((cls["pager_item"], cls["pager_link"], rel, url, swap, label)
+                (("pl-pager__item", "pl-pager__link", rel, url, swap, label)
                  for rel, url, label in links),
             ),
         )

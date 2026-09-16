@@ -45,7 +45,7 @@ If your control needs to address one card, the grid markup carries
 Your template is included with `page` and the request in context:
 
 ```html
-<button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}"
+<button type="button" class="pl-btn pl-btn--sm"
         data-plinta-subscribe="{% url 'alerts:subscribe' page.pk %}">
     Notify me
 </button>
@@ -55,10 +55,6 @@ Your template is included with `page` and the request in context:
 a decorative slug (`/pages/6-catalog/`), so a script deriving an endpoint from
 `location.pathname` gets a 404. Hand the URL over in a data attribute — the
 same rule §9.0 states for every URL a component is given.
-
-**Class names come from `cls`, not typed in.** It is the style vocabulary
-(§10.9), so a project running a Bootstrap style pack gets your control drawn
-in Bootstrap's classes. Typing `pl-btn` works today and stops working for them.
 
 ## Narrow it to the pages it suits
 

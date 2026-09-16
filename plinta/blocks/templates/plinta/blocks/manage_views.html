@@ -10,7 +10,7 @@ view just saved; a page asked to draw inside a layer closes it instead
 (`page_view`), and the response it closed with is what redraws this card —
 so the card shows the new view without the page's URL having to change.
 {% endcomment %}
-<a class="{{ cls.btn }} {{ cls.btn_sm }}" href="{{ slot.views_url }}"
+<a class="pl-btn pl-btn--sm" href="{{ slot.views_url }}"
    up-layer="new modal" up-history="false"
    up-on-accepted="up.render({ target: '#card-{{ slot.placement.pk }}', response: response, layer: 'root' })">
     {% icon "plinta:settings" %} Views

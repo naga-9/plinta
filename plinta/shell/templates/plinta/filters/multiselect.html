@@ -5,7 +5,7 @@
 {% comment %} `data-plinta-tags` asks tag-select.js to hand this to Tom Select,
    which draws it as chips with a searching menu. The select is still what
    submits. {% endcomment %}
-<select class="{{ cls.select }}" id="{{ control_id }}" multiple
+<select class="pl-select" id="{{ control_id }}" multiple
         name="{{ control.field_name }}"
         data-plinta-tags data-placeholder="Choose…">
     {% for option_value, option_label in options %}
@@ -14,5 +14,5 @@
     {% endfor %}
 </select>
 {% if truncated %}
-    <span class="{{ cls.help }}">Showing the first {{ options|length }}.</span>
+    <span class="pl-help">Showing the first {{ options|length }}.</span>
 {% endif %}

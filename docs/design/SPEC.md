@@ -2694,7 +2694,7 @@ The shell owns the theme, and the theme is generated rather than written.
 
 **Once the class names are ours, a framework earns nothing.** Core's markup would never say `card` or `btn`, so Bootstrap would contribute a reset and a variable scale that `tokens.json` already holds.
 
-**And a framework in core would break the cheapest override.** Retinting means redefining custom properties; with Bootstrap it means fighting its cascade or recompiling its Sass, which needs the build step §7.5 does not have. So a framework pushes consumers up the ladder (§10.10) to forking templates, where they stop receiving updates. Owning the CSS keeps most of them on the rung where they fork nothing.
+**And a framework in core would break the cheapest override.** Retinting means redefining custom properties; with Bootstrap it means fighting its cascade or recompiling its Sass, which needs the build step §7.5 does not have. So a framework pushes consumers up the ladder (§10.11) to forking templates, where they stop receiving updates. Owning the CSS keeps most of them on the rung where they fork nothing.
 
 **What it covers is bounded**, because it styles what plinta renders and nothing else — no utility classes, no layout system for arbitrary markup: shell chrome, the grid, the block card, table, form controls, buttons, modal, toast, filter bar, and the auth screens. Around ten components.
 
@@ -2735,34 +2735,9 @@ An unprefixed name still resolves to core's set. That is a **forgiving read** ra
 
 **The shell's own glyphs are icons too.** `≡` and `◐` were literal characters in the topbar.
 
-### 10.10 Style packs
+### 10.10 Stylesheets and scripts a package contributes
 
-A **style pack** swaps the class names the markup carries, so a project already using Bootstrap or Tailwind gets screens that match the rest of its application without forking a template.
-
-```python
-PLINTA_STYLE_PACK = "bootstrap5"
-```
-
-Called a pack rather than a theme because `data-theme` already means light or dark, and the two are unrelated — a Bootstrap pack still has both.
-
-**A pack is class names only, and that is not the whole story.** Frameworks disagree about *shape*, not just naming:
-
-| Framework | Pagination |
-|---|---|
-| Bootstrap 5 | `ul.pagination > li.page-item > a.page-link` |
-| Bulma | `nav.pagination > a.pagination-previous` **+** `ul.pagination-list > li > a` — prev and next are siblings of the list |
-| Fomantic | `div.ui.pagination.menu > a.item` — no list at all |
-| Tailwind | none; utilities on whatever markup exists |
-
-No single structure satisfies all four, so **plinta's markup is chosen for its own semantics and never to match a vendor**. A pager and a menu are lists of links because that is what they are — a screen reader announces how many and offers list navigation. That three of the four frameworks then need only a rename is a consequence, not the motive.
-
-What a rename cannot reach is **written down by the pack** and reported at boot, rather than silently producing markup the framework styles as nothing:
-
-```python
-RESIDUE = {
-    "plinta/shell/topbar.html": "Bootstrap's navbar wants .navbar > .container-fluid",
-}
-```
+**There is no style pack.** One was built — a mapping from plinta's class names to Bootstrap's, chosen by `PLINTA_STYLE_PACK`, with every template reading `{{ cls.btn }}` instead of `pl-btn` — and dropped (2026-09-16). A pack presumes the two frameworks share a DOM shape and differ only in what the nodes are called. For a card or a pager that happens to be true; for a form it is not: Bootstrap's checkbox wants `.form-check > .form-check-input + .form-check-label`, its validation message wants to be the input's sibling, its inline form wants `.row > .col-auto` per control, and a class map cannot reach any of it. The pack's own residue list admitted the topbar and the filter bar. The honest way to make plinta look like somebody else's framework is the ladder below — tokens for colour and spacing, the stylesheet for the rest, a template override where the shape itself differs — and Django supplies the last of those for free. So the templates say what they mean, `class="pl-btn pl-btn--sm"`, and the class names are public API (§18.19) for the same reason the block names are: a consumer's stylesheet is written against them.
 
 **A package contributes its own stylesheet.** A component that ships a template needs somewhere for that template's CSS to live; without it an extension point has fields, a template and a config editor and no way to be styled.
 
@@ -2779,13 +2754,9 @@ Core's own two sheets are **not** registered — `base.html` links them directly
 
 **What core styles, and what a package styles.** Core styles what core's own markup emits — the chrome and the shared primitives. A component styles only what it alone draws: `pl-kanban__lane`, `pl-gantt__bar`. `pl-stat` is core's despite arriving with `kpi_plinta`, because a chart footer or a table total wants the same thing.
 
-**A pack ships no vendor stylesheet.** Where Bootstrap itself comes from — a CDN, npm, their own build — is the consumer's decision, and vendoring it would make that decision for them. The `plinta_css` block is where it goes.
+**A consumer's framework is theirs to load.** Where Bootstrap itself comes from — a CDN, npm, their own build — is the consumer's decision, and vendoring it would make that decision for them. The `plinta_css` block is where it goes.
 
-**An unknown class name is refused at registration**, and a pack named by the setting but never registered raises at first use rather than falling back. Both would otherwise present as "the pack is not installed" — our own class names against a stylesheet that does not define them, with nothing to explain it.
-
-**The vocabulary is the contract.** `utils.styles.DEFAULT` names every class the markup emits; a pack overrides the keys it cares about and inherits the rest, so restyling buttons is four lines. Adding a key is adding to public API (§18.19).
-
-**Layer 1**, because everything that emits markup needs it: the HTML renderer (§7), components, and the shell's templates.
+**Every class the markup emits has a rule**, and a test says so (`shell/test_stylesheet.py`): a class no stylesheet defines renders unstyled and nothing fails, which is how three KPI classes once shipped invisible.
 
 ### 10.11 Overriding, and what that costs
 
@@ -2816,7 +2787,7 @@ A consumer wanting Bootstrap specifically loads it there and writes a bridge sty
 |---|---|
 | Two base templates | **one**, under `shell/`, with its regions in separate files |
 | CSS framework | **none** — core styles its own screens against the tokens |
-| Somebody else's class names | a **style pack** — a mapping, plus the residue it cannot reach (§10.10) |
+| Somebody else's class names | **no mapping** — a class map cannot reach a framework's form shapes; theme with tokens, override the stylesheet, override a template where the shape differs (§10.10) |
 | Markup shape | chosen for its **own semantics**; never to match a vendor, because no shape matches all of them |
 | Bootstrap | **not a dependency**, not even an optional one (§10.8) |
 | Theme attribute | `data-theme`, not `data-bs-theme` |
@@ -4197,9 +4168,9 @@ Vendored assets do not update themselves, which is the real cost of this choice.
 
 ## 18. Extension points
 
-Twenty-one extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
+Twenty extension points, ordered by the layer that provides each. Together they are plinta's public API — the surface that may not break without a deprecation cycle. Each has a skill (§25).
 
-Seventeen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
+Sixteen are `register_*` functions; the rest are a signal receiver, a `Rule` subclass, a contrib package, and a consumer application.
 
 Contrib apps add their own on top — `register_channel` and `register_notification` in `contrib.notifications`, `register_guard` in `contrib.workflow` — each with a skill shipped inside the app that provides it (§25.4).
 
@@ -5344,7 +5315,6 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | `register_field_renderer` | `add-field-renderer` | renderers (§7) |
 | `register_component` | `add-component` | components (§7) |
 | `register_capability` | `add-capability` | blocks (§8) |
-| `register_style_pack` | `add-style-pack` | utils (§10.10) |
 | `register_block_action` | `add-block-action` | blocks (§10.1b) |
 | `register_icon_set` | `add-icon-set` | utils (§10.9) |
 | `register_filter_widget` | `add-filter-widget` | pages (§9.4) |
@@ -5355,7 +5325,7 @@ A skill is the **executable half of this document**. The spec says what a thing 
 | a contrib package | `add-contrib-app` | contrib (§14) |
 | a consumer application | `start-consumer-app` | the whole surface (§1.4) |
 
-Twenty-one points, twenty-one skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
+Twenty points, twenty skills. `add-component` and `start-consumer-app` are the two that will be used most. `start-consumer-app` is the widest: it registers a plain Django model as a DataSource, declares a policy over it, and seeds a page — the shortest path from "I have models" to "I have screens", written only against the public API.
 
 ### 25.2 Examples use the demo domain
 

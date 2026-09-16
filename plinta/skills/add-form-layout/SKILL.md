@@ -1,6 +1,6 @@
 ---
 name: add-form-layout
-description: Arrange a form block's fields with your own template — columns, fieldsets, a full-width note. Use when the stacked default is not enough. Not for restyling controls (a style pack) or for adding a field (DataSourceField.editable).
+description: Arrange a form block's fields with your own template — columns, fieldsets, a full-width note. Use when the stacked default is not enough. Not for restyling controls (override the stylesheet) or for adding a field (DataSourceField.editable).
 ---
 
 # Add a form layout

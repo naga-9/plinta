@@ -153,7 +153,6 @@ class FormComponent(Component):
         """
         from plinta.datasources.choices import picker_for
         from plinta.datasources.kinds import kind_of
-        from plinta.utils.styles import classes
 
         datasource = context["datasource"]
         model = datasource.model
@@ -210,10 +209,6 @@ class FormComponent(Component):
                 # The body a layout owns, and the shell it does not.
                 "body": layout_for(config.layout),
                 "controls_by_name": {c["name"]: c for c in controls},
-                # Rendered without a request, so the class map the context
-                # processor would supply is passed in — a style pack renames
-                # a form the same way it renames everything else.
-                "cls": classes(),
                 "controls": controls,
                 # No editable field means nothing to submit, and a Save button
                 # that cannot save is worse than none.

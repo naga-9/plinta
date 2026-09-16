@@ -60,11 +60,7 @@ draws.
 {{ options }}      [(value, label)], already scoped to the viewer
 {{ truncated }}    True when the option list hit the cap
 {{ control_id }}   the id the <label> points at — use it, or the label is dead
-{{ cls }}          the style vocabulary: cls.select, cls.input, cls.help
 ```
-
-Use `cls.*` rather than writing `pl-select`, so a style pack can rename your
-control along with everything else.
 
 ## A multi-valued widget needs a hidden companion
 

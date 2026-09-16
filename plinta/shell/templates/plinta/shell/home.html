@@ -14,10 +14,10 @@ no pages until somebody seeds or builds them.
 {% block title %}{{ site_name }}{% endblock %}
 
 {% block body %}
-    <div class="{{ cls.page_header }}">
-        <div class="{{ cls.page_heading }}">
+    <div class="pl-page__header">
+        <div class="pl-page__heading">
             <h1>{{ site_name }}</h1>
-            <p class="{{ cls.page_description }}">
+            <p class="pl-page__description">
                 Everything you can open.
             </p>
         </div>
@@ -25,28 +25,28 @@ no pages until somebody seeds or builds them.
 
     {% for section in sections %}
         {% for group in section.groups %}
-            <div class="{{ cls.card }}">
-                <div class="{{ cls.card_header }}">
-                    <h2 class="{{ cls.card_title }}">
+            <div class="pl-card">
+                <div class="pl-card__header">
+                    <h2 class="pl-card__title">
                         {% if not section.is_top %}{{ section.name }} · {% endif %}{{ group.name }}
                     </h2>
                 </div>
-                <div class="{{ cls.card_body }}">
-                    <ul class="{{ cls.menu }}">
+                <div class="pl-card__body">
+                    <ul class="pl-menu">
                         {% for page_item in group.pages %}
-                            <li class="{{ cls.menu_item }}">
-                                <a class="{{ cls.menu_link }}" href="{{ page_item.get_absolute_url }}">
+                            <li class="pl-menu__item">
+                                <a class="pl-menu__link" href="{{ page_item.get_absolute_url }}">
                                     {% icon page_item.menu_icon %}
                                     <span>{{ page_item.name }}</span>
                                 </a>
                                 {% if page_item.description %}
-                                    <div class="{{ cls.muted }}">{{ page_item.description }}</div>
+                                    <div class="pl-muted">{{ page_item.description }}</div>
                                 {% endif %}
                             </li>
                         {% endfor %}
                         {% for link in group.links %}
-                            <li class="{{ cls.menu_item }}">
-                                <a class="{{ cls.menu_link }}" href="{% url link.url_name %}">
+                            <li class="pl-menu__item">
+                                <a class="pl-menu__link" href="{% url link.url_name %}">
                                     {% icon link.icon %}
                                     <span>{{ link.label }}</span>
                                 </a>
@@ -57,10 +57,10 @@ no pages until somebody seeds or builds them.
             </div>
         {% endfor %}
     {% empty %}
-        <div class="{{ cls.card }}">
-            <div class="{{ cls.card_body }}">
+        <div class="pl-card">
+            <div class="pl-card__body">
                 <p>There is nothing here yet.</p>
-                <p class="{{ cls.muted }}">
+                <p class="pl-muted">
                     Someone with the right permissions can seed the shipped
                     screens with <code>manage.py seed_platform_pages</code>, or
                     build one from the authoring screens.

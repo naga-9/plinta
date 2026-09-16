@@ -5,8 +5,8 @@ that instead.
 There is no "override" checkbox. A blank control means "same as the block",
 which is the whole mechanism and needs no second control to operate it.
 {% endcomment %}
-<div class="{{ cls.field }}" data-plinta-setting="{{ setting.name }}">
-    <label class="{{ cls.label }}" for="pl-set-{{ setting.name }}">{{ setting.label }}</label>
+<div class="pl-field" data-plinta-setting="{{ setting.name }}">
+    <label class="pl-label" for="pl-set-{{ setting.name }}">{{ setting.label }}</label>
 
     {% if setting.template %}
         {% include setting.template %}
@@ -14,7 +14,7 @@ which is the whole mechanism and needs no second control to operate it.
     {% elif setting.widget == "bool" %}
         {% comment %} Three states need three options: a checkbox cannot say
         "same as the block" as well as yes and no. {% endcomment %}
-        <select class="{{ cls.select }}" id="pl-set-{{ setting.name }}" name="{{ setting.name }}">
+        <select class="pl-select" id="pl-set-{{ setting.name }}" name="{{ setting.name }}">
             <option value="">Same as the block — {{ setting.inherited_value|yesno:"yes,no" }}</option>
             <option value="true" {% if setting.value is True %}selected{% endif %}>Yes</option>
             <option value="false" {% if setting.value is False %}selected{% endif %}>No</option>
@@ -23,7 +23,7 @@ which is the whole mechanism and needs no second control to operate it.
     {% elif setting.widget == "column" %}
         {% comment %} A column is chosen, never typed: a name that is not one
         passes validation and fails at the query. {% endcomment %}
-        <select class="{{ cls.select }}" id="pl-set-{{ setting.name }}" name="{{ setting.name }}">
+        <select class="pl-select" id="pl-set-{{ setting.name }}" name="{{ setting.name }}">
             <option value="">Same as the block — {{ setting.inherited_value|default:"none" }}</option>
             {% for column in setting.columns %}
                 <option value="{{ column.name }}"
@@ -32,7 +32,7 @@ which is the whole mechanism and needs no second control to operate it.
         </select>
 
     {% elif setting.widget == "choice" %}
-        <select class="{{ cls.select }}" id="pl-set-{{ setting.name }}" name="{{ setting.name }}">
+        <select class="pl-select" id="pl-set-{{ setting.name }}" name="{{ setting.name }}">
             <option value="">Same as the block — {{ setting.inherited_value|default:"unset" }}</option>
             {% for choice in setting.choices %}
                 <option value="{{ choice }}" {% if choice == setting.value %}selected{% endif %}>{{ choice }}</option>
@@ -44,20 +44,20 @@ which is the whole mechanism and needs no second control to operate it.
         list of series, say. JSON is a poor control and an honest one: the
         annotation carries no shape to draw, which is the signal to register a
         widget for it. {% endcomment %}
-        <textarea class="{{ cls.textarea }}" id="pl-set-{{ setting.name }}"
+        <textarea class="pl-textarea" id="pl-set-{{ setting.name }}"
                   name="{{ setting.name }}" rows="3">{{ setting.value|default_if_none:'' }}</textarea>
 
     {% elif setting.widget == "number" %}
-        <input class="{{ cls.input }}" type="number" id="pl-set-{{ setting.name }}"
+        <input class="pl-input" type="number" id="pl-set-{{ setting.name }}"
                name="{{ setting.name }}" value="{{ setting.value|default_if_none:'' }}"
                placeholder="{{ setting.inherited_value|default_if_none:'' }}">
 
     {% else %}
-        <input class="{{ cls.input }}" type="text" id="pl-set-{{ setting.name }}"
+        <input class="pl-input" type="text" id="pl-set-{{ setting.name }}"
                name="{{ setting.name }}" value="{{ setting.value|default_if_none:'' }}"
                placeholder="{{ setting.inherited_value|default_if_none:'' }}">
     {% endif %}
 
-    {% if setting.help %}<div class="{{ cls.help }}">{{ setting.help }}</div>{% endif %}
-    <div class="{{ cls.error }}" data-plinta-error hidden></div>
+    {% if setting.help %}<div class="pl-help">{{ setting.help }}</div>{% endif %}
+    <div class="pl-error" data-plinta-error hidden></div>
 </div>

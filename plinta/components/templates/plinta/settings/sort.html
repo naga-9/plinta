@@ -10,17 +10,17 @@ dragging is the priority and there is no number to keep in step —
     {% for row in setting.rows %}
         <div class="pl-sort__row">
             <span class="pl-sort__grip" aria-hidden="true">⠿</span>
-            <select class="{{ cls.select }}" name="sort_field">
+            <select class="pl-select" name="sort_field">
                 {% for column in setting.columns %}
                     <option value="{{ column.name }}"
                             {% if column.name == row.field %}selected{% endif %}>{{ column.label }}</option>
                 {% endfor %}
             </select>
-            <select class="{{ cls.select }}" name="sort_direction">
+            <select class="pl-select" name="sort_direction">
                 <option value="asc" {% if row.direction == "asc" %}selected{% endif %}>A → Z</option>
                 <option value="desc" {% if row.direction == "desc" %}selected{% endif %}>Z → A</option>
             </select>
-            <button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}"
+            <button type="button" class="pl-btn pl-btn--sm"
                     data-plinta-sort-remove aria-label="Remove this column">✕</button>
         </div>
     {% endfor %}
@@ -28,21 +28,21 @@ dragging is the priority and there is no number to keep in step —
     <template data-plinta-sort-template>
         <div class="pl-sort__row">
             <span class="pl-sort__grip" aria-hidden="true">⠿</span>
-            <select class="{{ cls.select }}" name="sort_field">
+            <select class="pl-select" name="sort_field">
                 {% for column in setting.columns %}
                     <option value="{{ column.name }}">{{ column.label }}</option>
                 {% endfor %}
             </select>
-            <select class="{{ cls.select }}" name="sort_direction">
+            <select class="pl-select" name="sort_direction">
                 <option value="asc">A → Z</option>
                 <option value="desc">Z → A</option>
             </select>
-            <button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}"
+            <button type="button" class="pl-btn pl-btn--sm"
                     data-plinta-sort-remove aria-label="Remove this column">✕</button>
         </div>
     </template>
 
-    <button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}" data-plinta-sort-add>
+    <button type="button" class="pl-btn pl-btn--sm" data-plinta-sort-add>
         + Add another
     </button>
 </div>

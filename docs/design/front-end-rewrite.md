@@ -21,8 +21,9 @@ fetched on the first *Edit layout* click from URLs the template hands
 over, not registered as an asset, and two cards of a size swap rather
 than push when one is dropped on the other, which is its collision rule.
 Part 5 has landed as well: the spec says what is, ADR 0005 carries its
-second amendment and ADR 0009 the no-JS rule. Nothing in this document is
-still to do.
+second amendment and ADR 0009 the no-JS rule. Of part 6, §6.1 is answered
+— no: the packs are gone, for the stronger reason that a class map cannot
+reach a framework's form shapes at all. The rest of part 6 is still open.
 
 What this document changes in `SPEC.md` when it lands is listed at the end.
 

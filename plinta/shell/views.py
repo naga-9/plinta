@@ -520,7 +520,6 @@ def block_views(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
         request,
         "plinta/blocks/view_editor.html",
         {
-            "cls": _classes(),
             "views": mine,
             "view": chosen,
             "settings": settings,
@@ -533,12 +532,6 @@ def block_views(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
             "errors": {},
         },
     )
-
-
-def _classes() -> dict:
-    from plinta.utils.styles import classes
-
-    return classes()
 
 
 def _save_view(request: HttpRequest, page, slot, component, mine):
@@ -569,7 +562,6 @@ def _save_view(request: HttpRequest, page, slot, component, mine):
             request,
             "plinta/blocks/view_editor.html",
             {
-                "cls": _classes(),
                 "views": mine,
                 "view": view,
                 "settings": settings,
@@ -645,7 +637,6 @@ def page_filters(request: HttpRequest, pk: int) -> HttpResponse:
         request,
         "plinta/pages/filter_set_editor.html",
         {
-            "cls": _classes(),
             "page": page,
             "sets": mine,
             "set": chosen,
@@ -693,7 +684,6 @@ def _save_filter_set(request: HttpRequest, page, mine):
             request,
             "plinta/pages/filter_set_editor.html",
             {
-                "cls": _classes(),
                 "page": page,
                 "sets": mine,
                 "set": existing,
@@ -742,7 +732,6 @@ def data_sources(request: HttpRequest) -> HttpResponse:
         request,
         "plinta/authoring/data_sources.html",
         {
-            "cls": _classes(),
             "sources": DataSource.objects.select_related("content_type")
             .order_by("label"),
             "form": form,
@@ -802,7 +791,6 @@ def data_source(request: HttpRequest, pk: int) -> HttpResponse:
         request,
         "plinta/authoring/data_source.html",
         {
-            "cls": _classes(),
             "source": source,
             "details": details,
             "formset": formset,
@@ -855,7 +843,6 @@ def blocks(request: HttpRequest) -> HttpResponse:
         request,
         "plinta/authoring/blocks.html",
         {
-            "cls": _classes(),
             "blocks": visible_blocks(request.user),
             "form": form,
             "may_add": may_add,
@@ -907,7 +894,6 @@ def block_inspector(request: HttpRequest, pk: int) -> HttpResponse:
         request,
         "plinta/authoring/block.html",
         {
-            "cls": _classes(),
             "block": block,
             "component": component,
             "details": details,
@@ -947,7 +933,6 @@ def pages(request: HttpRequest) -> HttpResponse:
         request,
         "plinta/authoring/pages.html",
         {
-            "cls": _classes(),
             "pages": allowed(request.user, "view", Page.objects.all()),
             "form": form,
             "may_add": may_add,
@@ -1013,7 +998,6 @@ def page_composer(request: HttpRequest, pk: int) -> HttpResponse:
         request,
         "plinta/authoring/page.html",
         {
-            "cls": _classes(),
             "subject": page,
             "settings_form": settings_form,
             "placement_form": placement_form,
@@ -1066,7 +1050,7 @@ def home(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "plinta/shell/home.html",
-        {"cls": _classes(), "sections": build(request.user)},
+        {"sections": build(request.user)},
     )
 
 

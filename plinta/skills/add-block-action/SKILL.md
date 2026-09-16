@@ -64,7 +64,6 @@ go down because one control could not decide whether to draw.
 {{ slot.view }}        the one in force
 {{ slot.param }}       this placement's query-string prefix, "b3_"
 {{ slot.form_url }}    where this card opens a record's form
-{{ cls }}              the style vocabulary
 ```
 
 **To open a record's form, link to it and let Unpoly draw the layer:**

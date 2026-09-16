@@ -6,25 +6,25 @@
 
 {% block body %}
     {% block page_header %}
-        <div class="{{ cls.page_header }}">
-            <div class="{{ cls.page_heading }}">
+        <div class="pl-page__header">
+            <div class="pl-page__heading">
                 <h1>{{ page.name }}</h1>
                 {% if page.description %}
-                    <p class="{{ cls.page_description }}">{{ page.description }}</p>
+                    <p class="pl-page__description">{{ page.description }}</p>
                 {% endif %}
             </div>
-            <div class="{{ cls.page_actions }}">
+            <div class="pl-page__actions">
                 {% block page_actions %}
                     {% if filter_sets %}
                         {% comment %} A saved set applies to the whole page, so it belongs
                            here rather than among the controls it replaces. Its own form,
                            so choosing a set and applying the controls stay separate
                            acts. {% endcomment %}
-                        <form class="{{ cls.row }}" id="pl-filter-sets" method="get"
+                        <form class="pl-row" id="pl-filter-sets" method="get"
                               up-submit up-target="{{ filter_targets }}" up-history="true">
                             {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
-                            <label class="{{ cls.visually_hidden }}" for="pl-filterset">Saved filters</label>
-                            <select class="{{ cls.select }}" id="pl-filterset" name="filterset">
+                            <label class="pl-visually-hidden" for="pl-filterset">Saved filters</label>
+                            <select class="pl-select" id="pl-filterset" name="filterset">
                                 <option value="">Saved filters…</option>
                                 {% for saved in filter_sets %}
                                     <option value="{{ saved.pk }}"
@@ -33,7 +33,7 @@
                                     </option>
                                 {% endfor %}
                             </select>
-                            <button type="submit" class="{{ cls.btn }} {{ cls.btn_sm }}">Apply</button>
+                            <button type="submit" class="pl-btn pl-btn--sm">Apply</button>
                         </form>
                     {% endif %}
                     {% comment %} Whatever an app contributes to this page's
@@ -61,11 +61,11 @@
            `aria-current` is what marks where you are, the same as the menu.
            The bar is swapped with the grid: it carries the tab it filters.
            {% endcomment %}
-        <nav class="{{ cls.tabs }}" id="pl-tabs" aria-label="Sections of this page">
-            <ul class="{{ cls.tabs_list }}">
+        <nav class="pl-tabs" id="pl-tabs" aria-label="Sections of this page">
+            <ul class="pl-tabs__list">
                 {% for item in page.tabs %}
-                    <li class="{{ cls.tabs_item }}">
-                        <a class="{{ cls.tabs_link }}{% if item.key == tab %} {{ cls.tabs_link_active }}{% endif %}"
+                    <li class="pl-tabs__item">
+                        <a class="pl-tabs__link{% if item.key == tab %} is-active{% endif %}"
                            href="?tab={{ item.key }}"
                            up-follow up-target="#pl-tabs, {{ filter_targets }}" up-history="true"
                            {% if item.key == tab %}aria-current="page"{% endif %}>{{ item.label|default:item.key }}</a>

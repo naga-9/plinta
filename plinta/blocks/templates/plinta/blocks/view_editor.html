@@ -10,17 +10,17 @@ Every field below came from the component's config schema. Nothing here knows
 what a table is.
 {% endcomment %}
 <div class="pl-dialog" up-main>
-<form method="post" action="{{ action }}" class="{{ cls.form }}" up-submit>
+<form method="post" action="{{ action }}" class="pl-form" up-submit>
     {% csrf_token %}
     <input type="hidden" name="view" value="{{ view.pk|default_if_none:'' }}">
 
-    <h2 class="{{ cls.card_title }}">
+    <h2 class="pl-card__title">
         {% if view %}{{ view.name }}{% else %}New view{% endif %}
     </h2>
 
     {% if views %}
-        <div class="{{ cls.field }}">
-            <label class="{{ cls.label }}">Views on this block</label>
+        <div class="pl-field">
+            <label class="pl-label">Views on this block</label>
             {% comment %} Each opens in the layer it is already in: a followed
             link updates the layer it sits in.
 
@@ -32,7 +32,7 @@ what a table is.
                 {% for each in views %}
                     <li>
                         <a href="{{ action }}?view={{ each.pk }}" up-follow>{{ each.name }}</a>
-                        {% if not each.owner %}<span class="{{ cls.chip }}">Everyone</span>{% endif %}
+                        {% if not each.owner %}<span class="pl-chip">Everyone</span>{% endif %}
                     </li>
                 {% endfor %}
                 {% if view %}
@@ -42,9 +42,9 @@ what a table is.
         </div>
     {% endif %}
 
-    <div class="{{ cls.field }}">
-        <label class="{{ cls.label }}" for="pl-view-name">Name</label>
-        <input class="{{ cls.input }}" type="text" id="pl-view-name" name="name"
+    <div class="pl-field">
+        <label class="pl-label" for="pl-view-name">Name</label>
+        <input class="pl-input" type="text" id="pl-view-name" name="name"
                value="{{ view.name|default_if_none:'' }}" required>
     </div>
 
@@ -53,9 +53,9 @@ what a table is.
     {% include layout %}
 
     {% if may_publish %}
-        <div class="{{ cls.field }}">
-            <label class="{{ cls.label }}">
-                <input class="{{ cls.checkbox }}" type="checkbox" name="public"
+        <div class="pl-field">
+            <label class="pl-label">
+                <input class="pl-checkbox" type="checkbox" name="public"
                        data-plinta-public up-switch="[data-plinta-default-scope]"
                        {% if view and not view.owner %}checked{% endif %}>
                 Everyone can see this view
@@ -68,9 +68,9 @@ what a table is.
     {% endif %}
 
     {% if may_default %}
-        <div class="{{ cls.field }}">
-            <label class="{{ cls.label }}">
-                <input class="{{ cls.checkbox }}" type="checkbox" name="is_default"
+        <div class="pl-field">
+            <label class="pl-label">
+                <input class="pl-checkbox" type="checkbox" name="is_default"
                        {% if view.is_default %}checked{% endif %}>
                 Open on this view by default
             </label>
@@ -79,12 +79,12 @@ what a table is.
             The shared box above switches between the two lines; with no
             shared box there is only the one, and it stays.
             {% endcomment %}
-            <div class="{{ cls.help }}" data-plinta-default-scope="personal"
+            <div class="pl-help" data-plinta-default-scope="personal"
                  {% if may_publish %}up-show-for=":unchecked"{% endif %}>
                 Yours: it applies wherever this block appears, for you.
             </div>
             {% if may_publish %}
-                <div class="{{ cls.help }}" data-plinta-default-scope="shared"
+                <div class="pl-help" data-plinta-default-scope="shared"
                      up-show-for=":checked">
                     Shared, so this is <strong>everyone's</strong> default —
                     for anyone who has not chosen their own.
@@ -93,11 +93,11 @@ what a table is.
         </div>
     {% endif %}
 
-    <div class="{{ cls.form_actions }}">
-        <button type="submit" class="{{ cls.btn }} {{ cls.btn_primary }}">Save</button>
+    <div class="pl-form__actions">
+        <button type="submit" class="pl-btn pl-btn--primary">Save</button>
         {% if may_delete %}
             <button type="submit" name="action" value="delete"
-                    class="{{ cls.btn }} {{ cls.btn_danger }}">Delete</button>
+                    class="pl-btn pl-btn--danger">Delete</button>
         {% endif %}
     </div>
 </form>

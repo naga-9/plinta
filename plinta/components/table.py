@@ -57,8 +57,7 @@ class TableConfig(TabularConfig):
     # --- appearance ---------------------------------------------------------
     # Config rather than CSS, because density is a property of *this* screen:
     # a reference list wants room to read and an operational one wants rows on
-    # screen, from the same DataSource. Each maps to one modifier class, so a
-    # style pack renames them like anything else.
+    # screen, from the same DataSource. Each maps to one modifier class.
 
     striped: bool = Field(
         default=False,

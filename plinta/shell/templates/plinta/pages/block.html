@@ -7,16 +7,16 @@
    view, sorting its table or saving its form redraws `#card-N` and nothing
    beside it. GridStack's content class is what it drags by while the layout
    is being edited, and nothing otherwise. {% endcomment %}
-<article class="{{ cls.card }} grid-stack-item-content" id="card-{{ slot.placement.pk }}">
+<article class="pl-card grid-stack-item-content" id="card-{{ slot.placement.pk }}">
     {% block block_header %}
-        <header class="{{ cls.card_header }}">
-            <div class="{{ cls.card_heading }}">
-                <h2 class="{{ cls.card_title }}">{{ slot.title }}</h2>
+        <header class="pl-card__header">
+            <div class="pl-card__heading">
+                <h2 class="pl-card__title">{{ slot.title }}</h2>
                 {% if slot.placement.block.description %}
-                    <p class="{{ cls.card_subtitle }}">{{ slot.placement.block.description }}</p>
+                    <p class="pl-card__subtitle">{{ slot.placement.block.description }}</p>
                 {% endif %}
             </div>
-            <div class="{{ cls.card_actions }}">
+            <div class="pl-card__actions">
                 {% block block_actions %}
                     {% for action in slot.actions %}
                         {% include action.template %}
@@ -27,9 +27,9 @@
     {% endblock %}
 
     {% block block_body %}
-        <div class="{{ cls.card_body }} pl-card__body--{{ slot.padding }}">
+        <div class="pl-card__body pl-card__body--{{ slot.padding }}">
             {% if slot.error %}
-                <div class="{{ cls.alert }} {{ cls.alert_danger }} {{ cls.slot_error }}">{{ slot.error }}</div>
+                <div class="pl-alert pl-alert--danger pl-slot--error">{{ slot.error }}</div>
             {% else %}
                 {{ slot.html }}
             {% endif %}

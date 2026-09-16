@@ -59,8 +59,6 @@ def emitted() -> dict[str, set[pathlib.Path]]:
     """Every `pl-*` class the package writes, and where it writes it."""
     where: dict[str, set[str]] = {}
     for path in list(PACKAGE.rglob("*.html")) + list(PACKAGE.rglob("*.py")):
-        if "styles_" in str(path):
-            continue  # a style pack names somebody else's classes on purpose
         if path.name.startswith("test_"):
             continue  # what ships is what must be styled, not what tests it
         for group in ATTRIBUTE.findall(path.read_text(encoding="utf-8")):
@@ -70,45 +68,16 @@ def emitted() -> dict[str, set[pathlib.Path]]:
     return where
 
 
-#: The vocabulary is core's own, so it is core's stylesheet that must define it.
-STYLES = PACKAGE / "utils" / "styles.py"
-
-
-def vocabulary() -> dict[str, set[pathlib.Path]]:
-    """The class names a style pack may rename — all of them ours."""
-    from plinta.utils.styles import DEFAULT
-
-    where: dict[str, set[str]] = {}
-    for key, value in DEFAULT.items():
-        for name in value.split():
-            if name.startswith("pl-"):
-                where.setdefault(name, set()).add(STYLES)
-    return where
-
-
-def sources() -> dict[str, set[pathlib.Path]]:
-    combined = emitted()
-    for name, places in vocabulary().items():
-        combined.setdefault(name, set()).update(places)
-    return combined
-
-
 def test_the_stylesheet_is_found():
     """Guards everything below: a missing file would style nothing and pass."""
     assert CSS.exists()
     assert len(styled()) > 40
 
 
-@pytest.mark.parametrize("name", sorted(sources()))
+@pytest.mark.parametrize("name", sorted(emitted()))
 def test_every_emitted_class_has_a_rule(name):
-    for path in sorted(sources()[name]):
+    for path in sorted(emitted()[name]):
         assert name in sheets(path), (
             f"{name} is emitted by {path.name} and no stylesheet that page "
             f"loads defines it — the element renders unstyled and nothing fails."
         )
-
-
-def test_the_vocabulary_is_fully_styled():
-    """A pack overriding only some keys leaves ours in place for the rest, so
-    every default must resolve to something real."""
-    assert not set(vocabulary()) - styled()

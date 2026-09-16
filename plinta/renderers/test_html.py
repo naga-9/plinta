@@ -234,16 +234,6 @@ def test_a_false_flag_adds_nothing():
     assert "pl-table--striped" not in html
 
 
-def test_a_style_pack_renames_them(settings, style_registry):
-    """They are vocabulary, so Bootstrap's own names arrive by mapping."""
-    from plinta.utils.styles import register_style_pack
-
-    register_style_pack("acme", {"table": "t", "table_striped": "t-zebra"})
-    settings.PLINTA_STYLE_PACK = "acme"
-    html = HtmlRenderer().render([], [Field("title")], {"striped": True}, None)
-    assert 'class="t t-zebra"' in html
-
-
 # --- per-column presentation ------------------------------------------------
 
 

@@ -7,31 +7,31 @@
 
    The links are a list, because that is what they are: a screen reader says
    how many there are and offers list navigation. {% endcomment %}
-<nav class="{{ cls.sidebar }}" id="pl-sidebar" aria-label="Main">
+<nav class="pl-sidebar" id="pl-sidebar" aria-label="Main">
     {% block sidebar_header %}{% endblock %}
 
     {% block sidebar_menu %}
         {% for section in menu %}
-            <div class="{{ cls.menu_section }}">
+            <div class="pl-sidebar__section">
                 {% if not section.is_top %}
-                    <h2 class="{{ cls.menu_heading }}">{{ section.name }}</h2>
+                    <h2 class="pl-sidebar__heading">{{ section.name }}</h2>
                 {% endif %}
                 {% for group in section.groups %}
-                    <div class="{{ cls.menu_group }}" data-plinta-group="{{ section.name }}/{{ group.name }}">
+                    <div class="pl-sidebar__group" data-plinta-group="{{ section.name }}/{{ group.name }}">
                         {% if group.name %}
                             {% comment %} A button, not a heading with a click handler:
                                it is operated, so it is focusable and announces whether
                                what it controls is open. {% endcomment %}
-                            <button type="button" class="{{ cls.menu_group_name }}"
+                            <button type="button" class="pl-sidebar__group-name"
                                     data-plinta-group-toggle aria-expanded="true">
                                 {% icon "plinta:chevron-down" size=14 %}
                                 <span>{{ group.name }}</span>
                             </button>
                         {% endif %}
-                        <ul class="{{ cls.menu }}">
+                        <ul class="pl-menu">
                             {% for page_item in group.pages %}
-                                <li class="{{ cls.menu_item }}">
-                                    <a class="{{ cls.menu_link }}{% if page_item.pk == page.pk %} {{ cls.menu_link_active }}{% endif %}"
+                                <li class="pl-menu__item">
+                                    <a class="pl-menu__link{% if page_item.pk == page.pk %} is-active{% endif %}"
                                        href="{{ page_item.get_absolute_url }}"
                                        {% if page_item.pk == page.pk %}aria-current="page"{% endif %}>
                                         {% icon page_item.menu_icon %}
@@ -40,12 +40,12 @@
                                 </li>
                             {% endfor %}
                             {% for link in group.links %}
-                                <li class="{{ cls.menu_item }}">
-                                    <a class="{{ cls.menu_link }}" href="{% url link.url_name %}">
+                                <li class="pl-menu__item">
+                                    <a class="pl-menu__link" href="{% url link.url_name %}">
                                         {% icon link.icon %}
                                         <span>{{ link.label }}</span>
                                         {% if link.badge %}
-                                            <span class="{{ cls.chip }} {{ cls.spacer }}">{{ link.badge }}</span>
+                                            <span class="pl-chip pl-spacer">{{ link.badge }}</span>
                                         {% endif %}
                                     </a>
                                 </li>

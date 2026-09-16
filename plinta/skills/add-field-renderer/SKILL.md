@@ -122,18 +122,16 @@ should contain anyway.
 ## Drawing with the shared classes
 
 A renderer returns markup, so it names classes — and typed-in names stop
-working for a project running a style pack (§10.9). Read them from the
-vocabulary instead:
+working for a project that overrides the stylesheet. Use the ones
+`plinta.css` defines:
 
 ```python
-from plinta.utils.styles import classes
 
 def stock_badge(value, *, obj, field, user):
-    cls = classes()
     return format_html(
         '<span class="{} {}">{}</span>',
-        cls["chip"],
-        cls["chip_success"] if obj.in_print else cls["chip_neutral"],
+        "pl-chip",
+        "pl-chip--success" if obj.in_print else "pl-chip--neutral",
         "In print" if obj.in_print else "Out of print",
     )
 ```

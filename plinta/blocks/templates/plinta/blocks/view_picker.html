@@ -12,12 +12,12 @@
    away. No history entry either; switching a view is not a place the back
    button should return to, and the page's URL keeps the filters it had.
    {% endcomment %}
-<form method="get" action="{{ request.path }}" class="{{ cls.row }}"
+<form method="get" action="{{ request.path }}" class="pl-row"
       up-submit up-autosubmit up-target="#card-{{ slot.placement.pk }}"
       up-history="false">
     {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
-    <label class="{{ cls.visually_hidden }}" for="{{ slot.param }}view">View</label>
-    <select class="{{ cls.select }} {{ cls.select_sm }}" id="{{ slot.param }}view"
+    <label class="pl-visually-hidden" for="{{ slot.param }}view">View</label>
+    <select class="pl-select pl-select--sm" id="{{ slot.param }}view"
             name="{{ slot.param }}view">
         <option value="">Default</option>
         {% for saved in slot.views %}

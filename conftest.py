@@ -8,7 +8,7 @@ from plinta.events import signals
 from plinta.pages import widgets
 from plinta.permissions import actions, policies
 from plinta.forms import overrides
-from plinta.utils import assets, icons, placeholders, styles
+from plinta.utils import assets, icons, placeholders
 
 
 @pytest.fixture
@@ -86,21 +86,6 @@ def stylesheet_registry():
     assets._registry.update(saved)
     assets._scripts.clear()
     assets._scripts.update(saved_scripts)
-
-
-@pytest.fixture
-def style_registry():
-    """Style packs reset to plinta's own, restored afterwards.
-
-    Not emptied: `classes()` must always resolve, and the built-in pack is
-    what every default resolves to.
-    """
-    saved = dict(styles._registry)
-    styles._registry.clear()
-    styles._registry[styles.PLINTA] = dict(styles.DEFAULT)
-    yield styles
-    styles._registry.clear()
-    styles._registry.update(saved)
 
 
 @pytest.fixture

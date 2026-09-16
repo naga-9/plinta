@@ -20,8 +20,9 @@ keep, since no options endpoint ever existed; GridStack (13.3) is
 fetched on the first *Edit layout* click from URLs the template hands
 over, not registered as an asset, and two cards of a size swap rather
 than push when one is dropped on the other, which is its collision rule.
-The spec changes in part 5 are still to do, beyond the §12.4 and §17.3
-lines that would otherwise have been false.
+Part 5 has landed as well: the spec says what is, ADR 0005 carries its
+second amendment and ADR 0009 the no-JS rule. Nothing in this document is
+still to do.
 
 What this document changes in `SPEC.md` when it lands is listed at the end.
 

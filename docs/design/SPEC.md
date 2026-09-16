@@ -285,9 +285,9 @@ The register. Nowhere else in this document counts them; a count in two places i
 
 **Core's dependencies are Django, django-ninja and pydantic.** `openpyxl` and `pandas` leave with `export`, `Pillow` with `attachments`, `django-ckeditor-5` with `comments`, `weasyprint` with PDF. Nothing native, nothing heavy.
 
-**Core's front end is the shared client plus the shell's `theme-toggle.js` and generated `tokens.js`.** It ships **no CSS framework** (§10.8) and **no grid library** (§11.2): the styling is plinta's own, built from `tokens.json`, and core's `table_plinta` is server-rendered HTML. Its vendored libraries are Bootstrap Icons — the icon set alone, which needs none of Bootstrap's CSS — Tom Select, Luxon and GridStack, served from `static/`, never a CDN (§17). Tabulator ships with `contrib.components.table_tabulator`; Plotly, WebDataRocks, Flexmonster and jsGantt with theirs.
+**Core's front end is the shared client, the shell's own scripts, and the vendors of its chrome.** It ships **no CSS framework** (§10.8) and **no grid library** (§11.2): the styling is plinta's own, built from `tokens.json`, and core's `table_plinta` is server-rendered HTML. Its vendored libraries are Unpoly, which swaps fragments and draws layers (§7.12); Tom Select, the multi-select filter; SortableJS, the column chooser and sort builder; GridStack, the layout editor; and Bootstrap Icons — the icon set alone, which needs none of Bootstrap's CSS. All served from `static/`, never a CDN (§17). Tabulator ships with `contrib.components.table_tabulator`; Plotly, WebDataRocks, Flexmonster and jsGantt with theirs.
 
-**What a viewer loads is close to nothing.** Layout is CSS grid driven by the stored position, so viewing a page needs no layout JavaScript; GridStack loads only in edit mode. **Core carries no front-end major-version upgrade at all** — every vendor that could impose one travels with a component someone chose to install.
+**What a viewer loads is small.** Layout is CSS grid driven by the stored position, so viewing a page needs no layout JavaScript; GridStack is fetched on the first *Edit layout* click and by nobody else. **Core carries a front-end major-version upgrade for its chrome and none for a component** — every vendor that draws data travels with a component someone chose to install (ADR 0005, as amended).
 
 **A minimal install is eleven packages** — the core layers and nothing else. A full install adds eleven contrib packages and ten contrib components, so thirty-two. Both ends are supported configurations and both are exercised in CI (§20).
 
@@ -1630,6 +1630,8 @@ This is what makes remote pagination work without the client owning timing: Tabu
 
 **Adapters ship with their components.** Core carries the client and nothing else — `table_plinta` is server-rendered and needs no adapter; `contrib.components.chart_plotly` carries its adapter and Plotly. Same rule as vendor assets (§17) and ADR 0005 (§24).
 
+**Mounting is an Unpoly compiler.** The client registers `up.compiler('[data-plinta-mount]', …)` and Unpoly runs it on whatever it inserts — the document at boot, a swapped card, a form fetched into a layer — so nothing has to know *when* markup arrived. The compiler returns a destructor that calls the adapter's `destroy`, so a grid taken out of the document takes its `window` listeners with it. There is no `plinta.mount(root)` to call and no `plinta:content` event to listen for; both existed to tell scripts that markup had arrived, which is what a compiler is. Every other enhancer in the shell — Tom Select, SortableJS, the layout editor's toggle — is a compiler on its own selector for the same reason.
+
 ### 7.5 Module format: ES modules
 
 **Settled — and already the practice.** `base.html:119` loads `core.js` with `type="module"`, and 17 of the JS files already use `import` / `export`.
@@ -1790,9 +1792,9 @@ They are not `TableComponent` methods either. A table drawn on the server and th
 | The shared client | a **consolidation** of `fetch-helpers.js` + three `core.js` exports + four duplicated widget paths |
 | `core.js` | **split along the package layout**; two contrib concerns move out |
 | JS file placement | mirrors the package layout — adapters with components, contrib JS with its app |
-| Import-boundary test | **extended to JS** — core JS names no vendor, only the client calls `fetch`, only core defines `window.plinta` |
+| Import-boundary test | **extended to JS** — core JS names no component's vendor; a package's script never asks the server or renders a fragment itself (`fetch`, `up.request`, `up.render`, `up.navigate`, `up.follow`, `up.submit`), though it may register a compiler and draw a link carrying `up-` attributes; only core defines `window.plinta` |
 | Browser suite | a **fourth suite** — `pytest-browser.ini`, Playwright and a real Chromium, declared as the `browser` extra so the other three install without one |
-| Refreshing after a filter change | **a full page reload.** What it discards is client-side widget state the server never knew about, and after a filter change that state is meaningless — page four of the old result set is not page four of the new one |
+| Refreshing after a filter change | **swap the grid and the bar** (§7.12). The cards inside are rebuilt, which after a filter change is right — page four of the old result set is not page four of the new one — and the rest of the screen stays where it was |
 | Why a real browser and not jsdom | deferred-script timing and `readyState` are the browser's own semantics; jsdom does not model them, and the mount-order bug lived exactly there |
 | Widget wire format | **vendor-neutral** — `columns` / `rows` / `page` / `applied`, never one library's parameter names |
 | Column filter parameters | **`f.<column>`** — namespaced, so they cannot collide with the reserved names |
@@ -1823,11 +1825,15 @@ They are not `TableComponent` methods either. A table drawn on the server and th
 | A many-to-many's field permission | **enforced.** It is minted like every other column's and was subtracted from the denied set, so the grant was offered, listed and never consulted |
 
 
-### 7.12 A filter change reloads the page, and that is the answer
+### 7.12 A filter change updates the grid
 
-**Decided, not deferred.** Applying a filter or picking a saved filter set submits a plain `GET` form and the page re-renders. Nothing server-rendered is lost — the bar redraws from the query string, and a `PageFilterPreference` restores it on a later visit — so what a reload discards is only client-side widget state the server never knew about: which page of a grid you were on, a dragged column width, a clicked header sort, an open editor.
+**Decided, then revised.** Applying a filter or picking a saved filter set submits a plain `GET` form, and Unpoly swaps in the grid and the bar from the page the form would have loaded — `up-submit up-target="#pl-grid, #pl-filters"`, history on, so a filtered page is still a URL. The sidebar, the header and the scroll position stay where they were. What is discarded is client-side widget state inside the grid — which page of a grid you were on, a clicked header sort, an open editor — and after a filter change that state is meaningless: page four of the previous result set means nothing in the new one.
 
-**Discarding that is correct.** Page four of the previous result set means nothing in the new one. The reload is not a cost being tolerated; it is the right answer to "the question changed".
+**Every interaction has a URL and a form behind it; Unpoly changes how it happens.** A Django view that renders a page and redirects after a POST is already an Unpoly endpoint. Switching one card's saved view swaps that card alone (`#card-N`, no history entry); sorting or paging core's table swaps its card; a dialog is a layer over the page, closed by the server when the form inside it lands (`X-Up-Accept-Layer` from `page_view`, asked from inside one); the record form posts itself and gets itself back. The cascade — choose a title, see which shops sold it — is `up-validate` on the bar, which asks the page for the bar again without applying anything. A request that names only cards in `X-Up-Target` is answered with those cards alone.
+
+Chosen over Datastar because plinta's screens are navigation and dialogs more than they are client state, and Unpoly's layers, history and compilers cover those directly. Server push is the one thing given up; the bell polls.
+
+**How it was decided.** The first answer was a full reload, and it was the wrong answer to one case — switching one card's view rebuilt every other card, whose state was still meaningful. The three levels considered, kept as the record:
 
 v1 did refresh in place, and it is worth recording how, because it was cheaper than it looks: the filter form carried `hx-get` to **the page's own URL** with `hx-select=".blocks-grid"`, so the server rendered the whole page as usual and the client kept only the grid. No per-card endpoint, and inline components stayed correct because the server had drawn them.
 
@@ -1835,15 +1841,13 @@ Three levels, if this is ever revisited:
 
 | | server work | what survives |
 |---|---|---|
-| full reload — **what plinta does** | full page render | nothing client-side |
-| swap the grid (v1's HTMX) | **full page render**, discarded client-side | chrome, the bar, focus, no flash — **the cards inside are still rebuilt** |
+| full reload — the first answer | full page render | nothing client-side |
+| swap the grid — **what plinta does** | full page render, or the cards asked for | chrome, the bar, focus, scroll, no flash — the cards inside are rebuilt, through their compilers |
 | `load()` on the mounted widgets | one request per fetching card | the widget itself |
 
-The middle one buys less than it appears: it removes the flash and keeps the chrome, and still destroys every widget in the grid. Only the third preserves a grid's state, and it works for **fetch** components alone — an inline one has its rows in the HTML and would go stale — so it is the third *plus* the second, and it needs the client to remember what it mounted, which today it does not.
+The answer is the second row, with compilers making the cards inside survive: a swapped card is torn down through its adapter's `destroy` and mounted again through the same compiler, so the middle level no longer "destroys every widget in the grid" in any way that leaks. The card the interaction was about is the only one swapped; the others are not touched at all.
 
-**HTMX is not the way in either case.** Core carries no front-end vendor (ADR 0005); the client already fetches, and ten lines there cost less than a dependency core's own table would then be entitled to.
-
-**Where the argument is weaker:** the saved-view picker uses the same mechanism, and switching one card's view rebuilds every other card. The data stays right — views are placement-scoped (§8.2) — but the reasoning above does not apply, since the other cards' state was still meaningful. Not worth acting on until somebody notices.
+The reason the first answer stood as long as it did was ADR 0005's "core carries no front-end vendor". That reason is gone with the amendment: core carries vendors for its chrome, and Unpoly is chrome.
 
 ## 8. Layer 7 — blocks
 
@@ -2040,10 +2044,10 @@ It does **not** own: the export endpoint (`contrib.export`, §14) or anything a 
 | Denied vs invalid | **403 vs a field-keyed body** — refusing a write is not the same answer as failing to validate one |
 | Opening a record's form | **one endpoint**, `?record=` or nothing — a pencil, a card header button and a kanban card are callers, not variants. Add and edit differ by a query parameter |
 | Edit vs view | **not a mode.** The form offers what the viewer may change; the trigger never decides |
-| The dialog | **core chrome, a real `<dialog>`** — the browser owns backdrop, Escape and focus |
-| A trigger's attribute | **`data-plinta-open-form`**, never the one a mount carries: `closest` walks up, so a shared name turns every click inside the card into an opener |
+| The dialog | **an Unpoly layer** — a link with `up-layer="new modal"`; Unpoly owns backdrop, Escape and focus, and the server closes it when the form inside lands |
+| What closes a layer | **the server**: a page asked for from inside an overlay answers `X-Up-Accept-Layer`, and so does a saved form post — never a URL pattern on the opener, which a mounting prefix would break |
 | Form layout | a **registered template** naming the body, never a path in config — and never the shell, so a layout cannot break saving |
-| A field the viewer may see but not change | **shown, not offered** — formatted value, no `data-kind`, so it cannot be submitted. This is "view mode": two permissions, no second component |
+| A field the viewer may see but not change | **shown, not offered** — formatted value, no control, so it cannot be submitted. This is "view mode": two permissions, no second component |
 | A control the viewer may not see | **drawn as nothing**, so one layout serves every viewer |
 | A form with nothing editable | **no submit button** — one that cannot save is worse than none |
 | An unregistered layout | **stacks**, and is reported by a check — rendering degrades, so something else has to speak up |
@@ -2189,9 +2193,7 @@ Which fields it offers is the form's answer and not the caller's, so **"edit" an
 
 The row is reached through the block's own narrowing, the same gate the write applies — a form cannot be opened on a row that could not then be saved. The DataSource is the placement's own, because a block edits records of its own DataSource and never another's (§6.7); the opening component says only *which layout*, not what a form is.
 
-**The dialog is core chrome, a real `<dialog>`.** The browser owns the backdrop, Escape, the focus trap and returning focus — reimplementing those is how a modal becomes unusable with a keyboard. One dialog for every opener, because three owners is how three of them come to disagree.
-
-A trigger carries `data-plinta-open-form`, which is deliberately **not** the attribute a mount carries for the same URL: the listener matches with `closest`, which walks upwards, so a shared name made every click inside a table open a form — including the click that was opening a cell editor.
+**The dialog is an Unpoly layer.** A pencil on a row, a button on a card header and a kanban card are each a link to the form's URL with `up-layer="new modal"`; Unpoly owns the backdrop, Escape, the focus trap and returning focus — reimplementing those is how a modal becomes unusable with a keyboard. The form inside posts itself (§8.11, the form); a validation error is drawn back into the layer, and a save closes it — the server says so with `X-Up-Accept-Layer` — after which the opener reloads its card. The editors for saved views and filter sets are the same shape: plain templates whose root says `up-main`, posted and redirected to the page, which closes the layer because a page is never drawn inside one.
 
 **Mechanism is core's; arrangement is the component's.** A chart, a gantt and a table have nothing in common but the mechanisms, so core owns those and does not guess the rest: `register_config_layout(ChartConfig, "yourapp/chart_settings.html")`, and the layout places settings with `{% setting "x_field" %}`. Registered against the **schema**, walked up the MRO, and the stacked default serves a component that registers nothing. The same layout serves the block inspector, since the settings are the same either way — a delta in one, the base in the other.
 
@@ -2358,13 +2360,11 @@ Choosing a store leaves the title filter offering only what sold there, and choo
 
 **A control never narrows itself.** Its own selection is excluded from the sibling filters, or picking one option would remove the alternatives from its own list and the choice could not be changed. v1 spells the same rule as `skip_keys`.
 
-**The narrowing happens while somebody is choosing, not only after they apply.** Choosing a title should show which shops sold it *before* the choice is made; applying first in order to find out what to apply is the wrong order. A plain view — `pages/<pk>/filter-options/`, private UI transport (§15.4), `@login_required`, gated by the page's own permission — answers with what each control should offer given the rest, and the bar's script repopulates the others.
-
-It computes nothing of its own: `drawn_controls` is what the page render already calls, so the live answer and the reloaded one cannot drift. **With the script absent the cascade still happens on Apply**, which is the enhancement pattern the shell uses throughout.
+**The narrowing happens while somebody is choosing, not only after they apply.** Choosing a title should show which shops sold it *before* the choice is made; applying first in order to find out what to apply is the wrong order. The bar carries `up-validate="#pl-filters"`: leaving any control asks the page for the bar again, with `X-Up-Validate` set, and Unpoly swaps in what comes back. No endpoint of its own — the same view and the same `drawn_controls` the page render calls, so the live answer and the applied one cannot drift. `page_view` answers such a request without remembering the choice and without drawing a card.
 
 **A value no longer on offer is dropped from the selection**, not kept. It now matches nothing, and leaving it would filter the page to nothing while looking like a live choice.
 
-**The script never touches an enhanced control directly.** It rewrites the native `<select>` and dispatches `plinta:options`; whichever enhancer owns that select redraws itself. The cascade does not know what a chip or a Tom Select is, and a widget that caches its options — as Tom Select does — resyncs in its own adapter.
+**The bar is redrawn, so nothing has to resync.** Each control comes back fresh from the server and its widget is built again by its compiler, with the old one taken down by its destructor. A widget that kept its own copy of the options across the swap would show yesterday's list while the page filters on today's; one that is rebuilt from the select cannot.
 
 **The cost is one query per option-bearing control, per render.** `order_by()` clears any `Meta.ordering` before `distinct()`: left in place, its columns join the SELECT and the same store returns once per sale.
 
@@ -2574,7 +2574,7 @@ A placement naming a view the viewer may not see **falls through** rather than r
 
 `PageBlock.clean` refuses a view belonging to a different block. A view carries a config shaped by one component, and another's would merge keys that component does not declare — `extra='forbid'` would then refuse the block at render, far from the screen where the mistake was made.
 
-**Switching a view keeps your place.** A GET is a fresh navigation however little changed, so the browser scrolls to the top; a form marked `data-plinta-keep-scroll` stores the position and the next load restores it. Only forms that ask: a filter bar's Apply is a deliberate "show me something else", and starting at the top is right there. v1 did the same and additionally hid the document while retrying the scroll twenty times, which its AJAX blocks needed and ours do not.
+**Switching a view keeps your place, and the other cards' state.** The picker submits on change into its own card — `up-autosubmit up-target="#card-N"`, no history entry — so a fragment swap that does not scroll replaces the scroll-restoring script v1 needed, and a grid on another card stays on the page it was on. The page's URL does not change: the card's own data URL names the view it was drawn with, so the feed serves the view's rows whatever the URL says.
 
 **Views are fetched once for the page**, not once per block, and the default is derived from what was fetched rather than queried again. The query-count guard caught both: per-block cost had gone from four to six.
 
@@ -2928,7 +2928,7 @@ It registers under its own key rather than replacing `table_plinta`, because the
 
 **Why the split.** A grid library is an opinion about how a table behaves, and putting one in core makes every consumer either accept that opinion or fight it. The same argument that keeps a CSS framework out of core (§10.8) applies with more force here, because a table is the component most likely to be replaced: a consumer who prefers AG Grid, DataTables or their own writes a component and registers it, rather than working around Tabulator.
 
-**The payoff is that a viewer's page loads no vendor JavaScript at all.** Layout is CSS grid from the stored position, styling is plinta's own, and the table is HTML. Core carries no front-end major-version upgrade — not one.
+**The payoff is that a viewer's page loads no component's vendor.** Layout is CSS grid from the stored position, styling is plinta's own, and the table is HTML. What it does load is the shell's chrome — Unpoly, and Tom Select where the bar has a multi-select — which is core's upgrade burden and nobody else's.
 
 **`kanban_plinta`** — the largest at 1,106 LOC and 18 config keys. Shows label chips when `contrib.labels` is installed and colours columns by workflow state when `contrib.workflow` is — both declared `enhances`, each naming its substitute (§2.5).
 
@@ -3584,7 +3584,7 @@ So every component here registers exactly the way an external package would. The
 
 ##### Vendor isolation
 
-A component's front-end dependency ships with it, and the package name says which — Plotly with `chart_plotly`, jsGantt with `gantt_jsgantt`, Tabulator with `table_tabulator`. Core carries no CSS framework (§10.8) and no grid library (§11.2), so it absorbs no front-end major-version upgrade at all.
+A component's front-end dependency ships with it, and the package name says which — Plotly with `chart_plotly`, jsGantt with `gantt_jsgantt`, Tabulator with `table_tabulator`. Core carries no CSS framework (§10.8) and no grid library (§11.2); the vendors it does carry are its chrome's (§2.6), and a component's upgrade is never core's.
 
 ##### Enhancement
 
@@ -4033,11 +4033,11 @@ Two surfaces with two contracts is ADR 0007 (§24) applied rather than restated.
 
 ### 15.3 One content type for writes
 
-**A write endpoint accepts `application/json`. Another content type is a 415, not a second parser.**
+**A write endpoint accepts one shape — a record and the fields being written — as JSON, or as a browser posts a form. Another content type is a 415.**
 
-The exception is file upload, which is `multipart/form-data` because a file cannot travel as JSON without base64. `contrib.attachments` owns the only such endpoint.
+The record form (`form_plinta`) posts itself, so `block_write` reads `request.POST` alongside a JSON body: `submitted_form` turns the strings a browser sends into the same `{record, values}` a widget sends, by the column's kind, and one pipeline runs behind both. The answer matches the question — JSON gets the row or the errors as JSON, a form gets the form drawn again. This is not the second parser the rule below forbids: the shape is one, the coercion is one function, and the validation is the pipeline's either way.
 
-This is already paid for: the vendored **`json-enc`** htmx extension (§17) makes plinta's own forms submit JSON, and the shared client (§7.4) builds every other request. Nothing on the wire is form-encoded.
+File upload is `multipart/form-data` for its own reason — a file cannot travel as JSON without base64 — and `contrib.attachments` owns the only endpoint that takes one.
 
 The rule exists because v1's write endpoints branched on `request.content_type` and the two branches had different contracts. The JSON branch validated with pydantic; the form branch hand-rolled it, so `page_size=abc` raised `ValueError` and `columns={` raised `JSONDecodeError` — 500s where the JSON branch returned a 400, and unknown fields silently accepted where the JSON branch rejected them. One validated path and one unvalidated one, selected by a header.
 
@@ -4164,12 +4164,11 @@ Since plinta is pip-installed, a build could only ever run at **release time in 
 | Vendor | Used by | Lands |
 |---|---|---|
 | Tabler Icons | core chrome | **path data only**, inlined — no font, no stylesheet, no request (§10.9) |
-| htmx + `json-enc` | core transport | vendor |
+| Unpoly | core transport — fragments, layers, history | vendor, in the shell |
 | Tabulator | `table_tabulator` (contrib) | vendor, with the component |
 | Tom Select | core's multi-select filter | vendor, in the shell |
 | SortableJS | core's column chooser and sort builder, and the kanban later | vendor, in the shell |
-| Luxon | date handling (core) | vendor |
-| GridStack | the page composer (core) | vendor — loaded in edit mode only |
+| GridStack | the layout editor (core) | vendor, in the shell — fetched on the first *Edit layout* click |
 | Plotly | `contrib.components.chart` | vendor **with that package** |
 | WebDataRocks | `contrib.components.pivot` | vendor, licence permitting |
 | Flexmonster | `contrib.components.pivot` | **cannot be vendored** — see below |
@@ -4923,7 +4922,7 @@ Layer 1 is §3, layer 2 is §4, and so on — §1 is scope and architecture.
 | 6 | `components` | Contract, registry, `table_plinta`. No saved-view merge anywhere. |
 | 7 | `blocks` | Write pipeline emits its three signals — `object_writing`, `object_written`, `object_deleted` — and computes `changes`. `SavedView` merges directly; there is no hook, which went with the optionality (ADR 0004 (§24), revised). |
 | 8 | `pages` | Composition, `PageFilter`, menu. Blocks resolve by FK. Missing component and unviewable block both degrade to an empty slot. |
-| 9 | `shell` | One base template and its regions. `LoginRequiredMiddleware` with its system check. Tokens generated from `tokens.json`; `lint_hex_colors` green. A logged-in user can reach a page, sort it and page it, with no vendor script loaded. |
+| 9 | `shell` | One base template and its regions. `LoginRequiredMiddleware` with its system check. Tokens generated from `tokens.json`; `lint_hex_colors` green. A logged-in user can reach a page, sort it and page it, with no component's vendor loaded. |
 | 10 | authoring screens (§12) | A DataSource, a Block and a Page can be created, edited and arranged entirely in the browser. |
 | 11 | framework pages (§13) | `seed_platform_pages` is idempotent and yields a usable application on a fresh database. |
 | 12 | contrib, in any order | Each installs and uninstalls cleanly against core alone. |
@@ -5144,7 +5143,7 @@ Deltas remain deltas, never copies. A saved view stores only what differs, so a 
 
 ### ADR 0005 — Core ships one reference implementation per contract
 
-**Status:** accepted 2026-08-28; amended 2026-09-01 (see below)
+**Status:** accepted 2026-08-28; amended 2026-09-01 and 2026-09-16 (see below)
 
 #### Context
 
@@ -5180,7 +5179,15 @@ So the rule becomes: **core ships the contract, plus one reference implementatio
 
 The original wording remains correct about the catalogue: every *visualisation* is contrib, `details-card` included.
 
-**Cost accepted:** `form_plinta` requires JavaScript, which `table_plinta` does not. The write endpoint takes `application/json` and nothing else (§15.3), so a plain form post has nowhere to land; accepting form encoding would mean a second write entry point parsing a second content type, which is the duplication one endpoint exists to prevent. A no-JS write path can be added later as a contrib component posting to its own view — it would go through the same public door as any other.
+**Cost accepted at the time:** `form_plinta` required JavaScript of its own, because the write endpoint took `application/json` and nothing else. That cost was paid off by the second amendment: the form posts itself, the endpoint reads a form post into the same shape (§15.3), and the form has no script at all.
+
+#### Amendment, 2026-09-16 — core carries vendors for its chrome, and none for a component
+
+The consequence above said core carries no front-end vendor, and the reason given was the upgrade burden: Tabulator, Plotly, Flexmonster and jsGantt each impose a major-version cycle on whoever carries them. That reason is about **components** — libraries that draw data, which a consumer replaces by writing a component — and it was over-applied to the **shell**, where it became "no interaction in core": a hand-written modal, hand-written chips, hand-written drag and drop, and a layout editor pushed out to contrib for carrying nothing more than the instinct.
+
+So the rule is restated as what it always meant. **Core carries vendors for its chrome** — navigation and dialogs (Unpoly), a select control (Tom Select), a sortable list (SortableJS), the layout editor (GridStack), an icon set — and **none for a component**. The upgrade burden of the chrome is core's, knowingly and for these few; a component's is still whoever installs it. The JS half of the import-boundary test names the component vendors core may not mention, and no longer the chrome's.
+
+Three things followed. `contrib.filters_tomselect` and `contrib.composer` were absorbed, since nothing was left for them to add over core's own. `form_plinta` lost its script. And the reference-implementation rule is unchanged: two contracts, two components, every visualisation contrib.
 
 ### ADR 0006 — Tenancy is a provider, not a dependency
 
@@ -5292,6 +5299,26 @@ So `actions` **could** have shipped as contrib declaring `composes: workflow`. T
 An earlier draft of §14 also claimed `Action` "uses `WorkflowMixin` when `contrib.workflow` is installed and falls back to a plain status field otherwise… guarded and degrading." No such fallback exists in the code. That sentence is recorded here because it is the failure mode the `enhances` contract now guards against: a dependency described as optional because describing it that way preserved a rule. An `enhances` relationship must **name its substitute** (§2.5), and a claim of degradation that cannot name one is false.
 
 **What this does not mean.** Contrib packages may still be domain-shaped, and may still declare `composes` on one another. The test is not "is it domain?" but "does every application want it?" `actions` did not.
+
+### ADR 0009 — JavaScript-disabled is not a supported configuration
+
+**Status:** accepted 2026-09-16
+
+#### Context
+
+The spec made two claims that read as one. The first was a discipline: the server is the authority, every screen is links and forms, and JavaScript changes *how* those happen and never *whether*. The second was a guarantee: `table_plinta` "works with JavaScript disabled", and the view picker carried a `<noscript>` button.
+
+The guarantee was only ever true of the core table and the filter bar. Every interactive component needs JavaScript regardless, and a guarantee that holds for a third of the product is not one. No test ran with JavaScript disabled; no second code path existed anywhere. Nobody runs a dashboard with JavaScript off.
+
+#### Decision
+
+> Core renders every screen as HTML the server drew. Links navigate, forms submit, layout is CSS. JavaScript changes how those happen — in place, without a reload, with a widget — never whether they can. JS-disabled is not a supported configuration.
+
+#### Consequences
+
+The discipline stays, and it is what made Unpoly (§7.12) cost so little: a view that renders a page and redirects after a POST was already an endpoint for it. The `<noscript>` button and the sentences defending a no-JS path are gone. §12.4's "view mode is CSS grid with no JavaScript" stands as the performance statement it always was.
+
+What is given up is a claim that was not being kept. What is kept is the reason the claim was made: a screen that is links and forms can be reasoned about, tested with Django's test client, and driven by any client that speaks HTTP.
 
 ---
 

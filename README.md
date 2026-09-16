@@ -102,9 +102,9 @@ describes and the code does not yet. [Status](#status) is the summary.
   also where the permission surface is created.
 - **Blocks catalogue and inspector** — the inspector derives its form from the
   component's own schema, so a third-party component gets one free.
-- **Page composer** — page settings, place and remove blocks, and arrange the
-  grid; dragging is an optional package and typing four numbers is the
-  fallback.
+- **Page composer** — page settings, place and remove blocks; *Edit layout*
+  on the page itself drags the cards, with a numbers form for the adjustment
+  a drag is too coarse for.
 - **Django admin as the floor** — every app registers its models, so the
   screens are a convenience rather than the only door.
 

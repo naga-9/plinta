@@ -50,7 +50,7 @@ document the layer it opens in shows; the layer itself is the opener's.
         <div class="{{ cls.field }}">
             <label class="{{ cls.label }}">
                 <input class="{{ cls.checkbox }}" type="checkbox" name="public"
-                       data-plinta-public
+                       data-plinta-public up-switch="[data-plinta-default-scope]"
                        {% if set and not set.owner %}checked{% endif %}>
                 Everyone can use this set
             </label>
@@ -64,11 +64,13 @@ document the layer it opens in shows; the layer itself is the opener's.
                        {% if set.is_default %}checked{% endif %}>
                 Open the page with these filters
             </label>
-            <div class="{{ cls.help }}" data-plinta-default-scope="personal">
+            <div class="{{ cls.help }}" data-plinta-default-scope="personal"
+                 {% if may_publish %}up-show-for=":unchecked"{% endif %}>
                 Yours: it applies when you have not filtered the page yourself.
             </div>
             {% if may_publish %}
-                <div class="{{ cls.help }}" data-plinta-default-scope="shared">
+                <div class="{{ cls.help }}" data-plinta-default-scope="shared"
+                     up-show-for=":checked">
                     Shared, so this is <strong>everyone's</strong> starting point —
                     for anyone who has not saved their own.
                 </div>

@@ -11,7 +11,8 @@ from the DataSource and the model behind it, and the two never meet.
 It writes through the same endpoint a dragged card and an edited cell use: one
 row and the fields being written (§8.11). The form is the case that sends
 several at once, which is the whole reason the shape was fixed before the
-table was wired to it.
+table was wired to it — and the one that sends them as a form post rather
+than JSON, since a form is what it is.
 """
 from __future__ import annotations
 
@@ -61,11 +62,10 @@ class FormConfig(ColumnsConfig):
 class FormComponent(Component):
     """One record's editable fields, written together.
 
-    **Requires JavaScript**, unlike core's table. The write endpoint takes
-    `application/json` and nothing else (§15.3), so a plain form post has
-    nowhere to go — the alternative was a second write entry point parsing a
-    second content type, which is the duplication the one endpoint exists to
-    prevent. Worth recording as the cost it is.
+    Server-rendered, like core's table: a `<form>` posting to the write
+    endpoint, which Unpoly submits in place and answers with the form drawn
+    again — errors beside their fields, or a word that it saved. No script
+    of its own.
     """
 
     config_schema = FormConfig
@@ -109,33 +109,47 @@ class FormComponent(Component):
         *,
         editable: bool = True,
         user=None,
+        values: dict[str, Any] | None = None,
+        errors: dict[str, list[str]] | None = None,
     ) -> dict:
         """One field, as the template draws it.
 
         A read-only field carries its **formatted** value — `Yes`, `£8.75`,
         `bob, cal` — because nothing is going to edit it and that is what a
         person reads. An editable one carries the raw value, which is what an
-        editor has to be seeded with.
+        editor has to be seeded with — or what was just posted, when the form
+        is being drawn again to say what was wrong with it.
         """
         from plinta.renderers.html import cell
         from plinta.renderers.values import raw
 
+        name = field.field_name
+        if values is not None and name in values:
+            value = values[name]
+        else:
+            value = raw(record, name, kind) if record else None
         return {
-            "name": field.field_name,
-            "label": field.label or field.field_name,
+            "name": name,
+            "label": field.label or name,
             "kind": kind,
             "editable": editable,
             "control": CONTROLS.get(kind, "text"),
-            "value": raw(record, field.field_name, kind) if record else None,
+            "value": value,
             "display": cell(record, field, user) if record else "",
             "options": options,
             "help": getattr(field, "help_text", "") or "",
+            "errors": (errors or {}).get(name, []),
         }
 
     def render(self, config: FormConfig, user, **context: Any) -> str:
         """The controls, and the record they are about.
 
         No record is a create, which is the same form with nothing in it.
+
+        ``values`` and ``errors`` are what a post carried and what was wrong
+        with it, for drawing the form again; ``saved`` says the last post
+        landed. All three are the write endpoint's to pass, and absent when
+        a page draws the form fresh.
         """
         from plinta.datasources.choices import picker_for
         from plinta.datasources.kinds import kind_of
@@ -150,6 +164,7 @@ class FormComponent(Component):
             # would change.
             record = None
 
+        errors = context.get("errors") or {}
         controls = []
         for field, editable in self.fields_for(config, user, datasource=datasource):
             kind = kind_of(model, field.field_name, "string")
@@ -168,10 +183,26 @@ class FormComponent(Component):
                     drawn.get("options") or [],
                     editable=editable,
                     user=user,
+                    values=context.get("values"),
+                    errors=errors,
                 )
             )
 
         from plinta.components.layouts import get as layout_for
+
+        # What the form says at the bottom: that it saved, or what was wrong
+        # with it as a whole — a rejection that names no field, or names one
+        # the form does not draw, is said once here rather than nowhere.
+        drawn_names = {c["name"] for c in controls}
+        status = " ".join(
+            message
+            for name, messages in errors.items()
+            if name not in drawn_names
+            for message in messages
+        )
+        saved = bool(context.get("saved"))
+        if saved:
+            status = config.saved_text
 
         return render_to_string(
             "plinta/components/form.html",
@@ -191,5 +222,7 @@ class FormComponent(Component):
                 "config": config,
                 "write_url": context.get("write_url", ""),
                 "options_url": context.get("options_url", ""),
+                "status": status,
+                "saved": saved,
             },
         )

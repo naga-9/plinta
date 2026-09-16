@@ -16,9 +16,8 @@ class ComponentsConfig(AppConfig):
         from plinta.components import form, table  # noqa: F401
         from plinta.utils.assets import register_script
 
-        # After core's client, which it registers with. Ordered below the
-        # contrib range so a package's adapter still lands after it.
-        register_script("plinta/js/form.js", order=200)
+        # After core's client. Ordered below the contrib range so a
+        # package's adapter still lands after them.
         register_script("plinta/js/column-order.js", order=200)
         register_script("plinta/js/sort-builder.js", order=200)
 

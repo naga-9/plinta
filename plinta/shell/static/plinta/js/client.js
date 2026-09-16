@@ -131,6 +131,13 @@
         return match ? decodeURIComponent(match[1]) : '';
     }
 
+    // And for every form Unpoly submits. Django's header, not Unpoly's
+    // default one, and read from the cookie rather than a meta tag: a form
+    // drawn without a request — the record form is — carries no token of
+    // its own, and this is what lets it post anyway.
+    up.protocol.config.csrfHeader = 'X-CSRFToken';
+    up.protocol.config.csrfToken = token;
+
     /**
      * Send one write: a record, and the fields being written.
      *

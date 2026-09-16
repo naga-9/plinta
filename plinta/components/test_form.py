@@ -158,26 +158,60 @@ def test_a_record_fills_the_controls(writer, source, book):
 def test_no_record_is_a_create(writer, source):
     """The same form with nothing in it."""
     out = drawn(FormConfig(), writer, source, None)
-    assert '"record": null' in out
+    assert 'name="record" value=""' in out
     assert 'value="Ariel"' not in out
 
 
-def test_the_payload_is_the_shape_the_client_reads(writer, source, book):
-    """`{"config": ...}`, like every other mount.
+def test_the_record_travels_with_the_post(writer, source, book):
+    """A hidden field, so a save is of this row and not a second one.
 
-    Emitted flat, the client finds no config, the adapter sees no record, and
-    every save is sent as a create — which is refused for anyone without the
-    add permission and looks like a permission bug.
+    Sent as a create instead, it would be refused for anyone without the add
+    permission and look like a permission bug.
     """
     out = drawn(FormConfig(), writer, source, book)
-    assert '{"config": {"record": %d}}' % book.pk in out
+    assert 'name="record" value="%d"' % book.pk in out
+
+
+def test_it_is_a_form_unpoly_submits(writer, source, book):
+    """A real post to the write URL, swapped in place; no script of its own."""
+    out = drawn(FormConfig(), writer, source, book)
+    assert 'method="post" action="/w/"' in out
+    assert "up-submit" in out and "up-validate" in out
+    assert "data-plinta-mount" not in out
 
 
 def test_a_record_of_another_model_is_not_ours_to_edit(writer, source, book):
     """A detail page about something else. Drawing it filled in would be a
     lie about what saving would change."""
     out = drawn(FormConfig(), writer, source, Region.objects.first())
-    assert '"record": null' in out
+    assert 'name="record" value=""' in out
+
+
+def test_a_post_is_drawn_again_as_it_was_sent(writer, source, book):
+    """What was typed, not what is stored, with the message beside it — so
+    the writer sees their own mistake rather than a form that reverted."""
+    out = FormComponent().render(
+        FormConfig(), writer, datasource=source, record=book, write_url="/w/",
+        values={"title": "Typed"}, errors={"title": ["Too long."]},
+    )
+    assert 'value="Typed"' in out and 'value="Ariel"' not in out
+    assert "is-invalid" in out and "Too long." in out
+
+
+def test_what_names_no_field_is_said_at_the_form(writer, source, book):
+    out = FormComponent().render(
+        FormConfig(), writer, datasource=source, record=book, write_url="/w/",
+        errors={"__all__": ["No."]},
+    )
+    assert "No." in out
+
+
+def test_a_saved_form_says_so(writer, source, book):
+    out = FormComponent().render(
+        FormConfig(saved_text="Done"), writer, datasource=source, record=book,
+        write_url="/w/", saved=True,
+    )
+    assert "Done" in out and "pl-form__status--saved" in out
 
 
 def test_a_relation_is_drawn_as_the_choices_it_has(writer, source, book):
@@ -244,8 +278,8 @@ def test_a_layout_draws_the_body(writer, source, book, layout):
 def test_a_layout_does_not_own_the_shell(writer, source, book, layout):
     """Everything a save depends on is still the component's."""
     out = drawn(FormConfig(layout=layout), writer, source, book)
-    assert 'data-plinta-mount="form_plinta"' in out
-    assert '{"config": {"record": %d}}' % book.pk in out
+    assert 'action="/w/"' in out and "up-submit" in out
+    assert 'name="record" value="%d"' % book.pk in out
     assert 'type="submit"' in out
     assert "data-plinta-status" in out
 
@@ -275,7 +309,7 @@ def test_an_unregistered_layout_stacks_rather_than_breaking(writer, source, book
     the event that turns a component into an empty slot rather than a crash."""
     out = drawn(FormConfig(layout="nonesuch"), writer, source, book)
     assert 'name="title"' in out
-    assert 'data-plinta-mount="form_plinta"' in out
+    assert 'action="/w/"' in out
 
 
 # --- view as well as edit ---------------------------------------------------
@@ -306,12 +340,12 @@ def test_a_reader_sees_the_record(reader, source, book):
 
 
 def test_a_reader_is_offered_nothing(reader, source, book):
-    """Shown, not offered. And no `data-kind`, which is what the adapter
-    collects by — so a field the save would refuse cannot be sent by
-    accident, whatever a layout does with it."""
+    """Shown, not offered: no control at all, so a field the save would
+    refuse cannot be sent by accident, whatever a layout does with it."""
     out = drawn(FormConfig(), reader, source, book)
-    assert "data-kind" not in out
-    assert "<input" not in out
+    assert 'name="title"' not in out
+    assert 'name="in_print"' not in out
+    assert 'name="region"' not in out
     assert "<select" not in out
 
 
@@ -335,7 +369,7 @@ def test_a_partly_writable_form_offers_only_that_part(writer, source, book):
         Permission.objects.get(codename="change_book_title")
     )
     out = drawn(FormConfig(), User.objects.get(pk=writer.pk), source, book)
-    assert 'data-kind="string"' not in out          # title is shown only
+    assert 'name="title"' not in out                # title is shown only
     assert 'name="in_print"' in out                 # and this is still offered
     assert 'type="submit"' in out
     assert "Ariel" in out

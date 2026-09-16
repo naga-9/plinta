@@ -534,7 +534,8 @@ def test_a_form_draws_the_record_it_is_about(page, live_server, signed_in, detai
 
 
 def test_a_form_writes_every_field_at_once(page, live_server, signed_in, detail):
-    """The many-field shape, through the same endpoint one dragged card uses."""
+    """The many-field shape, through the same endpoint one dragged card uses
+    — posted as a form, and answered with the form saying it saved."""
     from tests.testapp.models import Book, Region
 
     record = open_detail(page, live_server, detail)
@@ -544,10 +545,9 @@ def test_a_form_writes_every_field_at_once(page, live_server, signed_in, detail)
     page.select_option('.pl-form [name="region"]', str(south.pk))
     # `in_print` is visible and not editable here, so the form draws no
     # control for it — which the last test in this group asserts directly.
-    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
-        page.click('.pl-form button[type="submit"]')
+    page.click('.pl-form button[type="submit"]')
+    page.wait_for_selector(".pl-form__status--saved", timeout=15000)
 
-    assert answer.value.status == 200
     saved = Book.objects.get(pk=record.pk)
     assert saved.title == "Rewritten"
     assert saved.region == south
@@ -556,27 +556,41 @@ def test_a_form_writes_every_field_at_once(page, live_server, signed_in, detail)
 def test_a_rejected_field_is_answered_beside_itself(
     page, live_server, signed_in, detail
 ):
-    """A 422 names the fields, and each message belongs to one control."""
+    """A 422 draws the form again, and each message belongs to one control."""
+    from tests.testapp.models import Book
+
+    record = open_detail(page, live_server, detail)
+    page.fill('.pl-form [name="title"]', "x" * 500)
+    page.click('.pl-form button[type="submit"]')
+
+    field = page.locator('.pl-form [data-plinta-field="title"]')
+    page.wait_for_selector('[data-plinta-field="title"].is-invalid', timeout=15000)
+    assert field.locator("[data-plinta-error]").inner_text().strip()
+    # As typed, not as stored: the writer sees their mistake, not a revert.
+    assert field.locator("input").input_value() == "x" * 500
+    assert Book.objects.get(pk=record.pk).title == record.title
+
+
+def test_a_field_is_checked_as_it_is_left(page, live_server, signed_in, detail):
+    """`up-validate`: leaving a field asks the server whether what it holds
+    would be accepted, and nothing is saved by asking."""
     from tests.testapp.models import Book
 
     record = open_detail(page, live_server, detail)
     page.fill('.pl-form [name="title"]', "x" * 500)
     with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
-        page.click('.pl-form button[type="submit"]')
-
-    assert answer.value.status == 422
-    field = page.locator('.pl-form [data-plinta-field="title"]')
+        page.locator('.pl-form [name="title"]').blur()
+    assert answer.value.request.headers.get("x-up-validate")
     page.wait_for_selector('[data-plinta-field="title"].is-invalid', timeout=15000)
-    assert field.locator("[data-plinta-error]").inner_text().strip()
     assert Book.objects.get(pk=record.pk).title == record.title
+    assert page.locator(".pl-form__status--saved").count() == 0
 
 
 def test_a_form_says_when_it_saved(page, live_server, signed_in, detail):
     """A write that changed nothing visible still has to say it happened."""
     open_detail(page, live_server, detail)
     page.fill('.pl-form [name="title"]', "Quietly changed")
-    with page.expect_response(lambda r: r.url.endswith("/write/")):
-        page.click('.pl-form button[type="submit"]')
+    page.click('.pl-form button[type="submit"]')
     page.wait_for_selector(".pl-form__status--saved", timeout=15000)
     assert page.locator("[data-plinta-status]").inner_text().strip() == "Saved"
 
@@ -621,7 +635,7 @@ def test_a_reader_sees_the_record_and_is_offered_nothing(
 
     record = open_detail(page, live_server, detail)
     assert record.title in page.locator(".pl-form").inner_text()
-    assert page.locator(".pl-form [data-kind]").count() == 0
+    assert page.locator(".pl-form input:not([type=hidden]), .pl-form select").count() == 0
     assert page.locator('.pl-form button[type="submit"]').count() == 0
 
 
@@ -640,8 +654,9 @@ def test_a_pencil_opens_the_record_in_a_dialog(page, live_server, signed_in, scr
     assert page.locator('up-modal [name="title"]').input_value() == first.title
 
 
-def test_the_dialog_form_writes(page, live_server, signed_in, screen):
-    """It mounts like any other widget, though its markup arrived late."""
+def test_the_dialog_form_writes_and_closes(page, live_server, signed_in, screen):
+    """Saved is "done" for a form in a layer: the layer closes and the card
+    is reloaded, so the row shows what was written."""
     from tests.testapp.models import Book
 
     open_page(page, live_server, screen)
@@ -650,11 +665,26 @@ def test_the_dialog_form_writes(page, live_server, signed_in, screen):
     rows(page).first.locator("a[up-layer]").click()
     page.wait_for_selector("up-modal .pl-form", timeout=15000)
     page.fill('up-modal [name="title"]', "From the dialog")
-    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
-        page.click('up-modal button[type="submit"]')
+    page.click('up-modal button[type="submit"]')
+    page.wait_for_selector("up-modal", state="detached", timeout=15000)
 
-    assert answer.value.status == 200
     assert Book.objects.get(pk=first.pk).title == "From the dialog"
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('.tabulator-row')]"
+        ".some(r => r.textContent.includes('From the dialog'))",
+        timeout=15000,
+    )
+
+
+def test_a_rejected_dialog_form_stays_open(page, live_server, signed_in, screen):
+    """A validation error is drawn in the layer; nothing closes."""
+    open_page(page, live_server, screen)
+    rows(page).first.locator("a[up-layer]").click()
+    page.wait_for_selector("up-modal .pl-form", timeout=15000)
+    page.fill('up-modal [name="title"]', "x" * 500)
+    page.click('up-modal button[type="submit"]')
+    page.wait_for_selector('up-modal [data-plinta-field="title"].is-invalid', timeout=15000)
+    assert page.locator("up-modal").count() == 1
 
 
 def test_add_opens_the_same_form_with_nothing_in_it(
@@ -678,9 +708,8 @@ def test_add_opens_the_same_form_with_nothing_in_it(
     assert page.locator('up-modal [name="title"]').input_value() == ""
 
     page.fill('up-modal [name="title"]', "Brand new")
-    with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
-        page.click('up-modal button[type="submit"]')
-    assert answer.value.status == 200
+    page.click('up-modal button[type="submit"]')
+    page.wait_for_selector("up-modal", state="detached", timeout=15000)
     assert Book.objects.filter(title="Brand new").exists()
 
 
@@ -934,7 +963,8 @@ def test_the_label_follows_the_shared_box(page, live_server, signed_in, screen, 
     assert personal.is_visible() and not shared.is_visible()
 
     page.check('up-modal [name="public"]')
-    assert shared.is_visible() and not personal.is_visible()
+    shared.wait_for(state="visible", timeout=15000)
+    personal.wait_for(state="hidden", timeout=15000)
 
 
 def test_the_sort_builder_adds_and_removes_rows(page, live_server, signed_in, screen):

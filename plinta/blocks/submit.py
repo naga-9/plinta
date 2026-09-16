@@ -18,8 +18,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from plinta.blocks.write import WriteDenied, write_or_errors
+from plinta.blocks.write import WriteDenied, validate, write_or_errors
 from plinta.datasources.services import writable_fields as writable
+
+#: What a posted form carries besides its fields.
+FORM_RESERVED = frozenset({"record", "csrfmiddlewaretoken"})
+
 
 def submitted(body: dict[str, Any]) -> tuple[Any, dict[str, Any]]:
     """The record and the values out of a request body.
@@ -31,6 +35,49 @@ def submitted(body: dict[str, Any]) -> tuple[Any, dict[str, Any]]:
     values = body.get("values")
     return (record if record not in ("", None) else None,
             values if isinstance(values, dict) else {})
+
+
+def submitted_form(datasource, data) -> tuple[Any, dict[str, Any]]:
+    """The record and the values out of a posted form.
+
+    The same shape `submitted` reads out of JSON, from what a browser sends
+    instead: every value a string, a list where a control repeats, and
+    nothing at all for a box left unticked. So the column's kind decides
+    what each becomes, the way the form's script used to before it was one —
+    a tick is a boolean, a multi-select is a list of pks, a cleared box is
+    null. A control that is not in the post was not on the form, and is not
+    written; the form's own hidden companions (`control.html`) keep an
+    unticked box and an emptied list in the post so that stays true.
+    """
+    from plinta.datasources.kinds import kind_of
+
+    record = data.get("record")
+    values = {
+        name: from_form(kind_of(datasource.model, name, "string"), data.getlist(name))
+        for name in data
+        if name not in FORM_RESERVED
+    }
+    return (record if record not in ("", None) else None, values)
+
+
+def from_form(kind: str, sent: list[str]) -> Any:
+    """One control's posted strings, in the shape the field holds."""
+    if kind == "boolean":
+        return bool(sent) and sent[-1] in ("on", "true", "True", "1")
+    if kind == "relations":
+        return [_pk(value) for value in sent if value != ""]
+    value = sent[-1] if sent else ""
+    if value == "":
+        # A cleared box means null for anything that is not text: a number
+        # box holding nothing is not the number zero, and a date box holding
+        # nothing is not a date.
+        return "" if kind == "string" else None
+    return _pk(value) if kind == "relation" else value
+
+
+def _pk(value: str) -> Any:
+    """A pk as the picker offered it: a number where it is one."""
+    return int(value) if value.isdigit() else value
 
 
 def coerced(datasource, values: dict[str, Any], user) -> dict[str, Any]:
@@ -101,6 +148,77 @@ def _many(rows, name: str, value: Any):
     return found
 
 
+def _reached(datasource, user, record: Any, narrow):
+    """The row ``record`` names, or a fresh one when it names none.
+
+    From the rows this viewer may see, narrowed the way the block is: a card
+    scoped to one region may not write outside it, and a row they cannot
+    read is one they cannot write.
+
+    Raises:
+        WriteDenied: the row is not one they may reach.
+    """
+    from plinta.datasources.services import get_queryset
+
+    model = datasource.model
+    if record is None:
+        return model()
+    rows = get_queryset(datasource, user, columns=[])
+    if narrow is not None:
+        rows = narrow(rows)
+    instance = rows.filter(pk=record).first()
+    if instance is None:
+        raise WriteDenied("no such record here")
+    return instance
+
+
+def _offered(datasource, user, values: dict[str, Any]) -> list[str]:
+    """The columns this viewer may write — every one in ``values`` among them.
+
+    Raises:
+        WriteDenied: one is not. Refused, never dropped: saving the rest and
+            reporting success would tell the caller a write happened that
+            did not — the same rule the pipeline applies to a field
+            permission.
+    """
+    allowed = writable(datasource, user)
+    refused = sorted(set(values) - set(allowed))
+    if refused:
+        raise WriteDenied(
+            f"not writable here: {', '.join(refused)}", denied_fields=refused
+        )
+    return allowed
+
+
+def check(
+    block,
+    user,
+    *,
+    datasource,
+    record: Any = None,
+    values: dict[str, Any],
+    narrow=None,
+) -> dict[str, list[str]] | None:
+    """The errors `submit` would answer with, without submitting.
+
+    What a form asks as it is being filled in: the same gates in the same
+    order — offered, reached, coerced, validated — and nothing saved. None
+    means the write would be accepted.
+
+    Raises:
+        WriteDenied: as `submit` would.
+    """
+    from django.core.exceptions import ValidationError
+
+    _offered(datasource, user, values)
+    instance = _reached(datasource, user, record, narrow)
+    try:
+        validate(instance, coerced(datasource, values, user), user)
+    except ValidationError as exc:
+        return exc.message_dict
+    return None
+
+
 def submit(
     block,
     user,
@@ -123,31 +241,10 @@ def submit(
     from django.core.exceptions import ValidationError
 
     from plinta.blocks.feed import kind_of, row_payload
-    from plinta.datasources.services import get_available_fields, get_queryset
+    from plinta.datasources.services import get_available_fields
 
-    allowed = writable(datasource, user)
-    refused = sorted(set(values) - set(allowed))
-    if refused:
-        # Refused, never dropped. Saving the rest and reporting success would
-        # tell the caller a write happened that did not — the same rule the
-        # pipeline applies to a field permission.
-        raise WriteDenied(
-            f"not writable here: {', '.join(refused)}", denied_fields=refused
-        )
-
-    model = datasource.model
-    if record is None:
-        instance = model()
-    else:
-        # From the rows this viewer may see, narrowed the way the block is:
-        # a card scoped to one region may not write outside it, and a row
-        # they cannot read is one they cannot write.
-        rows = get_queryset(datasource, user, columns=[])
-        if narrow is not None:
-            rows = narrow(rows)
-        instance = rows.filter(pk=record).first()
-        if instance is None:
-            raise WriteDenied("no such record here")
+    allowed = _offered(datasource, user, values)
+    instance = _reached(datasource, user, record, narrow)
 
     try:
         prepared = coerced(datasource, values, user)

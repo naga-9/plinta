@@ -110,6 +110,41 @@ def _before(instance: Model, fields: list[str], m2m: set[str]) -> dict[str, Any]
     return {name: _value(stored, name, m2m, relations) for name in fields}
 
 
+def validate(instance: Model, values: dict[str, Any], user) -> None:
+    """Authorise ``values`` against ``instance`` and validate them, saving nothing.
+
+    The first two stages of `write`, on their own: what a form asks as its
+    fields are filled in, before anything is committed. The plain values are
+    assigned to ``instance`` on the way — it is the model layer that
+    validates, and it validates a row — so the caller is left holding a row
+    carrying what was asked, and the database is untouched.
+
+    Raises:
+        WriteDenied: the user may not write this row or one of these fields.
+        ValidationError: the model layer refused the values.
+    """
+    model = type(instance)
+    m2m = _m2m_names(model) & set(values)
+
+    authorise(user, "add" if instance.pk is None else "change", instance, list(values))
+
+    for name, value in values.items():
+        if name in m2m:
+            continue
+        try:
+            setattr(instance, name, value)
+        except (ValueError, TypeError) as exc:
+            # Assigning a relation something that is not one raises here,
+            # before any validation runs — so without this a viewer typing
+            # into the wrong box gets a 500 rather than being told which
+            # field they got wrong. A value the field cannot hold is a
+            # rejection like any other.
+            raise ValidationError({name: [str(exc)]}) from exc
+    # Through the model layer, never around it: full_clean runs the field
+    # validators, the model's own clean, and its constraints.
+    instance.full_clean(exclude=[f.name for f in model._meta.many_to_many])
+
+
 @transaction.atomic
 def write(
     instance: Model,
@@ -138,25 +173,12 @@ def write(
     creating = instance.pk is None
     mode = "create" if creating else "update"
     m2m = _m2m_names(model) & set(values)
-    plain = {name: value for name, value in values.items() if name not in m2m}
 
-    authorise(user, "add" if creating else "change", instance, list(values))
+    validate(instance, values, user)
 
+    # Read from the database, so it does not matter that the instance already
+    # carries the new values.
     before = _before(instance, list(values), m2m)
-
-    for name, value in plain.items():
-        try:
-            setattr(instance, name, value)
-        except (ValueError, TypeError) as exc:
-            # Assigning a relation something that is not one raises here,
-            # before any validation runs — so without this a viewer typing
-            # into the wrong box gets a 500 rather than being told which
-            # field they got wrong. A value the field cannot hold is a
-            # rejection like any other.
-            raise ValidationError({name: [str(exc)]}) from exc
-    # Through the model layer, never around it: full_clean runs the field
-    # validators, the model's own clean, and its constraints.
-    instance.full_clean(exclude=[f.name for f in model._meta.many_to_many])
 
     signals.emit_writing(
         instance, mode=mode, fields=sorted(values), actor=user, source=source

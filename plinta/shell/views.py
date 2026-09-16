@@ -43,6 +43,9 @@ RESERVED = {"tab", "page", "sort", "reset", "view", "filterset"}
 #: One card's id, as the fragment swap addresses it (`pages/block.html`).
 CARD = re.compile(r"^#card-(\d+)$")
 
+#: How a browser posts a form. Both reach `request.POST`.
+FORM_TYPES = ("application/x-www-form-urlencoded", "multipart/form-data")
+
 
 def closes_a_layer(request: HttpRequest) -> bool:
     """Whether this page was asked for by something inside an overlay.
@@ -300,6 +303,12 @@ def block_write(request: HttpRequest, pk: int, placement: int) -> JsonResponse:
     dragged kanban card, an edited table cell and a submitted form all are
     (§8.11).
 
+    Two content types in, and the answer matches the question. A widget
+    sends JSON and gets JSON: the row, or the errors keyed by field. A form
+    posts itself and gets the form back, drawn again — saying what was wrong
+    beside each field, or that it saved. With `X-Up-Validate` the form is
+    only asking, and nothing is saved. One pipeline behind both.
+
     Narrowed by the **block's** own filters, never by the page's filter bar.
     A base filter is a boundary — a card scoped to one region may not write
     outside it — while the bar is a viewer's passing choice, and a write that
@@ -307,23 +316,30 @@ def block_write(request: HttpRequest, pk: int, placement: int) -> JsonResponse:
     nobody could reproduce.
     """
     from plinta.blocks.narrowing import narrowing_for
-    from plinta.blocks.submit import submit, submitted
+    from plinta.blocks.submit import check, submit, submitted, submitted_form
     from plinta.blocks.write import WriteDenied
 
-    if request.content_type != "application/json":
-        # §15.3: one content type for writes, so there is one thing to parse
-        # and one thing to protect.
-        return JsonResponse(
-            {"detail": "send application/json"}, status=415
-        )
-    try:
-        body = json.loads(request.body or b"{}")
-    except ValueError:
-        return JsonResponse({"detail": "unreadable body"}, status=400)
-    if not isinstance(body, dict):
-        return JsonResponse({"detail": "expected an object"}, status=400)
-
     _, slot, component = placement_of(request, pk, placement)
+
+    as_form = request.content_type in FORM_TYPES
+    if request.content_type == "application/json":
+        try:
+            body = json.loads(request.body or b"{}")
+        except ValueError:
+            return JsonResponse({"detail": "unreadable body"}, status=400)
+        if not isinstance(body, dict):
+            return JsonResponse({"detail": "expected an object"}, status=400)
+        record, values = submitted(body)
+    elif as_form:
+        record, values = submitted_form(slot.block.data_source, request.POST)
+    else:
+        # §15.3: one shape for writes, so there is one thing to protect —
+        # JSON as a widget sends it, or that same shape as a browser posts a
+        # form.
+        return JsonResponse(
+            {"detail": "send application/json or a form"}, status=415
+        )
+
     if not component.writes:
         # The component says it cannot, which is not the same as this viewer
         # may not: a chart refuses everyone, permission refuses someone.
@@ -331,24 +347,49 @@ def block_write(request: HttpRequest, pk: int, placement: int) -> JsonResponse:
             {"detail": f"{slot.block.component_type} does not write"}, status=405
         )
 
-    record, values = submitted(body)
     context = Q(**resolve_filters(slot.context_filter, request.user, None))
+    narrow = narrowing_for(slot.block, request.user, context)
+    asking = as_form and bool(request.headers.get("X-Up-Validate"))
     try:
-        written = submit(
-            slot.block,
-            request.user,
-            datasource=slot.block.data_source,
-            record=record,
-            values=values,
-            narrow=narrowing_for(slot.block, request.user, context),
-        )
+        if asking:
+            errors = check(
+                slot.block, request.user, datasource=slot.block.data_source,
+                record=record, values=values, narrow=narrow,
+            )
+            written = {"record": record, "row": None, "errors": errors}
+        else:
+            written = submit(
+                slot.block, request.user, datasource=slot.block.data_source,
+                record=record, values=values, narrow=narrow,
+            )
     except WriteDenied as exc:
         # A refusal and a rejection are different answers: this one will not
         # succeed however the values are changed.
+        if as_form:
+            return _record_form(
+                request, pk, placement, record=record, values=values,
+                errors={name: [str(exc)] for name in exc.denied_fields or ["__all__"]},
+                status=403,
+            )
         return JsonResponse(
             {"detail": str(exc), "fields": exc.denied_fields}, status=403
         )
-    return JsonResponse(written, status=200 if written["errors"] is None else 422)
+
+    status = 200 if written["errors"] is None else 422
+    if not as_form:
+        return JsonResponse(written, status=status)
+    if written["errors"] is not None or asking:
+        return _record_form(
+            request, pk, placement, record=record, values=values,
+            errors=written["errors"] or {}, status=status,
+        )
+    # Saved. The form is drawn again about the row it now is — a create has
+    # become an edit — and says so. Inside a layer, that is also "done": the
+    # layer closes, with the record for whoever opened it.
+    response = _record_form(request, pk, placement, record=written["record"], saved=True)
+    if closes_a_layer(request):
+        response["X-Up-Accept-Layer"] = json.dumps({"record": written["record"]})
+    return response
 
 
 @login_required
@@ -398,6 +439,26 @@ def block_form(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
     DataSource and never another's (§6.7), so there is nothing here to point
     somewhere else.
     """
+    return _record_form(request, pk, placement, record=request.GET.get("record") or None)
+
+
+def _record_form(
+    request: HttpRequest,
+    pk: int,
+    placement: int,
+    *,
+    record: Any,
+    values: dict | None = None,
+    errors: dict | None = None,
+    saved: bool = False,
+    status: int = 200,
+) -> HttpResponse:
+    """One record's form, drawn — fresh, or again after a post.
+
+    ``record`` names the row, or nothing for a create. ``values`` and
+    ``errors`` are a post's, for drawing the form as it was submitted with
+    what was wrong beside each field; ``saved`` says the post landed.
+    """
     from plinta.blocks.narrowing import narrowing_for
     from plinta.components.form import FormComponent
     from plinta.components.registry import find as find_component
@@ -406,9 +467,8 @@ def block_form(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
     _, slot, opener = placement_of(request, pk, placement)
     source = slot.block.data_source
 
-    record = None
-    asked = request.GET.get("record") or ""
-    if asked:
+    row = None
+    if record is not None:
         # Reached through the rows this viewer may see, narrowed the way the
         # block is — the same gate the write applies, so a form cannot be
         # opened on a row that could not then be saved.
@@ -417,10 +477,10 @@ def block_form(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
             get_queryset(source, request.user, columns=[])
         )
         try:
-            record = rows.filter(pk=asked).first()
+            row = rows.filter(pk=record).first()
         except (ValueError, TypeError):
-            record = None
-        if record is None:
+            row = None
+        if row is None:
             raise Http404("no such record here")
 
     component = find_component("form_plinta") or FormComponent()
@@ -434,14 +494,18 @@ def block_form(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
         config,
         request.user,
         datasource=source,
-        record=record,
+        record=row,
         write_url=f"/pages/{pk}/blocks/{placement}/write/",
         options_url=f"/pages/{pk}/blocks/{placement}/options/",
+        values=values,
+        errors=errors,
+        saved=saved,
     )
     # Wrapped here and not in the form's template: the same template draws
     # a form block on a detail page, and `up-main` there would make the
-    # block the page's main element. This response is only ever a layer's.
-    return HttpResponse(f'<div class="pl-dialog" up-main>{form}</div>')
+    # block the page's main element. This response is only ever a layer's,
+    # or the swap of a form that posted — which takes the form alone.
+    return HttpResponse(f'<div class="pl-dialog" up-main>{form}</div>', status=status)
 
 
 @login_required

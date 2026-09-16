@@ -156,11 +156,98 @@ def test_a_get_is_refused(client, screen):
 
 
 def test_another_content_type_is_refused(client, screen):
-    """One content type for writes, so there is one thing to parse."""
+    """One shape for writes: JSON, or that shape as a browser posts a form."""
     page, placement, _, _ = screen
-    response = client.post(url(page, placement), data="title=Crow",
-                           content_type="application/x-www-form-urlencoded")
+    response = client.post(url(page, placement), data="<title>Crow</title>",
+                           content_type="text/xml")
     assert response.status_code == 415
+
+
+# --- the same write, as a form post ----------------------------------------
+#
+# The form component posts itself rather than sending JSON, and is answered
+# with the form drawn again. Same pipeline, same refusals; only the shape of
+# the conversation differs.
+
+
+def test_a_form_post_saves_and_answers_with_the_form(client, screen):
+    page, placement, _, book = screen
+    response = client.post(url(page, placement),
+                           {"record": book.pk, "title": "Crow"})
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "<form" in body and 'value="Crow"' in body
+    assert "Saved" in body
+    book.refresh_from_db()
+    assert book.title == "Crow"
+
+
+def test_a_form_post_with_no_record_creates_and_becomes_an_edit(client, screen):
+    """The form comes back about the row it made, so the next save is of
+    that row and not a second one."""
+    page, placement, _, _ = screen
+    response = client.post(url(page, placement), {"record": "", "title": "Crow"})
+    assert response.status_code == 200
+    made = Book.objects.get(title="Crow")
+    assert f'name="record" value="{made.pk}"' in response.content.decode()
+
+
+def test_a_rejected_form_post_is_drawn_again_with_the_error(client, screen):
+    """A 422 carrying the form as submitted, the message beside its field."""
+    page, placement, _, book = screen
+    response = client.post(url(page, placement),
+                           {"record": book.pk, "title": "x" * 500})
+    assert response.status_code == 422
+    body = response.content.decode()
+    assert 'data-plinta-field="title" up-form-group' in body
+    assert "is-invalid" in body
+    assert 'value="' + "x" * 500 + '"' in body, "drawn as submitted, not as stored"
+    book.refresh_from_db()
+    assert book.title == "Ariel"
+
+
+def test_a_refused_form_post_is_a_403_drawn_as_a_form(client, screen):
+    page, placement, _, book = screen
+    response = client.post(url(page, placement),
+                           {"record": book.pk, "owner": "1"})
+    assert response.status_code == 403
+    assert "<form" in response.content.decode()
+
+
+def test_a_validating_post_answers_without_saving(client, screen):
+    """`X-Up-Validate` is the form asking, as a field is left, whether what
+    it holds would be accepted. The same answer as a submit, and nothing
+    written."""
+    page, placement, _, book = screen
+    response = client.post(url(page, placement),
+                           {"record": book.pk, "title": "x" * 500},
+                           headers={"X-Up-Validate": "title"})
+    assert response.status_code == 422
+    assert "is-invalid" in response.content.decode()
+
+    response = client.post(url(page, placement),
+                           {"record": book.pk, "title": "Crow"},
+                           headers={"X-Up-Validate": "title"})
+    assert response.status_code == 200
+    assert "is-invalid" not in response.content.decode()
+    assert "Saved" not in response.content.decode()
+    book.refresh_from_db()
+    assert book.title == "Ariel"
+
+
+def test_a_form_post_inside_a_layer_closes_it_when_saved(client, screen):
+    """Saved is "done" for a form in a layer: the record travels with the
+    close, for whoever opened it."""
+    page, placement, _, book = screen
+    response = client.post(url(page, placement),
+                           {"record": book.pk, "title": "Crow"},
+                           headers={"X-Up-Mode": "modal"})
+    assert json.loads(response["X-Up-Accept-Layer"]) == {"record": book.pk}
+
+    response = client.post(url(page, placement),
+                           {"record": book.pk, "title": "x" * 500},
+                           headers={"X-Up-Mode": "modal"})
+    assert "X-Up-Accept-Layer" not in response, "not done: nothing was saved"
 
 
 def test_an_unreadable_body_is_a_400(client, screen):
@@ -251,7 +338,7 @@ def test_no_record_is_a_create(client, screen):
     """Which is all that separates "add" from "edit"."""
     page, placement, _, _ = screen
     body = client.get(form_url(page, placement)).content.decode()
-    assert '"record": null' in body
+    assert 'name="record" value=""' in body
 
 
 def test_a_record_that_does_not_exist_is_not_found(client, screen):

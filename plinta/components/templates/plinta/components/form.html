@@ -1,24 +1,28 @@
 {% comment %} The form's shell, which is the component's and never a layout's.
 
-The mount, the payload, the submit and the error plumbing live here. A layout
-that owned them could get one subtly wrong — a field name, a data-kind, the
-payload shape — and the form would render perfectly and silently never save.
-A layout arranges controls; it cannot break saving.
+The record, the submit and the status live here. A layout that owned them
+could get one subtly wrong — the record's field, the action, the attribute
+Unpoly submits by — and the form would render perfectly and silently never
+save. A layout arranges controls; it cannot break saving.
+
+A real form post. Unpoly submits it in place and swaps in what comes back:
+the same form, drawn again with what was wrong beside each field, or saying
+it saved. `up-validate` asks the server the same question as each field is
+left, without saving; `up-disable` holds the controls while an answer is on
+its way. The CSRF token travels as a header the client configured, since
+this template is drawn without a request.
 {% endcomment %}
-<form class="{{ cls.form }}" data-plinta-mount="form_plinta"
-      data-plinta-write-url="{{ write_url }}"
-      data-plinta-options-url="{{ options_url }}">
-    {% comment %} The payload shape the client reads: config, and nothing to
-    inline because a form fetches nothing. {% endcomment %}
-    <script type="application/json">{"config": {"record": {{ record|default_if_none:"null" }}}}</script>
+<form class="{{ cls.form }}" method="post" action="{{ write_url }}"
+      up-submit up-disable up-validate>
+    <input type="hidden" name="record" value="{{ record|default_if_none:'' }}">
 
     {% include body %}
 
     {% if writable %}
         <div class="{{ cls.form_actions }}">
             <button type="submit" class="{{ cls.btn }} {{ cls.btn_primary }}">{{ config.submit_label }}</button>
-            <span class="{{ cls.form_status }}" data-plinta-status
-                  data-saved-text="{{ config.saved_text }}" hidden></span>
+            <span class="{{ cls.form_status }}{% if saved %} pl-form__status--saved{% endif %}"
+                  data-plinta-status {% if not status %}hidden{% endif %}>{{ status }}</span>
         </div>
     {% endif %}
 </form>

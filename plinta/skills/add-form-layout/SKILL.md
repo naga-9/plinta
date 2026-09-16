@@ -48,11 +48,12 @@ the name the server reads and the box an error lands in.
 
 ## What you do not write
 
-The mount, the JSON payload, the submit button and the error plumbing are the
-component's. **This is deliberate, not an oversight.** A layout that owned them
-could get one subtly wrong — a field name, a `data-kind`, the payload shape —
-and the form would render perfectly and silently never save. The worst a layout
-can do is leave a field out, which is visible.
+The form tag, the record's hidden field, the submit button and the status
+line are the component's. **This is deliberate, not an oversight.** A layout
+that owned them could get one subtly wrong — a field name, the action, the
+attribute Unpoly submits by — and the form would render perfectly and
+silently never save. The worst a layout can do is leave a field out, which is
+visible.
 
 So: no `<form>` tag, no submit button, and never name a field in an `input`
 yourself.
@@ -83,7 +84,7 @@ def test_it_places_the_fields(form_layout_registry):
     out = FormComponent().render(FormConfig(layout="book"), user, datasource=ds)
     assert 'name="title"' in out
     # and the shell is still the component's
-    assert 'data-plinta-mount="form_plinta"' in out
+    assert "up-submit" in out
 ```
 
 Use the `form_layout_registry` fixture so a test's registration does not leak.

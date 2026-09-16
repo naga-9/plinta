@@ -56,12 +56,14 @@ what a table is.
         <div class="{{ cls.field }}">
             <label class="{{ cls.label }}">
                 <input class="{{ cls.checkbox }}" type="checkbox" name="public"
-                       data-plinta-public
+                       data-plinta-public up-switch="[data-plinta-default-scope]"
                        {% if view and not view.owner %}checked{% endif %}>
                 Everyone can see this view
             </label>
             {% comment %} `owner = None` is public, so this is one field and
-            `change_savedview_owner` is what gates it (§6.1b). {% endcomment %}
+            `change_savedview_owner` is what gates it (§6.1b). `up-switch`
+            is what shows the default's help line for the case that applies.
+            {% endcomment %}
         </div>
     {% endif %}
 
@@ -74,14 +76,16 @@ what a table is.
             </label>
             {% comment %} One field, two meanings, decided by who owns the row
             — so the help says which rather than leaving it to be discovered.
-            The second line is swapped by `view-default.js` when the shared box
-            is ticked; without JS both are shown, which is still true.
+            The shared box above switches between the two lines; with no
+            shared box there is only the one, and it stays.
             {% endcomment %}
-            <div class="{{ cls.help }}" data-plinta-default-scope="personal">
+            <div class="{{ cls.help }}" data-plinta-default-scope="personal"
+                 {% if may_publish %}up-show-for=":unchecked"{% endif %}>
                 Yours: it applies wherever this block appears, for you.
             </div>
             {% if may_publish %}
-                <div class="{{ cls.help }}" data-plinta-default-scope="shared">
+                <div class="{{ cls.help }}" data-plinta-default-scope="shared"
+                     up-show-for=":checked">
                     Shared, so this is <strong>everyone's</strong> default —
                     for anyone who has not chosen their own.
                 </div>

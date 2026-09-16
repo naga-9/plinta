@@ -6,8 +6,8 @@
    contains "current month". {% endcomment %}
 <input type="hidden" name="{{ control.field_name }}" value="">
 <select class="{{ cls.select }}" id="{{ control_id }}" multiple
-        name="{{ control.field_name }}" size="4"
-        data-plinta-tags data-chip-class="{{ cls.chip }}" data-placeholder="Any time">
+        name="{{ control.field_name }}"
+        data-plinta-tags data-placeholder="Any time">
     {% for option_value, option_label in options %}
         <option value="{{ option_value }}"
                 {% if option_value in value %}selected{% endif %}>{{ option_label }}</option>

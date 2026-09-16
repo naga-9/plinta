@@ -2,16 +2,16 @@
 
 A registry rather than an enum on the model, for the reason every other
 registry here exists: a closed set in core means a third party cannot add to
-it. `contrib.filters_tomselect` registers a multi-select that fetches its
-options as you type; a consumer chooses it per filter by name, and core needs
-no opinion about how large an option set may be.
+it. A package registers a widget that draws a control core does not — a
+slider, a tree chooser, a multi-select that fetches its options as you type —
+and a consumer chooses it per filter by name.
 
 Core registers five, and none of them is privileged — the same door
 (§18.2 shape).
 
     register_filter_widget(
-        "multiselect_tomselect",
-        template="plinta/tomselect/multiselect.html",
+        "multiselect_searching",
+        template="yourapp/filters/searching.html",
         multiple=True,
         needs_options=True,
     )

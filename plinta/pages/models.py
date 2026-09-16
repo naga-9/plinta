@@ -253,7 +253,7 @@ class Widget:
     """Core's own filter widgets, by name.
 
     `capability_implementation`, like every component: `multiselect_plinta`
-    beside a future `multiselect_tomselect`, so core's is no more privileged
+    beside a package's `multiselect_searching`, so core's is no more privileged
     in the registry than it is in the code.
     """
 

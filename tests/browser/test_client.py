@@ -1099,6 +1099,10 @@ def test_choosing_narrows_the_other_controls(page, live_server, signed_in, scree
     # Asked, not applied: the grid is untouched and the URL says nothing.
     assert rows(page).count() == PAGE_SIZE
     assert "title=" not in page.url
+    # The redrawn select was handed to Tom Select again, and the one it
+    # replaced was taken down with it: one control, not a stale one beside
+    # a live one.
+    assert page.locator(".pl-filters .ts-wrapper").count() == 1
 
 
 # --- saving a page's filters ------------------------------------------------

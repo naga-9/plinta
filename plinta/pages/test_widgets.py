@@ -35,17 +35,17 @@ def test_a_third_party_can_add_one(widget_registry):
     """The whole reason this is a registry: a closed enum in core meant a
     consumer who installed a fetching multi-select could not choose it."""
     register_filter_widget(
-        "multiselect_tomselect",
-        template="plinta/tomselect/multi.html",
+        "multiselect_searching",
+        template="yourapp/filters/searching.html",
         multiple=True,
         needs_options=True,
     )
-    assert get("multiselect_tomselect").multiple is True
+    assert get("multiselect_searching").multiple is True
 
 
 def test_an_unknown_name_finds_nothing_rather_than_raising(widget_registry):
     """A filter naming an uninstalled widget must still draw."""
-    assert find("multiselect_tomselect") is None
+    assert find("multiselect_searching") is None
 
 
 def test_asking_for_one_by_name_raises_and_says_what_exists(widget_registry):

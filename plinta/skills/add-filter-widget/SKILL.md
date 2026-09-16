@@ -22,8 +22,8 @@ def ready(self):
     from plinta.pages.widgets import register_filter_widget
 
     register_filter_widget(
-        "multiselect_tomselect",
-        template="plinta/tomselect/multiselect.html",
+        "multiselect_searching",
+        template="yourapp/filters/searching.html",
         label="Multi-select (searching)",
         multiple=True,
         needs_options=True,
@@ -33,7 +33,7 @@ def ready(self):
 ```python
 PageFilter.objects.create(
     page=page, field_name="store", label="Store",
-    widget="multiselect_tomselect", lookup="in", data_source=source,
+    widget="multiselect_searching", lookup="in", data_source=source,
 )
 ```
 
@@ -96,7 +96,7 @@ given; deciding what to offer is not the widget's job.
 choosing controls asks the server for the bar again, narrowed — so your
 widget is created afresh each time. Enhance it in an Unpoly compiler and
 return a destructor that takes the widget's own markup down with the select,
-as `contrib.filters_tomselect` does:
+as core's `tag-select.js` does with Tom Select:
 
 ```js
 up.compiler('select[data-my-widget]', (select) => {
@@ -127,7 +127,7 @@ becomes valid the moment somebody installs your widget.
 **Lowercase `[a-z][a-z0-9_]*`.** The name is stored on every `PageFilter` that
 chooses it; renaming a widget orphans them.
 
-**Name it `capability_implementation`** — `multiselect_tomselect`, not
+**Name it `capability_implementation`** — `multiselect_searching`, not
 `fancyselect`. The same convention components use, so a second vendor for the
 same capability is obvious.
 

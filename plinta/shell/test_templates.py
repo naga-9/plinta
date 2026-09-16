@@ -21,6 +21,9 @@ COMMENT = re.compile(r"\{#((?:[^#]|#(?!\}))*?)#\}", re.DOTALL)
 ASSETS = [
     "plinta/vendor/unpoly.min.css",
     "plinta/vendor/unpoly.min.js",
+    "plinta/vendor/tom-select.min.css",
+    "plinta/vendor/tom-select.complete.min.js",
+    "plinta/vendor/Sortable.min.js",
     "plinta/css/tokens.css",
     "plinta/css/plinta.css",
     "plinta/js/theme-toggle.js",

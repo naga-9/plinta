@@ -8,6 +8,7 @@
     <title>{% block title %}{{ site_name }}{% endblock %}</title>
     {% block plinta_css %}
         <link rel="stylesheet" href="{% static 'plinta/vendor/unpoly.min.css' %}">
+        <link rel="stylesheet" href="{% static 'plinta/vendor/tom-select.min.css' %}">
         <link rel="stylesheet" href="{% static 'plinta/css/tokens.css' %}">
         <link rel="stylesheet" href="{% static 'plinta/css/plinta.css' %}">
     {% endblock %}
@@ -32,6 +33,11 @@
        form takes part only where it carries an `up-` attribute.
        {% endcomment %}
     <script defer src="{% static 'plinta/vendor/unpoly.min.js' %}"></script>
+    {% comment %} The shell's other vendors (ADR 0005, as amended: core
+       carries vendors for its chrome). Each before the script that hands it
+       an element. {% endcomment %}
+    <script defer src="{% static 'plinta/vendor/tom-select.complete.min.js' %}"></script>
+    <script defer src="{% static 'plinta/vendor/Sortable.min.js' %}"></script>
     <script defer src="{% static 'plinta/js/tag-select.js' %}"></script>
     <script defer src="{% static 'plinta/js/menu-groups.js' %}"></script>
     {% comment %} Before any adapter: an adapter registers with the client, and

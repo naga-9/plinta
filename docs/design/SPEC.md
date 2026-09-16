@@ -4166,7 +4166,8 @@ Since plinta is pip-installed, a build could only ever run at **release time in 
 | Tabler Icons | core chrome | **path data only**, inlined — no font, no stylesheet, no request (§10.9) |
 | htmx + `json-enc` | core transport | vendor |
 | Tabulator | `table_tabulator` (contrib) | vendor, with the component |
-| Tom Select | `filters_tomselect` (contrib) | vendor, with the widget — core's own multi-select carries none |
+| Tom Select | core's multi-select filter | vendor, in the shell |
+| SortableJS | core's column chooser and sort builder | vendor, in the shell |
 | Luxon | date handling (core) | vendor |
 | GridStack | the page composer (core) | vendor — loaded in edit mode only |
 | Plotly | `contrib.components.chart` | vendor **with that package** |

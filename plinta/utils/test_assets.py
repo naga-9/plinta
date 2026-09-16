@@ -64,8 +64,8 @@ def test_nothing_is_registered_by_default(stylesheet_registry):
 def test_a_script_is_registered(stylesheet_registry):
     from plinta.utils.assets import register_script, scripts
 
-    register_script("plinta/tomselect/adapter.js")
-    assert [s.path for s in scripts()] == ["plinta/tomselect/adapter.js"]
+    register_script("plinta/kanban/adapter.js")
+    assert [s.path for s in scripts()] == ["plinta/kanban/adapter.js"]
 
 
 def test_order_decides_load_order(stylesheet_registry):

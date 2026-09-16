@@ -99,7 +99,7 @@ def register_script(
 ) -> Script:
     """Add a script to every page.
 
-        register_script("plinta/tomselect/adapter.js")
+        register_script("plinta/kanban/adapter.js")
 
     Loaded after core's own, in `order` then `path`, so a package's glue can
     rely on its vendor being defined.

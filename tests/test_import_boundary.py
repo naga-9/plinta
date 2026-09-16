@@ -201,7 +201,9 @@ CORE_JS = CORE / "shell" / "static" / "plinta" / "js"
 VENDORED = (".min.js",)
 
 #: Naming one of these in core would be core knowing a contrib package exists.
-VENDORS = ("Tabulator", "TomSelect", "Plotly", "jsGantt", "Flexmonster")
+#: Core's own vendors — Unpoly, Tom Select, SortableJS — are not here: they
+#: are the shell's chrome, and core's scripts are what hand them elements.
+VENDORS = ("Tabulator", "Plotly", "jsGantt", "Flexmonster")
 
 
 def _scripts(root: pathlib.Path) -> list[pathlib.Path]:

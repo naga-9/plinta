@@ -2264,10 +2264,9 @@ Usage across a live install of 36 pages:
 | `owner` | — | keep — `null` = public |
 | `show_in_menu`, `menu_order`, `menu_icon`, `menu_group` | 33 | keep |
 | `template_name` | 7 | keep — how `custom-template` resolves |
-| `context_param` | 2 | keep — the URL parameter a detail page binds |
 | `primary_data_source` | — | keep — the model a detail page shows |
 | `tabs` | 1 | keep — see below |
-| `config` | 0 | keep — the contrib extension slot |
+| `config` | 0 | ~~keep as the contrib extension slot~~ — **dropped** 2026-09-16: nothing ever wrote it, and a package with page-level settings has its own model to keep them in |
 | `is_active` | — | keep |
 | `is_system` | **0** | **drop** |
 | `external_url` | **0** | **drop** |
@@ -2278,7 +2277,7 @@ Usage across a live install of 36 pages:
 
 **`tabs` — keep, with a note.** A page may render nav tabs above its blocks, and the active tab flows to blocks as a request parameter. Its one consumer, plinta's own actions page, leaves with `actions` (ADR 0008 (§24)), so it ships with zero users. It survives because tabbed pages are conventional, the alternative is a page per tab, and the filtering it drives is an ordinary `queryset_modifier` — the mechanism costs a request parameter and a template block.
 
-**`config` — keep as the extension slot.** Zero rows set it, but `get_applicable_reports` reads `config['reports']`. With reports becoming contrib, a contrib package needs somewhere to put page-level settings, and this is it. Contrib writes namespaced keys; core never inspects them.
+**`config` and `context_param` — dropped**, on the judgement pass the front-end rewrite parked (2026-09-16). `config` was kept as an extension slot for page-level contrib settings; nothing ever wrote one, and a package with settings about a page has a model to keep them in, keyed by page, like `PageFilterPreference`. `context_param` let a detail page be reached as `?book=7`; the path form superseded it, no consumer used it, and one way to reach a record is one URL to send a colleague.
 
 ### 9.2 Page types
 
@@ -2292,7 +2291,7 @@ Usage across a live install of 36 pages:
 
 #### How a detail page reaches its record
 
-**In the path** — `/pages/<id>-<slug>/<record>/` — so the URL is the thing somebody sends a colleague. `context_param` names a query parameter that may carry it instead, for a page reached from another system as `?book=7`.
+**In the path** — `/pages/<id>-<slug>/<record>/` — so the URL is the thing somebody sends a colleague, and the one place the record lives.
 
 **The record reaches a block through `__RECORD__`**, a placeholder resolving to its primary key. A placement writes `context_filter={"pk": "__RECORD__"}` or `{"book_id": "__RECORD__"}`, and one placement then serves every record the page shows.
 

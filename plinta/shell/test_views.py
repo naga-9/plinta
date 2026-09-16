@@ -439,7 +439,6 @@ def detail(screen, client):
     Page.objects.filter(pk=page.pk).update(
         page_type=PageType.DETAIL,
         primary_data_source=block.data_source,
-        context_param="book",
     )
     page.refresh_from_db()
     page.placements.update(context_filter={"pk": "__RECORD__"})
@@ -485,14 +484,6 @@ def test_a_record_the_viewer_may_not_see_is_not_found(detail, client, policy_reg
     register_policy(Book, BookPolicy)
     page, book, _ = detail
     assert client.get(f"/pages/{page.pk}-catalog/{book.pk}/").status_code == 404
-
-
-def test_the_record_may_arrive_as_a_query_parameter(detail, client):
-    """A detail page reached from somewhere else often arrives as ?book=7."""
-    page, book, _ = detail
-    response = client.get(page.get_absolute_url(), {"book": book.pk})
-    assert response.status_code == 200
-    assert "Dune" in response.content.decode()
 
 
 def test_a_dashboard_ignores_a_record(screen, client):

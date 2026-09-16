@@ -142,17 +142,15 @@ def submitted_filters(
 def bound_record(page: Page, request: HttpRequest, record_pk=None):
     """The row a detail page is about, or None.
 
-    Taken from the URL when the path carries one, otherwise from the query
-    parameter the page names in `context_param` — a detail page reached from
-    somewhere else often arrives as `?id=7`.
+    From the path — `/pages/<id>-<slug>/<record>/` — and nowhere else: the URL
+    is the thing somebody sends a colleague, so it is the one place the
+    record lives.
 
     Raises:
         Http404: the page names no model, the row does not exist, or the
             viewer may not see it. A 404 rather than a 403 throughout: saying
             a record exists but is not yours is itself a disclosure.
     """
-    if record_pk is None and page.context_param:
-        record_pk = request.GET.get(page.context_param)
     if record_pk in (None, ""):
         return None
 

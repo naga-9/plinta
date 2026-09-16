@@ -29,7 +29,11 @@ reach a framework's form shapes at all. §6.2 is done: `shell/views/` is
 build their context once each, the authoring gates are `gated` and
 `reachable`, and a save in a layer goes back to where the layer was opened
 — which on a detail page is the record's URL, where the page's own used to
-404. §6.3 onward is still open.
+404. §6.3 and §6.4 are declined: `delivery.py` has no transport half for
+apprise to take, and the audit diff lives in the write pipeline on purpose,
+where every listener gets it. §6.6 is done: the eleven rules all earn their
+place, and `Page.config` and `Page.context_param` — the two fields nothing
+wrote — are gone. §6.5, §6.7 and §6.8 are still open.
 
 What this document changes in `SPEC.md` when it lands is listed at the end.
 

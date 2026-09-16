@@ -222,7 +222,7 @@ class PageForm(forms.ModelForm):
     class Meta:
         model = Page
         fields = ["name", "slug", "description", "page_type", "template_name",
-                  "primary_data_source", "context_param", "show_in_menu",
+                  "primary_data_source", "show_in_menu",
                   "menu_group", "menu_order", "menu_icon", "is_active"]
 
     def __init__(self, *args, **kwargs):

@@ -122,25 +122,12 @@ class Page(models.Model):
         related_name="detail_pages",
         help_text="The model a detail page shows.",
     )
-    context_param = models.CharField(
-        max_length=50,
-        blank=True,
-        default="",
-        help_text="The URL parameter a detail page binds its record to.",
-    )
     tabs = models.JSONField(
         default=list,
         blank=True,
         help_text="Nav tabs above the blocks. The active tab reaches blocks as "
         "a request parameter.",
     )
-    config = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Page-level settings for a contrib package, under its own "
-        "key. Core never inspects them.",
-    )
-
     class Meta:
         ordering = ["menu_order", "name"]
         constraints = [

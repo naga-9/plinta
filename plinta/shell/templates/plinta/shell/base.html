@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ site_name }}{% endblock %}</title>
     {% block plinta_css %}
+        <link rel="stylesheet" href="{% static 'plinta/vendor/unpoly.min.css' %}">
         <link rel="stylesheet" href="{% static 'plinta/css/tokens.css' %}">
         <link rel="stylesheet" href="{% static 'plinta/css/plinta.css' %}">
     {% endblock %}
@@ -28,6 +29,12 @@
     <script defer src="{% static 'plinta/js/filter-cascade.js' %}"></script>
     <script defer src="{% static 'plinta/js/menu-groups.js' %}"></script>
     <script defer src="{% static 'plinta/js/keep-scroll.js' %}"></script>
+    {% comment %} Unpoly, vendored (§17). A classic deferred script, before the
+       client: deferred scripts run in document order, and it boots on
+       DOMContentLoaded — after every deferred script below has registered
+       what it compiles. Its defaults follow nothing: a link or form takes
+       part only where it carries an `up-` attribute. {% endcomment %}
+    <script defer src="{% static 'plinta/vendor/unpoly.min.js' %}"></script>
     {% comment %} Before any adapter: an adapter registers with the client, and
        deferred scripts run in document order. {% endcomment %}
     <script defer src="{% static 'plinta/js/client.js' %}"></script>

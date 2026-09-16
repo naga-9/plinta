@@ -19,6 +19,8 @@ COMMENT = re.compile(r"\{#((?:[^#]|#(?!\}))*?)#\}", re.DOTALL)
 
 #: Every stylesheet and script `base.html` asks for.
 ASSETS = [
+    "plinta/vendor/unpoly.min.css",
+    "plinta/vendor/unpoly.min.js",
     "plinta/css/tokens.css",
     "plinta/css/plinta.css",
     "plinta/js/theme-toggle.js",

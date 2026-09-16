@@ -333,11 +333,12 @@ def test_a_filter_survives_a_sort(screen, client):
 
 
 def test_no_javascript_draws_the_table(screen, client):
-    """The whole claim: a viewer's page loads no vendor script at all.
+    """The whole claim: a viewer's page loads no component's vendor.
 
     Counting scripts would only measure how many behaviours the shell has
-    grown. What must stay true is that every one of them is ours and none
-    comes from a CDN.
+    grown. What must stay true is that every one of them is served from
+    plinta's own static tree — ours, or a vendor core carries (§17) — and
+    none comes from a CDN.
     """
     page, _, _ = screen
     body = client.get(page.get_absolute_url()).content.decode()
@@ -345,7 +346,7 @@ def test_no_javascript_draws_the_table(screen, client):
     assert "tabulator" not in body.lower()
     sources = re.findall(r'<script[^>]*src="([^"]+)"', body)
     assert sources, "the shell loads no script at all"
-    assert all(src.startswith("/static/plinta/js/") for src in sources), sources
+    assert all(src.startswith("/static/plinta/") for src in sources), sources
 
 
 # --- the menu toggle --------------------------------------------------------

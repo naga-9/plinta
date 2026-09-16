@@ -105,7 +105,10 @@
             pending = new AbortController();
             mount.setAttribute('aria-busy', 'true');
 
-            return fetch(url + '?' + query.toString(), {
+            // The URL may already carry a query — the view the card was
+            // drawn with — and the rest joins it.
+            var joined = url + (url.indexOf('?') === -1 ? '?' : '&') + query.toString();
+            return fetch(joined, {
                 signal: pending.signal,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin'

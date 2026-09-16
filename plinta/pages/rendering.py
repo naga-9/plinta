@@ -436,8 +436,12 @@ def render_page(
                 param_prefix=prefix,
                 # Only the page knows which placement this is, and the feed is
                 # placement-scoped — so the URL is handed to the component
-                # rather than built by it.
-                data_url=f"/pages/{page.pk}/blocks/{placement.pk}/data/",
+                # rather than built by it. It names the view the card was
+                # drawn with: the rows a widget fetches must be the view's
+                # rows, and the page's own URL is not where a card learns
+                # which view that is.
+                data_url=f"/pages/{page.pk}/blocks/{placement.pk}/data/"
+                + (f"?view={view.pk}" if view else ""),
                 # The write half of the same conversation. Handed over
                 # unconditionally; a component that cannot write ignores it,
                 # and the endpoint refuses one in its name anyway.

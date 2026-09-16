@@ -101,6 +101,37 @@ def test_a_rename_does_not_change_the_page_a_link_resolves_to(screen):
 # --- composition -----------------------------------------------------------
 
 
+def test_the_data_url_names_the_view_the_card_was_drawn_with(screen, monkeypatch):
+    """A widget's rows come from the view its card shows.
+
+    The feed reads `view=`; the page's URL carries `bN_view=`. Forwarding the
+    page's query string to the feed therefore said nothing about the view,
+    and a card drawn on a saved view fetched the block's default rows. The
+    mount's own URL names the view, so the card is the authority on itself.
+    """
+    import plinta.blocks.rendering as blocks_rendering
+
+    page, block, ada = screen
+    view = SavedView.objects.create(block=block, name="Mine", owner=ada, config={})
+    placement = page.placements.get()
+
+    seen = {}
+    real = blocks_rendering.render_block
+
+    def spy(block, user, **context):
+        seen.update(context)
+        return real(block, user, **context)
+
+    monkeypatch.setattr(blocks_rendering, "render_block", spy)
+
+    render_page(page, ada, query={f"b{placement.pk}_view": str(view.pk)})
+    assert seen["data_url"] == (
+        f"/pages/{page.pk}/blocks/{placement.pk}/data/?view={view.pk}"
+    )
+    render_page(page, ada)
+    assert seen["data_url"] == f"/pages/{page.pk}/blocks/{placement.pk}/data/"
+
+
 def test_a_placement_is_drawn(screen):
     page, _, ada = screen
     drawn = render_page(page, ada)

@@ -12,7 +12,7 @@ What this document changes in `SPEC.md` when it lands is listed at the end.
 1. [Unpoly replaces the reload](#1-unpoly-replaces-the-reload)
 2. [JavaScript-disabled stops being a supported configuration](#2-javascript-disabled-stops-being-a-supported-configuration)
 3. [Libraries for the hand-written scripts](#3-libraries-for-the-hand-written-scripts)
-4. [Open: `composer.js`](#4-open-composerjs)
+4. [GridStack for the composer, and the composer into core](#4-gridstack-for-the-composer-and-the-composer-into-core)
 5. [Spec changes](#5-spec-changes)
 
 ---
@@ -122,8 +122,7 @@ now honestly carry `role="tab"`.
 `table_plinta` sort and page links: `up-follow up-target="#card-N"`.
 `workflow/section.html`: `up-submit up-target` on the transition forms.
 Notification actions: `up-submit up-target`; the bell:
-`up-poll up-interval="30000"`. `composer.js`: `up.reload('#card-N')` on
-refusal instead of `location.reload()`. Add-block in `page_composer`:
+`up-poll up-interval="30000"`. `composer.js`: superseded by part 4. Add-block in `page_composer`:
 `up-submit up-target="#placements"`. Toasts: `up-hungry` on `#pl-toasts`.
 
 **Step 9 — delete and clean.**
@@ -215,7 +214,7 @@ script is re-asked on its merits: is the library smaller than the problem?
 | `tag-select.js` | 191 | Tom Select | **Tom Select to core** |
 | `column-order.js` | 54 | SortableJS | **SortableJS to core** |
 | `sort-builder.js` | 34 | SortableJS | **SortableJS to core** |
-| `composer.js` | 178 | GridStack / interact.js | **open** — part 4 |
+| `composer.js` | 178 | GridStack | **GridStack, and the composer moves to core** — part 4 |
 
 ### Tom Select
 
@@ -267,47 +266,91 @@ stated: a judgement per case, not a ban.
 
 ---
 
-## 4. Open: `composer.js`
+## 4. GridStack for the composer, and the composer into core
 
-Not decided. The earlier objection was compressed to "GridStack decides
-what our markup looks like", which is the conclusion without the argument.
-The argument, for discussion:
+### Why GridStack
 
-**What `composer.js` does.** Pointer capture, cell arithmetic from the
-rendered grid's computed style, live updates to four custom properties
-(`--col`, `--row`, `--w`, `--h`), clamping, and one `plinta.post` on
-release. 178 lines. The view mode draws the same four properties with no
-script at all (§12.4).
+`composer.js` moves only the card being dragged. Drop it on another and
+they overlap; the other does not react, and somebody has to move it by
+hand. A dashboard editor is expected to do **collision handling**: while a
+card is dragged, the cards it would land on slide out of the way and the
+ones below them follow, so nothing overlaps; remove a card and the ones
+below rise to fill the gap; a placeholder shows where the drop will land.
+That is a couple of hundred lines of not-obvious code on a twelve-column
+grid with variable-height cards, and it is the bulk of what GridStack is.
+Page composition should feel like a product feature, so it is taken.
 
-**What GridStack wants.** It owns the container: its own grid engine, its
-own item markup (`gs-x`, `gs-y`, `gs-w`, `gs-h` attributes; a
-`grid-stack-item-content` wrapper), its own positioning (absolute
-transforms, not CSS grid), its own CSS. The stored `column/row/width/height`
-would still be the source of truth, but view mode and edit mode would
-render the layout two different ways — CSS grid when reading, GridStack
-when editing — and drift between the two is a bug nobody sees until a
-card lands somewhere other than where it was dropped. It is also ~150 KB
-for a screen that opens rarely.
+The earlier objection — GridStack renders the layout its own way, while
+view mode renders the same four integers with CSS grid, and two renderers
+drift — dissolves once every drop is followed by a server re-render. With
+Unpoly that is `up.reload('#pl-grid')` on *Done*: GridStack is used for
+the gesture and never for the resting layout. The geometry it uses during
+the gesture reads from the same tokens the CSS grid does
+(`--pl-grid-cell`, `--pl-grid-gap`), so the placeholder lands where the
+card will be drawn.
 
-**What interact.js wants.** Less: it does drag and resize on any element
-and leaves the markup alone, so the four custom properties can stay as
-the model. ~100 KB, and the snapping-to-grid and clamping — which is most
-of `composer.js` — is still written by hand on top of it. It saves the
-pointer-event plumbing (~50 lines) and adds touch and inertia.
+### Why core
 
-**The case for keeping the script.** It is the only thing in the project
-where the interesting state is on the client during a gesture; it is
-already small; and the model it manipulates is the one the page renders
-from, so there is nothing to keep in step.
+The composer was contrib for one reason: §12.4, *"Core owns the four
+integers; dragging is contrib… Uninstall it and the screen still composes
+pages, with numbers typed instead of dragged."* `composer.js` carries no
+vendor and was pushed out anyway — the "no vendor in core" instinct had
+become "no interaction in core", which is the discipline over-applied.
+Nobody composes a dashboard by typing four integers; the numbers form is
+a fixture, not a fallback. Composition is authoring, authoring is a core
+chapter (§12), and the drag is the feature. It moves to core.
 
-**The case for a library.** Touch — a pointer-events drag works on a
-phone but with no gesture feel — and the collision/float behaviour a real
-dashboard editor has (drop a card and the others move out of the way),
-which `composer.js` does not do and which is real work to add by hand.
+### Steps
 
-If the second case matters, GridStack is the one that has it; interact.js
-does not. So the real question is whether cards should push each other
-around, not which library. To be talked through.
+1. Vendor `gridstack-all.js` and `gridstack.min.css` (~150 KB + 10 KB) in
+   `plinta/shell/static/plinta/vendor/`. Registered on the *Edit layout*
+   page action, which is permission-gated, so a viewer downloads nothing.
+2. Move `contrib/composer/`: the page action into `plinta/pages/actions.py`,
+   `edit_layout.html` into the shell's templates, `composer.js` into
+   `plinta/shell/static/plinta/js/`. Delete the package and its `apps.py`.
+3. Rewrite `composer.js` (178 → ~60). Gone: pointer capture, `cell()`
+   arithmetic, `place()`, clamping, the resize-handle `<span>`. Stays: the
+   toggle button and `save()` through `plinta.post`. New: on *Edit*,
+   `GridStack.init({column: 12, cellHeight, margin, float: false}, '.pl-grid')`
+   with `cellHeight` and `margin` read from the tokens; one `change`
+   listener posting every node GridStack moved; on *Done*,
+   `grid.destroy(false)` then `up.reload('#pl-grid')`.
+4. `page.html`: each `.pl-grid__item` also carries `gs-x gs-y gs-w gs-h`
+   from the same four integers, and the card takes GridStack's content
+   class (or one CSS rule maps it).
+5. CSS: GridStack's stylesheet, and a `.pl-composing .pl-grid` rule handing
+   positioning to GridStack for the session. View-mode CSS is untouched.
+6. Below the stacking breakpoint (`plinta.css` ~799), the *Edit layout*
+   action is not offered; a one-column drag has no stored meaning.
+7. `pages/composition.py::positions()` already takes a dict of many
+   placements, so a collision that moves five cards is one POST. **No
+   server change.** The numbers form in `page_composer` stays as the
+   precise-adjust path.
+8. `test_composer.py` becomes core tests: the action registers, it needs
+   `change_pageblock`, it is absent on a detail page. Optional browser test:
+   drag one card onto another and assert both moved server-side.
+
+### Decisions to make while doing it
+
+- **`float: false`** (cards pack upward, no gaps — Grafana's behaviour) or
+  **`float: true`** (cards stay where dropped). `false` rewrites `row` on
+  every drop, which `positions()` handles. Start with `false`.
+- **Loading**: on the action's asset registration, or injected on the
+  first *Edit* click (~8 lines) if 150 KB per composer-capable page load
+  turns out to matter.
+
+### Impact
+
+| | Lines |
+|---|---|
+| `composer.js` | −120 |
+| `page.html`, CSS | +20 |
+| Python | 0, minus the contrib `apps.py` and package |
+| Vendor added | GridStack, ~160 KB, in core, loaded only behind `change_pageblock` |
+
+GridStack moves fast (v12 at the time of writing). Core absorbs that
+major-version burden for this one vendor, knowingly: the composer is the
+one screen where the vendor is the feature.
 
 ---
 
@@ -317,11 +360,11 @@ When the above lands, `SPEC.md` changes in these places:
 
 | Section | Change |
 |---|---|
-| §2.6 | Core's front end: Unpoly, Tom Select, SortableJS, Bootstrap Icons. Remove Luxon and GridStack, which are not on disk. |
+| §2.6 | Core's front end: Unpoly, Tom Select, SortableJS, GridStack, Bootstrap Icons. Remove Luxon, which is not on disk. "A minimal install is eleven packages" stays true; they are heavier. |
 | §7.4 | The client's mount walk is a compiler; `plinta.mount` and `plinta:content` are gone. |
 | §7.12 | Retitle: *A filter change updates the grid.* Keep the three-level table as the history of the decision; the answer is now the second row, with compilers making the cards inside survive. |
 | §11.2 | Drop "works with JavaScript disabled". |
-| §12.4 | Unchanged. |
-| §14 | Remove `filters_tomselect`; the multiselect is core's. |
-| ADR 0005 | Amend: core carries vendors for **shell chrome** — navigation, dialogs, a select control, a sortable list — and none for **components**. The upgrade-burden argument applies to components, which is where it came from. |
+| §12.4 | Drop "dragging is contrib" and the uninstall sentence. Core owns the four integers *and* the drag; the numbers form is the precise-adjust path. "View mode is CSS grid with no JavaScript" stays. |
+| §14 | Remove `filters_tomselect` and `composer`; both are core's. |
+| ADR 0005 | Amend: core carries vendors for **shell chrome** — navigation, dialogs, a select control, a sortable list, the layout editor — and none for **components**. The upgrade-burden argument applies to components, which is where it came from. |
 | New ADR | *JavaScript-disabled is not a supported configuration*, with part 2's rule as the text. |

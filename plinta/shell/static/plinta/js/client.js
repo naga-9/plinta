@@ -17,6 +17,11 @@
 // the same parameter building and the same error path, and neither is named
 // here — a client that knows one widget is one every other widget works
 // around.
+//
+// Mounting is an Unpoly compiler. A compiler runs on every fragment Unpoly
+// inserts — the document at boot, a swapped card, a form fetched into a
+// layer — so nothing has to know *when* markup arrived, and its destructor
+// runs when the fragment leaves, so nothing has to know when it went.
 
 (function () {
     'use strict';
@@ -235,6 +240,14 @@
         });
     };
 
+    /**
+     * Mount one widget, and say how to take it down.
+     *
+     * Returned to Unpoly as the fragment's destructor. An adapter that holds
+     * a widget with its own teardown — a grid with listeners on `window`, a
+     * chart with a resize observer — declares `destroy`, and gets back what
+     * its `mount` returned. One that holds nothing declares nothing.
+     */
     function mountOne(mount) {
         var name = mount.dataset.plintaMount;
         var adapter = adapters[name];
@@ -260,8 +273,9 @@
                 'This could not be loaded. ' + (error && error.message));
         }
 
+        var handle;
         try {
-            adapter.mount(mount, {
+            handle = adapter.mount(mount, {
                 config: body.config || {},
                 columns: body.columns || null,
                 rows: body.rows || null,
@@ -280,42 +294,27 @@
                 options: askOptions,
                 writable: mount.dataset.plintaWriteUrl ? true : false,
                 //: Where one record's form is asked for, or blank. The client
-                //: does not fetch it — `modal.js` does, from a click — so this
+                //: does not fetch it — a link opens it in a layer — so this
                 //: is passed on rather than wrapped.
                 formUrl: mount.dataset.plintaFormUrl || ""
             });
         } catch (error) {
             fail(error);
+            return;
         }
+
+        if (!adapter.destroy) {
+            return;
+        }
+        return function () {
+            adapter.destroy(mount, handle);
+        };
     }
 
-    /**
-     * Mount every widget inside ``root``.
-     *
-     * Exposed because markup can arrive after the page has: a form fetched
-     * into a dialog has a mount like any other, and the walk at load time
-     * has long since finished.
-     */
-    plinta.mount = function (root) {
-        (root || document)
-            .querySelectorAll('[data-plinta-mount]')
-            .forEach(mountOne);
-    };
-
-    function init() {
-        plinta.mount(document);
-    }
-
-    // Wait for DOMContentLoaded, and note the condition: a deferred script
-    // executes at readyState **'interactive'**, not 'loading'. Testing for
-    // 'loading' would therefore mount immediately — before the adapters,
-    // which are deferred scripts that come after this one, had registered.
-    // Every mount would then report "no adapter" for a component that has
-    // one. The other shell scripts test 'loading' safely because none of them
-    // depends on a later script.
-    if (document.readyState === 'complete') {
-        init();
-    } else {
-        document.addEventListener('DOMContentLoaded', init);
-    }
+    // Registered before Unpoly boots, which a deferred script is: the boot
+    // happens on DOMContentLoaded, after every deferred script — the
+    // adapters included, which come after this one — has run. So the
+    // ordering the old ready-state check had to reason about is the
+    // browser's, and no longer this file's.
+    up.compiler('[data-plinta-mount]', mountOne);
 })();

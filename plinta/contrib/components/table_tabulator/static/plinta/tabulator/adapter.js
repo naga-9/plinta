@@ -294,6 +294,21 @@
                         });
                 });
             }
+
+            // Handed back so `destroy` gets it when the card is swapped.
+            return table;
+        },
+
+        /**
+         * The card is leaving the document — a saved view was switched, a
+         * filter applied. Tabulator holds listeners on `window` for its
+         * layout and a redraw timer of its own, which would otherwise keep
+         * running against an element nothing draws any more.
+         */
+        destroy: function (el, table) {
+            if (table && table.destroy) {
+                table.destroy();
+            }
         }
     });
 })();

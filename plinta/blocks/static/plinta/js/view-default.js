@@ -20,36 +20,19 @@
         });
     }
 
-    function wire(root) {
-        (root || document)
-            .querySelectorAll('[data-plinta-default-scope]')
-            .forEach(function (line) {
-                var form = line.closest('form');
-                if (!form || form.dataset.plintaDefaultWired) {
-                    return;
-                }
-                form.dataset.plintaDefaultWired = '1';
-                form.addEventListener('change', function (event) {
-                    if (event.target.matches('[data-plinta-public]')) {
-                        label(form);
-                    }
-                });
+    // A compiler: the editor arrives in a layer after the page has loaded,
+    // and a compiler runs on whatever Unpoly inserts, whenever that is.
+    up.compiler('[data-plinta-default-scope]', function (line) {
+        var form = line.closest('form');
+        if (!form || form.dataset.plintaDefaultWired) {
+            return;
+        }
+        form.dataset.plintaDefaultWired = '1';
+        form.addEventListener('change', function (event) {
+            if (event.target.matches('[data-plinta-public]')) {
                 label(form);
-            });
-    }
-
-    // The editor arrives in a dialog after the page has loaded, so the walk
-    // at load time finds nothing. Listening for the *click* would be worse:
-    // it runs before the answer does.
-    document.addEventListener('plinta:content', function (event) {
-        wire(event.detail && event.detail.root);
-    });
-
-    if (document.readyState === 'complete') {
-        wire(document);
-    } else {
-        document.addEventListener('DOMContentLoaded', function () {
-            wire(document);
+            }
         });
-    }
+        label(form);
+    });
 })();

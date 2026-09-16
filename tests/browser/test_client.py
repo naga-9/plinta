@@ -60,6 +60,30 @@ def test_a_fetching_widget_draws(page, live_server, signed_in, screen):
     assert rows(page).count() == PAGE_SIZE
 
 
+def test_a_swapped_fragment_remounts_its_widget(page, live_server, signed_in, screen):
+    """Mounting is a compiler, so it runs on whatever Unpoly inserts.
+
+    The grid the swap replaces is taken down first — an adapter's `destroy`
+    is the fragment's destructor — so a card switched or filtered does not
+    leave a Tabulator listening on `window` for an element nothing draws.
+    """
+    open_page(page, live_server, screen)
+    page.evaluate("""() => {
+        window.__destroyed = 0;
+        var original = Tabulator.prototype.destroy;
+        Tabulator.prototype.destroy = function () {
+            window.__destroyed += 1;
+            return original.apply(this, arguments);
+        };
+    }""")
+
+    page.evaluate("() => up.render({ target: '.pl-grid', url: location.href })")
+    page.wait_for_function("() => window.__destroyed === 1", timeout=15000)
+    page.wait_for_selector(".tabulator-row", timeout=15000)
+    assert page.locator(".pl-alert").count() == 0
+    assert rows(page).count() == PAGE_SIZE
+
+
 def test_the_columns_are_the_ones_the_server_sent(page, live_server, signed_in, screen):
     open_page(page, live_server, screen)
     headers = page.locator(".tabulator-col-title").all_inner_texts()

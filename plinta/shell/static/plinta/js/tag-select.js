@@ -179,13 +179,7 @@
         paint(box, select, input);
     }
 
-    function init() {
-        document.querySelectorAll('select[' + ATTRIBUTE + ']').forEach(enhance);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
+    // A compiler: the select is enhanced whenever it enters the document,
+    // with the page or by fragment swap, and nothing has to say which.
+    up.compiler('select[' + ATTRIBUTE + ']', enhance);
 })();

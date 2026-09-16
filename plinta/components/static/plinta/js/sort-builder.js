@@ -7,28 +7,25 @@
 (function () {
     'use strict';
 
-    var BUILDER = '[data-plinta-sort]';
+    // One compiler per builder, wherever it is drawn — a layer or a plain
+    // page. The listener is the builder's own, so it leaves with it.
+    up.compiler('[data-plinta-sort]', function (builder) {
+        builder.addEventListener('click', function (event) {
+            var add = event.target.closest('[data-plinta-sort-add]');
+            if (add) {
+                var template = builder.querySelector('[data-plinta-sort-template]');
+                builder.insertBefore(
+                    template.content.cloneNode(true), template
+                );
+                return;
+            }
 
-    function rowsIn(builder) {
-        return builder.querySelectorAll('.pl-sort__row');
-    }
-
-    document.addEventListener('click', function (event) {
-        var add = event.target.closest('[data-plinta-sort-add]');
-        if (add) {
-            var builder = add.closest(BUILDER);
-            var template = builder.querySelector('[data-plinta-sort-template]');
-            builder.insertBefore(
-                template.content.cloneNode(true), template
-            );
-            return;
-        }
-
-        var remove = event.target.closest('[data-plinta-sort-remove]');
-        if (remove) {
-            // The last row may go: sorting by nothing is a real answer, and
-            // the table then falls back to its own ordering.
-            remove.closest('.pl-sort__row').remove();
-        }
+            var remove = event.target.closest('[data-plinta-sort-remove]');
+            if (remove) {
+                // The last row may go: sorting by nothing is a real answer,
+                // and the table then falls back to its own ordering.
+                remove.closest('.pl-sort__row').remove();
+            }
+        });
     });
 }());

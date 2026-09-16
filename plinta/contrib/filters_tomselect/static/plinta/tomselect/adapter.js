@@ -11,7 +11,7 @@
         if (select.tomselect) {
             return;
         }
-        new window.TomSelect(select, {
+        var control = new window.TomSelect(select, {
             plugins: ['remove_button'],
             placeholder: select.dataset.placeholder || '',
             // The options are already in the DOM and already scoped to the
@@ -26,6 +26,7 @@
                 }
             },
         });
+        return control;
     }
 
     /** The cascade replaced the select's options; Tom Select caches its own. */
@@ -50,25 +51,29 @@
         control.refreshOptions(false);
     }
 
-    function init() {
-        if (!window.TomSelect) {
-            // Vendored and registered before this, so the only way here is a
-            // failed asset. Saying so beats a filter bar that silently does
-            // nothing.
-            console.warn('[plinta] Tom Select did not load; the native select stands.');
-            return;
-        }
-        document.querySelectorAll('select[data-plinta-tomselect]').forEach(function (select) {
-            enhance(select);
-            select.addEventListener('plinta:options', function () {
-                resync(select);
-            });
-        });
+    if (!window.TomSelect) {
+        // Vendored and registered before this, so the only way here is a
+        // failed asset. Saying so beats a filter bar that silently does
+        // nothing.
+        console.warn('[plinta] Tom Select did not load; the native select stands.');
+        return;
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
+    // A compiler, so a bar that arrives by fragment swap is enhanced the
+    // same as one that arrived with the page. The destructor takes Tom
+    // Select's own markup down with the select, rather than leaving a
+    // control that answers to nothing.
+    up.compiler('select[data-plinta-tomselect]', function (select) {
+        var control = enhance(select);
+        function onOptions() {
+            resync(select);
+        }
+        select.addEventListener('plinta:options', onOptions);
+        return function () {
+            select.removeEventListener('plinta:options', onOptions);
+            if (control) {
+                control.destroy();
+            }
+        };
+    });
 })();

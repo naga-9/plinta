@@ -1,10 +1,10 @@
 """The authoring screens in a real browser (§12.1–12.3).
 
-The saved-view editor draws its settings inside a `<dialog>`; the block
-inspector draws the same settings on a plain page. The column chooser and the
-sort builder are document-level delegated listeners with no mount step, so
-they should work in both — but "should" is exactly what this suite exists to
-stop anybody saying, since the bug that prompted it was a mounting one.
+The saved-view editor draws its settings inside a dialog; the block inspector
+draws the same settings on a plain page. The column chooser and the sort
+builder are compilers, so they should work in both — but "should" is exactly
+what this suite exists to stop anybody saying, since the bug that prompted it
+was a mounting one.
 """
 import pytest
 from django.contrib.auth.models import Permission
@@ -40,7 +40,7 @@ def authoring(viewer, screen):
 def test_the_sort_builder_works_outside_a_dialog(
     page, live_server, signed_in, authoring
 ):
-    """The inspector is a plain page, and the builder is a delegated listener.
+    """The inspector is a plain page, and the builder is a compiler.
 
     The saved-view editor covers the dialog; this covers the other context,
     because "it is the same JavaScript" is a claim and not a check.

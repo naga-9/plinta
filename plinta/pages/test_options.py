@@ -1,6 +1,6 @@
 """What a filter offers: the values present in rows the viewer can see."""
 import pytest
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 
@@ -10,15 +10,7 @@ from plinta.pages.options import options_for
 from plinta.permissions.policies import PermissionPolicy, register_policy
 from plinta.permissions.rules import Owner
 from tests.testapp.models import Book, Region
-
-
-def grant(user, model, codename):
-    ct = ContentType.objects.get_for_model(model)
-    perm, _ = Permission.objects.get_or_create(
-        codename=codename, content_type=ct, defaults={"name": codename}
-    )
-    user.user_permissions.add(perm)
-    return User.objects.get(pk=user.pk)
+from tests.support import grant
 
 
 @pytest.fixture

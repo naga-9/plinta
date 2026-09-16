@@ -1,7 +1,6 @@
 """What a block hides from its viewers, and what it must not reveal."""
 import pytest
-from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.models import User
 
 from plinta.blocks.models import Block, SavedView
 from plinta.blocks.narrowing import (
@@ -11,47 +10,26 @@ from plinta.blocks.narrowing import (
     resolved_filter,
 )
 from plinta.blocks.rendering import render_block
-from plinta.datasources.models import DataSource, DataSourceField
 from plinta.datasources.modifiers import ModifierError
-from plinta.permissions.fields import sync_model
 from tests.testapp.models import Book, Region
+from tests.support import grant
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def block(db):
-    ada = User.objects.create(username="ada")
+def block(ada, books):
+    """A core table over `title`, one book in each region, and `ada` able to
+    see it — and the views over it."""
     north = Region.objects.create(name="North")
     south = Region.objects.create(name="South")
     Book.objects.create(title="Dune", owner=ada, region=north, in_print=True)
     Book.objects.create(title="Emma", owner=ada, region=south, in_print=False)
-
-    ds = DataSource.objects.create(
-        name="books",
-        label="Books",
-        content_type=ContentType.objects.get_for_model(Book),
-    )
-    DataSourceField.objects.create(data_source=ds, field_name="title", label="Title")
-    sync_model(Book, {"title": False})
-
-    ct = ContentType.objects.get_for_model(Book)
-    for codename in ("view_book", "view_book_title"):
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=ct, defaults={"name": codename}
-        )
-        ada.user_permissions.add(perm)
-    for model, codename in ((Block, "view_block"), (SavedView, "view_savedview")):
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename,
-            content_type=ContentType.objects.get_for_model(model),
-            defaults={"name": codename},
-        )
-        ada.user_permissions.add(perm)
-    ada = User.objects.get(pk=ada.pk)
-
+    grant(ada, Book, "view", "view_book_title")
+    grant(ada, Block, "view")
+    ada = grant(ada, SavedView, "view")
     return Block.objects.create(
-        name="books-table", component_type="table_plinta", data_source=ds, owner=ada
+        name="books-table", component_type="table_plinta", data_source=books, owner=ada
     ), ada
 
 

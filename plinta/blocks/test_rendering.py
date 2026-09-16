@@ -1,7 +1,6 @@
 """What a block renders, and what a saved view changes about it."""
 import pytest
 from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
 
 from plinta.blocks.models import Block, SavedView
 from plinta.blocks.rendering import (
@@ -15,51 +14,27 @@ from plinta.blocks.rendering import (
     resolve,
 )
 from plinta.components.base import Mode
-from plinta.datasources.models import DataSource, DataSourceField
-from plinta.permissions.fields import sync_model
 from tests.testapp.models import Book, Region
+from tests.support import books_source, grant
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def block(db):
-    ada = User.objects.create(username="ada")
+def block(ada):
+    """A core table over `title` and the region's name, with two books in
+    the North, and `ada` able to see it all."""
     north = Region.objects.create(name="North")
     Book.objects.create(title="Dune", owner=ada, region=north)
     Book.objects.create(title="Emma", owner=ada, region=north)
-
-    ds = DataSource.objects.create(
-        name="books",
-        label="Books",
-        content_type=ContentType.objects.get_for_model(Book),
-    )
-    DataSourceField.objects.create(data_source=ds, field_name="title", label="Title")
-    DataSourceField.objects.create(
-        data_source=ds, field_name="region__name", label="Region"
-    )
-    sync_model(Book, {"title": False, "region__name": False})
-
-    ct = ContentType.objects.get_for_model(Book)
-    for codename in ("view_book", "view_book_title", "view_book_region__name"):
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=ct, defaults={"name": codename}
-        )
-        ada.user_permissions.add(perm)
-
+    source = books_source("title", "region__name")
+    grant(ada, Book, "view", "view_book_title", "view_book_region__name")
     # Both tiers apply to plinta's own models too: seeing a saved view needs
     # the model permission as well as the policy.
-    for model, codename in ((Block, "view_block"), (SavedView, "view_savedview")):
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename,
-            content_type=ContentType.objects.get_for_model(model),
-            defaults={"name": codename},
-        )
-        ada.user_permissions.add(perm)
-
-    ada = User.objects.get(pk=ada.pk)
+    grant(ada, Block, "view")
+    ada = grant(ada, SavedView, "view")
     return Block.objects.create(
-        name="books-table", component_type="table_plinta", data_source=ds, owner=ada
+        name="books-table", component_type="table_plinta", data_source=source, owner=ada
     ), ada
 
 

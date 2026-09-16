@@ -21,21 +21,9 @@ from plinta.blocks.saved_views import (
 )
 from plinta.datasources.models import DataSource
 from tests.testapp.models import Book
+from tests.support import grant
 
 pytestmark = pytest.mark.django_db
-
-
-def grant(user, model, *codenames):
-    """One or more permissions on ``model``, and a user with them loaded."""
-    content_type = ContentType.objects.get_for_model(model)
-    for codename in codenames:
-        user.user_permissions.add(
-            Permission.objects.get_or_create(
-                codename=codename, content_type=content_type,
-                defaults={"name": codename},
-            )[0]
-        )
-    return User.objects.get(pk=user.pk)
 
 
 

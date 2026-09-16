@@ -10,20 +10,11 @@ from plinta.permissions.fields import sync_model
 from plinta.permissions.policies import PermissionPolicy, register_policy
 from plinta.permissions.rules import Owner
 from tests.testapp.models import Book, Region
+from tests.support import grant
 
 pytestmark = pytest.mark.django_db
 
 BOOK_FIELDS = {"title": True, "region": True, "in_print": True, "watchers": True}
-
-
-def grant(user, *codenames):
-    ct = ContentType.objects.get_for_model(Book)
-    for codename in codenames:
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=ct, defaults={"name": codename}
-        )
-        user.user_permissions.add(perm)
-    return User.objects.get(pk=user.pk)
 
 
 @pytest.fixture
@@ -33,6 +24,7 @@ def writer(db):
     ada = User.objects.create(username="ada")
     return grant(
         ada,
+        Book,
         "add_book",
         "change_book",
         "delete_book",
@@ -293,7 +285,6 @@ def test_a_relation_is_diffed_as_a_pk(db):
     only a suite that does could see it.
     """
     from django.contrib.auth.models import Permission, User
-    from django.contrib.contenttypes.models import ContentType
 
     from plinta.permissions.fields import sync_model
     from tests.testapp.models import Book, Region

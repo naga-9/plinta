@@ -7,8 +7,7 @@ wanted. Filter values are answers, and an absent one means *no filter* — a
 real answer, not a missing one.
 """
 import pytest
-from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.models import User
 
 from plinta.blocks.write import WriteDenied
 from plinta.pages.filter_sets import (
@@ -19,20 +18,9 @@ from plinta.pages.filter_sets import (
     visible_sets,
 )
 from plinta.pages.models import FilterSet, Page, PageFilter
+from tests.support import grant
 
 pytestmark = pytest.mark.django_db
-
-
-def grant(user, model, *codenames):
-    content_type = ContentType.objects.get_for_model(model)
-    for codename in codenames:
-        user.user_permissions.add(
-            Permission.objects.get_or_create(
-                codename=codename, content_type=content_type,
-                defaults={"name": codename},
-            )[0]
-        )
-    return User.objects.get(pk=user.pk)
 
 
 @pytest.fixture

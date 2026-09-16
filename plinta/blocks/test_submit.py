@@ -17,27 +17,18 @@ from django.contrib.contenttypes.models import ContentType
 from plinta.blocks.models import Block
 from plinta.blocks.submit import submit, submitted, writable
 from plinta.blocks.write import WriteDenied
-from plinta.datasources.models import DataSource, DataSourceField
+from plinta.datasources.models import DataSourceField
 from plinta.permissions.fields import sync_model
 from tests.testapp.models import Book, Region
+from tests.support import books_source, grant
 
 pytestmark = pytest.mark.django_db
 
 
-def grant(user, model, *codenames):
-    content_type = ContentType.objects.get_for_model(model)
-    for codename in codenames:
-        permission, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=content_type, defaults={"name": codename}
-        )
-        user.user_permissions.add(permission)
-
-
 @pytest.fixture
-def writer(db):
-    user = User.objects.create_user(username="ada", password="secret")  # noqa: S106
-    grant(
-        user,
+def writer(ada):
+    return grant(
+        ada,
         Book,
         "view_book",
         "add_book",
@@ -47,28 +38,14 @@ def writer(db):
         "change_book_title",
         "change_book_in_print",
     )
-    return user
 
 
 @pytest.fixture
 def source(db):
-    datasource = DataSource.objects.create(
-        name="books",
-        label="Books",
-        content_type=ContentType.objects.get_for_model(Book),
+    """Two columns open to editing, and the region visible but not."""
+    return books_source(
+        "title", "in_print", "region__name", editable=("title", "in_print")
     )
-    DataSourceField.objects.create(
-        data_source=datasource, field_name="title", label="Title", editable=True
-    )
-    DataSourceField.objects.create(
-        data_source=datasource, field_name="in_print", label="In print", editable=True
-    )
-    # Visible, and not open to editing.
-    DataSourceField.objects.create(
-        data_source=datasource, field_name="region__name", label="Region"
-    )
-    sync_model(Book, {"title": True, "in_print": True, "region__name": False})
-    return datasource
 
 
 @pytest.fixture
@@ -334,7 +311,6 @@ def test_a_relation_may_only_be_set_to_a_row_the_viewer_may_see(
     through the same queryset is what makes that impossible rather than
     unlikely.
     """
-    from django.contrib.auth.models import Permission
 
     hidden = Region.objects.create(name="Hidden")
     writer.user_permissions.remove(
@@ -363,7 +339,6 @@ def test_a_relation_may_only_be_set_to_a_row_the_viewer_may_see(
 
 @pytest.fixture
 def with_watchers(source, writer):
-    from django.contrib.auth.models import Permission
 
     DataSourceField.objects.create(
         data_source=source, field_name="watchers", label="Watchers", editable=True

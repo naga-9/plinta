@@ -29,8 +29,8 @@ from tests.testapp.models import Book
 CONFIG_MODELS = (Block, SavedView, Page, FilterSet)
 
 
-def grant(user, model, *names: str) -> None:
-    """Give ``user`` permissions on ``model``.
+def grant(user, model, *names: str):
+    """Give ``user`` permissions on ``model``, and hand them back fresh.
 
     A name with no underscore is an action — ``"view"`` becomes
     ``view_book`` — and one with an underscore is a codename as it stands
@@ -45,6 +45,7 @@ def grant(user, model, *names: str) -> None:
             codename=codename, content_type=content_type, defaults={"name": codename}
         )
         user.user_permissions.add(permission)
+    return fresh(user)
 
 
 def grant_config_views(user) -> None:
@@ -78,7 +79,7 @@ def books_source(
         DataSourceField.objects.create(
             data_source=source,
             field_name=name,
-            label=name.replace("_", " ").capitalize(),
+            label=name.split("__")[0].replace("_", " ").capitalize(),
             editable=name in editable,
             filterable=name in filterable,
         )

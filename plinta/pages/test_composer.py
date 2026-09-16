@@ -6,22 +6,13 @@ worth checking here is the control: that it appears where a grid exists, and
 asks for the same permission the positions endpoint checks.
 """
 import pytest
-from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.models import User
 
 from plinta.pages.actions import registered, visible_actions
 from plinta.pages.models import Page, PageBlock, PageType
+from tests.support import grant
 
 pytestmark = pytest.mark.django_db
-
-
-def grant(user, model, *codenames):
-    content_type = ContentType.objects.get_for_model(model)
-    for codename in codenames:
-        permission, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=content_type, defaults={"name": codename}
-        )
-        user.user_permissions.add(permission)
 
 
 def test_it_registers_a_page_action():

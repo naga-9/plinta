@@ -1,13 +1,11 @@
 """Composing a page: which slots are drawn, and with which filter values."""
 import pytest
-from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.models import User
 from django.db import connection
 from django.db.models import Q
 from django.test.utils import CaptureQueriesContext
 
 from plinta.blocks.models import Block, SavedView
-from plinta.datasources.models import DataSource, DataSourceField
 from plinta.pages.models import (
     FilterSet,
     Lookup,
@@ -26,52 +24,22 @@ from plinta.pages.rendering import (
     resolve_filters,
     saved_filter_sets,
 )
-from plinta.permissions.fields import sync_model
 from tests.testapp.models import Book, Region
+from tests.support import fresh, grant, grant_config_views
 
 pytestmark = pytest.mark.django_db
 
-MODELS = (Block, SavedView, Page, FilterSet)
-
-
 @pytest.fixture
-def screen(db):
-    ada = User.objects.create(username="ada")
+def screen(catalog):
+    """*Catalog* with one book in each region, and `ada` able to read it."""
+    ada = catalog.user
     north = Region.objects.create(name="North")
     south = Region.objects.create(name="South")
     Book.objects.create(title="Dune", owner=ada, region=north, in_print=True)
     Book.objects.create(title="Emma", owner=ada, region=south, in_print=False)
-
-    ds = DataSource.objects.create(
-        name="books",
-        label="Books",
-        content_type=ContentType.objects.get_for_model(Book),
-    )
-    DataSourceField.objects.create(data_source=ds, field_name="title", label="Title")
-    sync_model(Book, {"title": False})
-
-    ct = ContentType.objects.get_for_model(Book)
-    for codename in ("view_book", "view_book_title"):
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=ct, defaults={"name": codename}
-        )
-        ada.user_permissions.add(perm)
-    for model in MODELS:
-        codename = f"view_{model._meta.model_name}"
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename,
-            content_type=ContentType.objects.get_for_model(model),
-            defaults={"name": codename},
-        )
-        ada.user_permissions.add(perm)
-    ada = User.objects.get(pk=ada.pk)
-
-    block = Block.objects.create(
-        name="books-table", component_type="table_plinta", data_source=ds, owner=ada
-    )
-    page = Page.objects.create(name="Catalog", slug="catalog", owner=ada)
-    PageBlock.objects.create(page=page, block=block, width=6)
-    return page, block, ada
+    grant(ada, Book, "view", "view_book_title")
+    grant_config_views(ada)
+    return catalog.page, catalog.block, fresh(ada)
 
 
 # --- addressing ------------------------------------------------------------

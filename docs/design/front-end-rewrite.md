@@ -37,8 +37,13 @@ wrote — are gone. §6.5 is done: `tests/support.py` and three root
 fixtures (`ada`, `books`, `catalog`) are what a test starts from, the
 fifteen local `grant`s and three `screen`s are gone, and the unusual
 shapes stay local where a reader can see them — plain functions, not a
-factory library, since the grant is usually the point. §6.7 and §6.8 are
-still open.
+factory library, since the grant is usually the point. §6.7 is left as it
+is — one skill per extension point — with the skills brought up to date.
+§6.8's first cut is done: the ledgers the spec itself said would retire
+when the build landed (§20.13) — §21, §22.3, §23, and the sections that
+only said how v1 differed — are gone, tagged `v2-spec`, and the numbering
+keeps its gaps so a citation never moves. The inline history in §3–§19 is
+the remaining pass, to be read rather than swept.
 
 What this document changes in `SPEC.md` when it lands is listed at the end.
 

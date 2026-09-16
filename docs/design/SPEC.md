@@ -1,10 +1,13 @@
 # Plinta v2 — functional & technical spec
 
-The specification for the rebuild. One file, so it cannot drift against itself.
+What plinta is, in one file so it cannot drift against itself. It was written
+as the specification for the rebuild from v1 and its ledgers — the per-feature
+decisions, the build order, the couplings to eliminate — retired when the
+build landed (§20.13); the tag `v2-spec` holds the document as it was.
 
-**How to read it.** Parts I and II are the build: sections 3–10 are the nine layers in the order they get written, each stating its responsibility, its public API, what it may import, and what it must not know. Part III is what ships on top of them. Part IV is what cuts across all of them. Part V is reference — conventions, the per-feature decision ledger, what is deferred, the build sequence with its done-when conditions, and the decision records.
+**How to read it.** Parts I and II are the architecture: sections 3–10 are the nine layers, lowest first, each stating its responsibility, its public API, what it may import, and what it must not know. Part III is what ships on top of them. Part IV is what cuts across all of them. Part V is reference — conventions, what is deferred, the decision records, and the skills.
 
-**Every decision in this document is taken.** Nothing is described as an open question and nothing is hedged. What is not being built is in §22, once, with the use case that would bring it back.
+**Every decision in this document is taken.** Nothing is described as an open question and nothing is hedged. What is not built is in §22, once, with the use case that would bring it back.
 
 Usage figures come from a live v1 install: 44 DataSources, 279 fields, 54 Blocks, 36 Pages. "0 uses" is evidence, not proof.
 
@@ -19,7 +22,7 @@ Usage figures come from a live v1 install: 44 DataSources, 279 fields, 54 Blocks
 | 1 | [Purpose and scope](#1-purpose-and-scope) |
 | 2 | [Architecture](#2-architecture) |
 
-**Part II — The layers, in build order**
+**Part II — The layers**
 
 | § | Section |
 |---|---|
@@ -56,9 +59,7 @@ Usage figures come from a live v1 install: 44 DataSources, 279 fields, 54 Blocks
 | § | Section |
 |---|---|
 | 20 | [Conventions](#20-conventions) |
-| 21 | [Feature decisions](#21-feature-decisions) |
-| 22 | [Deferred and deleted](#22-deferred-and-deleted) |
-| 23 | [Build order](#23-build-order) |
+| 22 | [Deferred](#22-deferred) |
 | 24 | [Decision records](#24-decision-records) |
 | 25 | [Skills](#25-skills) |
 
@@ -279,7 +280,7 @@ The register. Nowhere else in this document counts them; a count in two places i
 | `components.kanban` | `labels` | `enhances` | a card with no label chips (§11.2) |
 | `components.kanban` | `workflow` | `enhances` | grouping by an ordinary field, with no state columns and no drag-to-transition (§11.2) |
 
-**No shipped package declares `composes`.** That is a result, not a rule: the one structural cross-contrib dependency the previous design had was `actions` → `workflow`, and `actions` is not shipped (ADR 0008 (§24)). A `composes` appearing later is legitimate — it constrains the build order (§23.1) and must be added here.
+**No shipped package declares `composes`.** That is a result, not a rule: the one structural cross-contrib dependency v1 had was `actions` → `workflow`, and `actions` is not shipped (ADR 0008 (§24)). A `composes` appearing later is legitimate — it constrains the order the packages load in, and must be added here.
 
 ### 2.6 Consequences
 
@@ -721,32 +722,6 @@ The access engine. Every read and every write passes through it.
 **May import:** `utils`, `dates`, `events`.
 **Must not know:** what a Block, Page, DataSource, Company, Site or Workflow is.
 
-### 5.0 Old versus new
-
-| | Today | v2 |
-|---|---|---|
-| **Public surface** | 18 functions in `checks.py` | 3 — `can` / `allowed` / `fields` |
-| **Superuser bypass** | hardcoded in **17 sites** | 1, inside the engine |
-| **Two-tier rule** | implicit; each caller re-derives it | stated once inside `can()` |
-| **Policy attachment** | class attribute on the consumer's model | registered in `policies.py`, autodiscovered |
-| **No policy** | falls through to a per-instance loop | model permission decides; startup check reports it |
-| **Rules** | 15 concrete, mixed core and domain | 11 in core; domain rules with their contrib app |
-| **Reading a model permission in a rule** | impossible — hence `StaffOnly` | `HasPerm` |
-| **`is_staff`** | a grant, at 6 sites across 5 apps | means only "may log into `/admin/`" |
-| **Publish gate** | `is_staff` | `change_<model>_owner` |
-| **Public content editable by** | staff only | `Owner \| InstancePerm \| (Public & HasPerm)` |
-| **Field permissions from** | concrete model fields | `DataSourceField` rows |
-| **Computed / reverse / property columns** | ungated — the gate returns `True` | minted and enforced |
-| **Field gate default** | allow | deny |
-| **Actions** | fixed: view / add / change / delete | open set; row actions and capabilities, registered and minted (§5.5) |
-| **Organisation rules** | in core | `contrib.organization`, behind generic `FieldInUserSet` |
-| **Workflow rule** | in core | `contrib.workflow` |
-| **Plinta's own models** | no field permissions possible | registered DataSources, `show_in_api = False` |
-| **`checks.py`** | permission checks | Django system checks; logic moves to `engine.py` |
-| **Startup validation** | none | missing rule, unminted codename, unregistered annotation |
-
-Unchanged, deliberately: the `Rule` abstraction and its `to_q` / `evaluate` pairing, pk-keyed instance permissions, additive sharing, and the two-tier model itself.
-
 ### 5.1 The five questions
 
 This layer answers five things and nothing else:
@@ -1085,14 +1060,6 @@ This module enforces escalation only. Whether someone may administer permissions
 Unauthenticated users are denied before any rule runs.
 
 Already the behaviour (`policy.py:61,67`) but nowhere stated, which leaves it looking undefined — and "public means everyone" invites the question. It does not include logged-out visitors. A public object is visible to every *authenticated* user holding the baseline model permission.
-
-### 5.17 The chunked fallback loop is deleted
-
-`_filter_queryset_by_action` walks a queryset in chunks of 2,000, calling the instance check per row. It runs when a model has **no policy** — and in that case every row passes anyway, because the fallback is the model permission.
-
-So an unpolicied model with 50,000 rows iterates all of them to conclude "all of them".
-
-§5.3 answers that case directly: no policy means the model permission decides and rows are not filtered. And since every `Rule` implements `to_q`, there is no "policy exists but cannot produce a `Q`" case either. The loop has nothing left to do, and a latent performance cliff goes with it.
 
 ### 5.18 Deny rules are rejected
 
@@ -1661,51 +1628,9 @@ Two known limits, both solved natively when they bite:
 
 So the seam is a global by design, and the registry's `module=True` remains available for anything self-contained. This is not the import map being deferred — an import map does not solve either point above.
 
-### 7.6 The client is a consolidation, not new code
-
-Its pieces already exist, scattered across three places:
-
-| Piece | Lives today in |
-|---|---|
-| `postJSON`, `postFormData` — the CSRF + JSON ceremony | `fetch-helpers.js` |
-| `appendParams` — URL parameter building | `core.js` |
-| `getCookie` — the CSRF token | `core.js` |
-| `_destroyWidgets` — teardown before re-render | `core.js` |
-| fetch, catch, loading, empty | duplicated in `table.js`, `kanban.js`, `gantt.js`, `pivot.js` |
-
-`fetch-helpers.js` is the seed and its own comment records the instinct — it was extracted because the ceremony *"was duplicated across core.js, comments.js, attachments.js, checklist.js"*. It stopped at writes and never reached the four data widgets, which duplicated it again.
-
-So the client is those rows gathered into one module: nine `fetch` calls become one, fourteen catch blocks become one error path.
-
-### 7.7 `core.js` splits along the package layout
-
-489 lines, twelve exports, five concerns — **from different layers**:
-
-```js
-export const plintaNotifications = {
-    toggleDropdown: function() { fetch('/api/v1/notifications/dropdown/') ... }
-```
-
-That is `contrib.notifications` code inside core chrome — a contrib concern living in core, exactly the violation §4.10 tabulates on the Python side, somewhere the AST import test would never look. `setViewParam` writes `view_pb<id>` URL parameters, which belongs with `blocks` rather than in the chrome file.
-
-| Exports | Goes to |
-|---|---|
-| `appendParams`, `getCookie`, `_destroyWidgets` | **the client** (§7.4), with `fetch-helpers.js` |
-| `showToast`, `_getOrCreateModal` | core chrome — `ui/toast.js`, `ui/modal.js` |
-| `openEditFromCell`, `openEditForm`, `openCreateForm`, `saveEditForm` | **`blocks`** — block write UI, not chrome |
-| `navigateWithScroll` | core chrome — `nav.js` |
-| `setViewParam` | **`blocks`** — it selects a saved view |
-| `plintaNotifications` | **`contrib.notifications`** |
-
-#### The rule
-
-**The JS mirrors the package layout.** A component's adapter ships with its component; a contrib app's front-end code ships with that app; core carries the client and the chrome, and nothing else. Same layering as the Python, same one-way rule.
-
-**And the import-boundary test covers JS too.** A regex over import paths is cruder than the Python AST walk, but it would have caught both violations above. Without it the front end drifts freely while the back end is policed — which is how these two got there.
-
 ### 7.8 The field-renderer extension point
 
-Replaces four duck-typed model protocols (§21) with one registration.
+Replaces four duck-typed model protocols with one registration.
 
 Today a model may implement `serialize_for_table()`, `table_select_related()`, `expand_for_table()` or `expand_color()`, discovered by `hasattr`. §1 promises plinta requires nothing of a consumer's models; these are the same imposition under another name, and only `Label` implements any of them.
 
@@ -2429,7 +2354,7 @@ A filter on `author` therefore accepted `author__user__password__startswith` —
 
 **`PageFilterMapping` — keep, deferred.** It lets one filter drive blocks over *different* DataSources, mapping to a different field path on each — so a single "sector" control filters an instruments table on `sector`, a prices chart on `instrument__sector`, and a fundamentals block on `instrument__sector__code`.
 
-Zero rows, but it is `pages/0003` — the most recent pages migration — so it is **new, not dead**. §21's rule applies: zero uses is evidence, not proof.
+Zero rows, but it is `pages/0003` — the most recent pages migration — so it is **new, not dead**: zero uses is evidence, not proof.
 
 The mechanism is not built in layer 8. A page whose blocks share a DataSource needs nothing, and a mixed page can declare a filter per source in the meantime. It returns when a dashboard actually needs one control across several models, which is the case it was written for.
 
@@ -2904,7 +2829,7 @@ It registers under its own key rather than replacing `table_plinta`, because the
 
 **`pivot_webdatarocks` and `pivot_flexmonster`** — two packages, where v1 had one holding both behind `providers.py` and a setting. Flexmonster is commercial and cannot be vendored (§17), so it fetches its own assets and asks for its own licence key; WebDataRocks is free and vendors normally. Neither knows the other exists, and an installation picks by which it adds to `INSTALLED_APPS`.
 
-**`gantt_jsgantt`** — **`critical_path` is declared and never implemented.** It appears in the config schema and a docstring listing options, and nowhere else: the key is accepted, validated and ignored. Dropped. It is one of the four findings in §21.11, and the only one where the **key itself** is the fiction — the other three document a real key wrongly.
+**`gantt_jsgantt`** — **`critical_path` is declared and never implemented.** It appears in the config schema and a docstring listing options, and nowhere else: the key is accepted, validated and ignored. Dropped. It is one of the four documented behaviours the code never had, and the only one where the **key itself** is the fiction — the other three document a real key wrongly.
 
 **`chart_plotly`, `gauge_plotly`, `kpi_plinta`** — move to `inline`. A KPI is one number and currently costs a round trip to deliver it.
 
@@ -3201,36 +3126,7 @@ Optional. Never imported by core. Installed by listing it in `INSTALLED_APPS`, a
 
 **Uninstalling is a supported state, not a degraded one.** Every package below states what stops working when it is absent, and in every case the answer is "that feature", never "the page breaks".
 
-### 14.1 Sweep: reports
-
-Two findings, both structural rather than cosmetic.
-
-**`ScheduledReport` can name a report two ways.** It carries a `report_definition` FK *and* a `report_code_name` — *"Code-registry report name. Used only if `report_definition` is null."* So a report is either a database row or a code-registered function, and the schedule accommodates both.
-
-**Decision: database definitions only.** A report is configuration — §16 makes it exportable, diffable and reviewable, which a code registry is not. A report needing computation gets it from an annotation (§6.9) or a queryset modifier (§6.4), both of which are already registered mechanisms. `report_code_name` and the code registry go, and §20's rule applies: a second mechanism for one concept is the thing to remove.
-
-**`ReportDefinition` carries both `owner` and `is_public`,** where every other shareable expresses public as `owner IS NULL`. `is_public` is **dropped**; reports normalise onto the shareable model.
-
-The second field exists because `owner` meant *who may edit* and `is_public` meant *who may download* — but the shareable model already expresses both, once the three verbs are available:
-
-| State | Meaning | Mechanism |
-|---|---|---|
-| public | everyone views; admins edit | `owner IS NULL`, edit via `Public & HasPerm('change_reportdefinition_owner')` (§5.8) |
-| private | the owner views and edits | `owner` set |
-| private + **shared** | named users also view | `InstancePerm` grant |
-| private + **pushed** | each recipient gets their own copy | `copy_to` per recipient |
-
-Publishing a report therefore means giving up ownership, and public reports are maintained by whoever holds the publish permission. That is accepted, not worked around — it is the same trade every other shareable makes, and one model for all five is worth more than reports keeping a private axis.
-
-### 14.2 Sweep: workflow, notifications, actions
-
-**`workflow`** — transitions carry `requires_confirmation` with a message, `requires_comment`, a `permission_codename`, and presentation (`color`, `icon`, `order`). All keep: they are the vocabulary of a transition, and each is read at render or guard time. `WorkflowStateAllowed` moves here from core (§5.4).
-
-**`notifications`** — dormant in the surveyed install: four seeded `NotificationType` rows, zero notifications, zero queued email, zero preferences. Kept regardless, because §4.9 makes it the app every other one used to reach into, and the whole event bus exists partly to serve it. What changes is direction: it subscribes rather than being called.
-
-**`actions`** — **not a contrib package.** It is deleted from plinta and rebuilt, if ever wanted, as a consumer app. `Urgency` goes with it, taking the last domain noun out of `core`. ADR 0008 (§24) has the reasoning.
-
-### 14.3 Sweep: `FilterSet`
+### 14.3 `FilterSet` is core
 
 Zero `FilterSet` rows, against six `PageFilter` rows — the *bar* is used, saved *values* are not. All of it stays in **core**: `SavedView` in `blocks`, `FilterSet` and `PageFilterPreference` in `pages` (§14.3a).
 
@@ -3279,7 +3175,7 @@ Decisions taken elsewhere that land on a package here. The per-app entries in §
 |---|---|
 | `export` | the two export endpoints from `blocks` (§8.10); a `('table', 'json')` renderer for block-shaped output (§7.3); asset location as a provider property (§17) |
 | `organization` | the fiscal half of `organization/utils.py` (§3.4); the fiscal **placeholder** registrations (§3.6); the account-settings org cards from `pages` (§9.7); the three scope rules from core (§5.4) |
-| `audit` | create rows carry initial values in `metadata` (§21); `record_restore` deleted with the signal (§8.10) |
+| `audit` | create rows carry initial values in `metadata`; `record_restore` deleted with the signal (§8.10) |
 | `workflow` | `WorkflowStateAllowed` and its state prefetch from core `permissions` (§5.4); the validation stage from core's write pipeline, as an `object_writing` subscriber that asks whether a workflow governs the model rather than testing a base class (§23) |
 | `components.*` | the whole catalogue — see **§11**, which supersedes the summary here |
 | every app | registers its own matrix capability rather than `pages` doing it (§8.5) |
@@ -3290,7 +3186,7 @@ Decisions taken elsewhere that land on a package here. The per-app entries in §
 |---|---|
 | `report_code_name` and the code registry | **dropped** — reports are configuration |
 | `ReportDefinition.is_public` | **dropped** — reports normalise onto the shareable model |
-| `notifications` | kept despite zero rows — it supplies a shipped screen, and §21's rule applies |
+| `notifications` | kept despite zero rows — it supplies a shipped screen, and zero uses is evidence, not proof |
 | `actions` | **not a contrib package** — deleted from plinta, rebuilt as a consumer app if wanted (ADR 0008 (§24)) |
 | `reports` → `export` | **`enhances`**, substituting the HTML renderer (§7.1) |
 | `workflow` → `audit` | **`enhances`** — reading transition history is a functional read no event replaces; substitutes an empty history (§14.6) |
@@ -4482,7 +4378,7 @@ Two live defects follow. The home page reads the **environment variable** while 
 
 `PLINTA_PROJECT_LABEL` loses the fallback and defaults to `"Project"`. It is a heading in the permission console — the consumer's own models group under it, plinta's and Django's group under "Plinta" — so it names a project, never an environment.
 
-**`MIGRATION_MODULES`** appears in plinta's own test settings as a stub for the legacy `runtests` command, which is deleted (§22). No consuming project should ever set it for plinta.
+**`MIGRATION_MODULES`** appears in plinta's own test settings as a stub for the legacy `runtests` command, which is deleted. No consuming project should ever set it for plinta.
 
 ### 19.5 Rule
 
@@ -4599,213 +4495,22 @@ A decision that changes the architecture gets an ADR in `design/adr/`; a decisio
 
 **Code cites an ADR, never a section of this document.** `ADR 0006` is stable by convention and immutable by design. `§5.4` is a pointer into a numbering that moves — the same name-as-reference defect §8.1 removes from `SavedView.block_name` and §8.9 from block URLs. A docstring naming a section is a broken link waiting for the next reorganisation.
 
-### 20.13 What survives the build
+### 20.13 What survived the build
 
-This document is mostly a **plan**, and a plan that outlives its execution becomes a second source of truth for facts the code already states. That is how four of v1's documented behaviours came to describe something the code never did (§21.11).
-
-So when the last layer lands, it splits.
+This document was written as a **plan**, and a plan that outlives its execution becomes a second source of truth for facts the code already states. So when the build landed its ledgers were retired (2026-09-16), and the tag `v2-spec` holds the document as it was — recoverable, and nobody has to keep it true:
 
 | Part | Fate |
 |---|---|
-| §24 — the eight decision records | **Kept**, one file each under `design/adr/` |
-| §1–§2 — purpose, layers, the membership tests, the dependency rules and their register | **Kept** as `design/architecture.md` |
-| §3–§19 — the layer specifications | **Retired.** The code answers *what*; a consumer's questions are answered by user documentation |
-| §21, §22 — the ledgers | **Retired.** They record what became of v1's features, which stops mattering once nothing is left of it |
-| §23, §25 — build order, the skills plan | **Retired.** They expire on completion by definition |
-
-**Retired means tagged, not deleted** — `v2-spec`: recoverable, and nobody has to keep it true. Recoverable, and nobody has to keep it true.
-
-What survives is the part that cannot drift: an ADR records a decision at a moment and never claims to describe current behaviour, and `architecture.md` states rules the import-boundary test enforces mechanically.
-
----
-
-## 21. Feature decisions
-
-
-
-A feature survives a rebuild by default — whoever ports the table ports everything in it, because it is there, not because anyone chose it. This ledger makes the choice explicit.
-
-**A layer is not done until every ledger row for it is resolved.** That is part of the definition of done in §23.
-
-### 21.1 Evidence basis
-
-Usage counts come from a live consuming project: **44 DataSources, 279 DataSourceFields, 54 Blocks, 36 Pages**. "0 uses" is evidence, not proof — a feature may have been used by a consumer that has since been separated. Where that is known, it is stated.
-
-Decisions: **keep** · **keep + fix** · **drop**. There is no *open* state — a row without a decision is a row that will be ported by default, which is what this ledger exists to prevent.
-
----
-
-### 21.2 `datasources` — DataSourceField options
-
-**The decisions live in §6.2**, with the layer that owns them. They are not repeated here: this table existed in two places and the copies disagreed on four rows — `editor_widget`, `edit_modal_block`, `editor_queryset_filter` and the two additions — which is the drift a single document is supposed to make impossible.
-
-What follows is the reasoning behind three of those rows, which §6.2's table has no room for.
-
-#### `is_fiscal_year` / `is_month` — drop
-
-Adds "Current / Prior Fiscal Year" and "Current Month" placeholders to a filter dropdown, for fields storing fiscal year or month **as integers**. Fields are auto-detected by name suffix (`*_fiscal_year`, `*_month`); these flags are the manual override for non-conforming names.
-
-A denormalised ERP schema convention, driving behaviour from a column-naming pattern in core. Replaced by the design already recorded: calendar ranges in core `dates`, fiscal ranges registered by `contrib.organization` into the same resolver (ADR 0006 (§24)). Core need never know a column holds a fiscal year.
-
-#### `recompute_siblings` — drop the flag, invert the default
-
-After an inline edit, re-fetches the row through the component and returns it as `updated_row`, so server-derived sibling columns refresh in place. The ERP case is editing a quantity and watching a total update.
-
-Zero uses — but note the consequence: **without the flag, an inline edit returns no updated row at all.** So do not delete the capability; invert the default. Always return the updated row after a write: one refetch, no config, better behaviour, one option fewer.
-
----
-
-### 21.3 `components.table`
-
-| Feature | Used | Decision | Notes |
-|---|---|---|---|
-| `page_size` | 46 | keep | |
-| `title` | 37 | keep | |
-| `enable_export` | 34 | keep | moves with `contrib.export` |
-| `sort` | 32 | keep | |
-| `edit_form_template` | 18 | keep | |
-| `enable_create` | 2 | keep | |
-| `create_defaults` | 2 | keep + fix | one magic string, resolved in two places — below |
-| `row_formats` | 1 | keep + fix | below |
-| `row_link_field` | 1 | keep | |
-| `height` | 0 | keep | Tabulator passthrough |
-| `queryset_modifier` | — | keep | lives on the Block field, not in config |
-| `expand_columns` | 0 | **drop** | below |
-
-#### `expand_columns` — drop
-
-Fans a reverse FK into repeated columns (`Item 1`, `Item 2`, …), sized to the widest row on the page. Requires the consuming model to implement `expand_for_table()`, optionally `expand_color()`.
-
-Zero uses here, and **its only implementation lived in the client project that has since been separated.** Orphaned rather than broken.
-
-Removal covers `_compute_expand_metadata`, 5 context fields, 34 references in `component.py`, 13 in `api.py`, the `dynamic_columns` response key, and the column-injection path in `table.js`.
-
-Keep the sibling feature — a reverse relation rendered as **one stacked cell** — which is live (`labeled_items` on 8 DataSources).
-
-#### `create_defaults` — keep, fix
-
-Pre-fills fields when a user clicks "+ New": `{"owner": "__CURRENT_USER__"}` sets the new record's owner to whoever clicked. Both uses in the surveyed install came from `seed_actions_page.py`, which leaves with `actions` — so the placeholder ships with no shipped consumer and is kept on the strength of the mechanism, not its usage count.
-
-Conventional and worth keeping — every CRUD tool pre-fills "assigned to me". Two defects:
-
-**Resolution is duplicated.** `blocks/api.py:464` pre-fills the create *form*; `write_pipeline.py:493` applies defaults on *save*. Same loop, same placeholder check, written twice — so they can drift, and the form would then show a value the pipeline does not save. One resolver, called from both.
-
-**The placeholder is a magic string, not a mechanism.** Exactly one exists (`__CURRENT_USER__`). Replace it with a small registry of named placeholders — `current_user`, `today`, `now` — matching the extension-point pattern used elsewhere, so a consumer can register their own without touching core. Keep the set closed: named placeholders, never expressions.
-
-!!! warning "The docstring describes a feature that does not exist"
-    `components/tables/component.py:77` claims values *"may be literals or template strings (`{{user}}`, `{{today}}`), resolved via `apply_field_value` in `blocks/views.py`."* All three claims are false: the syntax is `__CURRENT_USER__`, `apply_field_value` is a type-coercion helper that resolves nothing, and `plinta/blocks/views.py` does not exist. There is no `{{today}}` equivalent at all.
-
-    This is one of four such findings, tabulated in §21.12. **Treat docstrings and reference docs as unverified during the rebuild.** Behaviour is read from code and confirmed against usage, never ported from prose.
-
-#### `row_formats` — keep, fix as encountered
-
-Conditional row styling: `{field__op: value}`, eight operators, a magic `"today"`, implicit AND. Conventional for a table widget, and declarative, so styling stays editable in the browser rather than becoming developer-only.
-
-One known defect: comparisons are string-based, so `lt` / `gt` on a numeric column are lexicographic (`"9" > "10"`). Correct for ISO dates, which is the shipped use. Fix by typing the comparison from the `DataSourceField`. Freeze the operator set — when `OR` or arithmetic is wanted, the answer is a component or a queryset modifier, not a bigger language.
-
----
-
-### 21.4 Model protocols
-
-Plinta silently requires methods on a consumer's model. §1 promises it requires nothing of them, so these are the same imposition under another name.
-
-| Protocol | Implemented by | Decision |
-|---|---|---|
-| `expand_for_table()` | left with the client project | **drop** |
-| `expand_color()` | left with the client project | **drop** |
-| `serialize_for_table()` | `Label` | keep, **redesign** |
-| `table_select_related()` | `Label` | keep, **redesign** |
-| `get_notification_recipients()` | `Action`, which leaves plinta (ADR 0008 (§24)) | keep as an extension point, **redesigned** — an explicit subscription, with no shipped implementer |
-| `duplicate(user)` | `Action` | the model leaves plinta; the hook stays, with `Block` and `SavedView` as its reference implementations (§8.10) |
-
-**Redesign** means replacing `hasattr` duck-typing with a declared, registered extension point: the table cases become one **field renderer** registration, the notification case an explicit subscription.
-
-**`status_changed_at` / `status_changed_by` are not a model protocol and were listed here in error.** Core never reads or writes them.
-
-**And with no base class to declare them, they do not survive as fields at all.** Who moved a row and when is what `state_changed` carries and what the audit trail records, so a second copy on the consumer's model could only disagree with it. A consumer wanting the columns anyway declares them and stamps them in an `object_written` subscriber, like any other derived value.
-
----
-
-### 21.5 `accounts`
-
-| Feature | Decision | Notes |
-|---|---|---|
-| `CustomUser` | **drop** | ADR 0002 (§24) — the consumer owns the user model |
-| `duplicate_user` admin action | **drop** | below |
-| `UserCompanyAccess` / `UserBusinessUnitAccess` | move | → `contrib.organization` |
-| permission console | move | → core |
-
-#### `duplicate_user` — drop, and record the defect
-
-Clones a user with groups, permissions and org accesses as `<username>_copy`.
-
-It sets `user.pk = None` and saves, so **the password hash is copied and never reset**, and `is_active` carries over. The clone is immediately loginable with the source user's password.
-
-It disappears with the user admin under ADR 0002 (§24). Recorded so the behaviour is not reproduced: any future "copy this user's access" feature copies grants only, never credentials.
-
----
-
-### 21.6 `datasources` — other
-
-| Feature | Decision | Notes |
-|---|---|---|
-| FK object search: `hasattr(model, 'site')` | **drop** | appends `" (site)"` to the label of any model with a `site` field, and adds `select_related('site')`. Hardcoded org knowledge in a core endpoint. |
-
----
-
-### 21.7 `pages` — swept
-
-**The decisions live in §9.1 and §9.8**, with the layer that owns them, and are not repeated. The census behind them: 36 pages, of which `page_type` is set on all 36 (dashboard 27, custom-template 7, detail 2), `template_name` on 7, `context_param` on 2, `tabs` on 1, and `config`, `is_system`, `external_url` and `PageFilterMapping` on none.
-
-Two of those zeroes resolve differently, which is the whole reason the count is evidence rather than proof: `is_system` and `external_url` are dropped because each is a mechanism the design replaces, while `PageFilterMapping` is deferred because it is `pages/0003` — newer than the install that shows no rows.
-
-### 21.8 `contrib` — swept
-
-**The decisions live in §14**, per package, and are not repeated. What the sweep established:
-
-- every contrib package has a usage census and a decision for each of its features
-- one app carries zero rows in the surveyed install — `notifications` — and is kept, because it supplies a shipped screen and absence of use in one install is not absence of purpose
-- one app is not shipped at all: `actions` (ADR 0008 (§24))
-- workflow's transition flags — `requires_confirmation`, `requires_comment`, `permission_codename`, presentation — are all in use and all kept
-
-### 21.9 `audit` — create rows carry no field data
-
-`record_changes(mode='create')` writes a single row with `field_name=''`, `old_value=None`, `new_value=None`. The trail says "Created" and nothing more, so the initial state of a record is not recoverable from the log.
-
-That makes the log only conditionally replayable: current state can be wound backwards through the changes, but only if no unaudited write ever happened — and §4.4 makes that likely, since plinta only emits for writes it mediates.
-
-**Decision: keep one row, put the initial values in `metadata`.** `AuditLog` already has that JSON column, so it costs nothing structurally, and the timeline still reads as one "Created" entry rather than twenty. One row per field on create would drown the timeline for no gain, since a create has no per-field *before* to compare against.
-
-### 21.10 `audit` — `record_restore` is unreachable
-
-Called by nobody. Its docstring describes it as *"the symmetric companion to `record_delete` for consuming projects"*, so it was written as an offering rather than for a plinta code path — and no plinta code path restores anything.
-
-**Dropped with the `object_restored` signal (§8.10).** A consumer with soft delete flips a flag, which is an update: `object_written` carrying `changes={'is_deleted': (True, False)}` names the field and both values, which is more than a bare restore row ever could.
-
-### 21.11 Cross-cutting sweep: documentation drift
-
-**Four** documented behaviours in the previous design do not exist in its code.
-
-| Where | Says | Actually |
-|---|---|---|
-| `create_defaults` docs | a `{{user}}` / `{{today}}` template language | never implemented; the docs name a resolver and a file that do not exist |
-| `expand_columns` docs | several config keys | its own docs note that earlier drafts described keys that "are not read" |
-| `Block.queryset_modifier` help text | *"Dotted path to a function that modifies the queryset"* | the field stores a **registered key**; an unregistered name hard-fails at save |
-| `gantt.critical_path` | a config option, in the schema and a docstring | accepted, validated, and ignored — it appears nowhere else |
-
-Every one would have misled someone porting the feature from its description, which is exactly how a rebuild reintroduces a feature that was never there.
-
-Two consequences. A sweep comparing every documented config key against the code path that reads it is its own task. And until it is done, **behaviour is established from code and usage, never from prose** — the same rule §25.3 applies to the v1 skills.
-### 21.12 Sweep complete
-
-Every layer and every contrib package has a usage census and decisions. Two items are recorded as **deferred with a use case** rather than dropped — `PageFilterMapping` (§9.4) and the general `visibility` field the sharing spine does not yet need (§5.10) — and one as an accepted trade: publishing means giving up ownership.
-
-The sharing **UI** is the only surface not separately swept; it is generated from the spine (§5.10) rather than hand-built per model, so it has no independent feature set.
-
-
----
-
-## 22. Deferred and deleted
+| §21 — the per-feature ledger of what became of v1 | **retired**; the two things it decided that still matter — zero uses is evidence, not proof; a documented behaviour is unverified until the code shows it — are stated where they apply |
+| §22.3 — what was deleted and is not coming back | **retired**; §22 keeps what is deferred, with what would bring it back |
+| §23 — the build order, the definition of done, the couplings to eliminate | **retired**; the couplings are the import-boundary test's to keep out (§2.5), and the build is done |
+| §5.0, §5.17, §7.6, §7.7, §14.1, §14.2, §25.5, §25.7 — the sections that only said how v1 differed | **retired** |
+| §3–§19 — the layer specifications | **kept**, and edited to say what is rather than what changed; a section and its skill change together (§25.6) |
+| §24 — the decision records | **kept**, and where a reason belongs once the section it explained no longer records the history |
+
+**Code cites an ADR or a section, and a section number never moves.** Retiring a section leaves a gap in the numbering rather than renumbering what follows, so `§7.12` in a docstring written last month still points at the same thing.
+
+## 22. Deferred
 
 Everything decided as "not in v2", in one place, each with the use case that would bring it back. Nothing here is hedged elsewhere in the document — a layer section states what is built, and this section states what is not.
 
@@ -4814,7 +4519,7 @@ Everything decided as "not in v2", in one place, each with the use case that wou
 | Feature | Why not now | What brings it back |
 |---|---|---|
 | **`PageFilterMapping`** — one filter across several DataSources | New (`pages/0003`), never exercised. A page whose blocks share a DataSource needs nothing, and a mixed page can declare a filter per source. | A dashboard that genuinely needs one control mapping to `sector`, `instrument__sector` and `instrument__sector__code` across three blocks. |
-| **A general `visibility` field** on shareables | The single-axis model — public means owner-less — is accepted, and publishing means giving up ownership (§14.1). | A second shareable needing *owned and public*. Reports needed it and was normalised instead; a second case means the spine is wrong, not the app. |
+| **A general `visibility` field** on shareables | The single-axis model — public means owner-less — is accepted, and publishing means giving up ownership (§14.3). | A second shareable needing *owned and public*. Reports needed it and was normalised instead; a second case means the spine is wrong, not the app. |
 | **A query-parameter registry** for the public API | The caller expands a saved filter in two calls, and the design already carries four registries — a fifth must earn its weight (§20.4). | `?filterset=` being asked for repeatedly, by someone real. |
 | **Bulk write endpoints** in core | The write pipeline is single-row by design; its per-row authorise, validate and emit are what make it the only mutation path. | A contrib importer, which loops the pipeline inside `events.batch()` rather than bypassing it. |
 | **A bundler and TypeScript** | Vendored assets solve the CDN problem without importing npm's maintenance surface (§17). | The JS settling into one client and N adapters, at which point what would be compiled is clear. |
@@ -4833,137 +4538,6 @@ Everything decided as "not in v2", in one place, each with the use case that wou
 *(Query hints as a config option were considered and rejected — derivation already computes them. See §6.5.)*
 
 **`searchable` per field.** The explicit override once the defaults in §6.6 are right: makes a hidden identifier searchable (an ISIN that is not displayed but is typed), or excludes a visible long-text column that is useless to match on. Follows the defaults rather than replacing them — the corrected defaults improve all 273 fields that configure nothing, the flag serves the minority.
-
-### 22.3 Deleted, and not coming back
-
-Each was removed for a reason that does not expire.
-
-| Feature | Reason |
-|---|---|
-| `expand_columns` — reverse FK fanned into repeated columns | Orphaned; its implementation left with the client project |
-| `expand_for_table()`, `expand_color()` model protocols | Ditto |
-| `is_fiscal_year`, `is_month` | Behaviour driven by a column-naming convention |
-| `recompute_siblings` flag | The behaviour becomes unconditional, so the flag has nothing to gate |
-| `edit_modal_block` | A block edits its own DataSource's records, never another's |
-| `editor_queryset_filter` | An arbitrary ORM filter in configuration, unenforced on write |
-
-**One rule added while building the write path (§6.1b):** a plinta model gets a DataSource when a **field** on it needs a permission, never to get a screen. `FilterSet` and `SavedView` qualify; the configuration models do not.
-| `StaffOnly` rule, and `is_staff` as a grant | A Django flag acting as a permission |
-| `DenyAll` rule | Unused; the deny path is a constant |
-| `object_restored` signal, `record_restore` | A restore is an update, and it names the field and both values |
-| `Page.is_system` | A flag acting as a permission |
-| `Page.external_url` | A second routing mode inside a model that also has a grid |
-| `admin_only` on menu sections and groups | Menu visibility already follows the pages inside |
-| `FilterSet.is_active` | A personal preset is deleted, not disabled |
-| `ScheduledReport.report_code_name` and the code registry | A second mechanism for one concept |
-| `ReportDefinition.is_public` | Normalised onto the shareable model |
-| `SavedView.view_type` | Derivable from `block.component_type` |
-| `gantt.critical_path` | Declared, validated, and never implemented |
-| `kpi.decimal_places` | `DataSourceField.decimals` is honoured by every renderer |
-| `HTML_KWARGS` | Fragments leave the OpenAPI framework entirely |
-| `runtests` management command | Superseded by the pytest harness |
-| `duplicate_user` admin action | Copied the password hash without resetting it; dies with the user model |
-| `duplicate_page` service | `copy_to` walks a model's declared children instead (§8.10) |
-| `STATUS` and the topbar environment badge | One name, three reads, two meanings; `TOPBAR_COLOR` distinguishes environments and cannot disagree with itself (§19.4) |
-| `contrib.actions` and `Urgency` | Plinta ships facilities, not domains; a task tracker with `responsible`, `urgency` and `blocked_by` is one application's domain. Rebuilt as a consumer app if wanted (ADR 0008 (§24)) |
-| Global slug uniqueness for pages | Five hundred people cannot negotiate over `my-dashboard` |
-| Expressions in configuration | Strictly less capable than registered annotations, and a parser is a security surface |
-| Deny rules that override allow | Order-dependent decisions, and `explain()` becomes an argument |
-
-## 23. Build order
-
-
-
-The rebuild proceeds bottom-up, one layer at a time. A layer is done when it imports only layers below it and its tests pass with nothing above it installed.
-
-Nothing here is scheduled. The order is a dependency order, not a plan.
-
-### 23.1 Sequence
-
-Layer 1 is §3, layer 2 is §4, and so on — §1 is scope and architecture.
-
-| # | Layer | Done when |
-|---|---|---|
-| 1 | `utils`, `dates`, `forms` | No plinta imports at all. Fiscal helpers separated from calendar helpers. The form engine renders and parses a pydantic schema knowing nothing of DataSource or permission. |
-| 2 | `events` | Five signals defined. No emitters yet. |
-| 3 | `permissions` | Imports only 1–2. `FieldInUserSet` exists; no organisation reference remains. Field-permission minting takes a model and field names, never a `DataSourceField` — the trigger arrives at layer 4. |
-| 4 | `datasources` | Imports only 1–3. Every viewer-facing service takes a user. Owns the `DataSourceField` signals that drive field-permission minting, including the `pre_save` that makes a rename preserve grants. |
-| 5 | `renderers` | Contract plus HTML. No Excel, PDF or email. |
-| 6 | `components` | Contract, registry, `table_plinta`. No saved-view merge anywhere. |
-| 7 | `blocks` | Write pipeline emits its three signals — `object_writing`, `object_written`, `object_deleted` — and computes `changes`. `SavedView` merges directly; there is no hook, which went with the optionality (ADR 0004 (§24), revised). |
-| 8 | `pages` | Composition, `PageFilter`, menu. Blocks resolve by FK. Missing component and unviewable block both degrade to an empty slot. |
-| 9 | `shell` | One base template and its regions. `LoginRequiredMiddleware` with its system check. Tokens generated from `tokens.json`; `lint_hex_colors` green. A logged-in user can reach a page, sort it and page it, with no component's vendor loaded. |
-| 10 | authoring screens (§12) | A DataSource, a Block and a Page can be created, edited and arranged entirely in the browser. |
-| 11 | framework pages (§13) | `seed_platform_pages` is idempotent and yields a usable application on a fresh database. |
-| 12 | contrib, in any order | Each installs and uninstalls cleanly against core alone. |
-
-`contrib.api` is built after `blocks` and `datasources` are settled, since it is generated from them and adds no endpoints of its own.
-
-**Contrib order is unconstrained, and that is a result rather than a rule.** It holds because no shipped package declares `composes` (§2.5) and the one `enhances` — `reports` on `export` — substitutes rather than requires. A `composes` declaration would constrain the order legitimately; if one appears, build the depended-upon package first and record the edge here.
-
-Suggested first: `audit`. It is the strictest test of the event bus. If audit works as a pure listener, the vocabulary is right; if it needs a pipeline hook, stop and fix layer 7 before building anything else on it.
-
-**The last step is this document.** When the final package lands, tag `v2-spec` and split it as §20.12 says: the ADRs and `architecture.md` stay, the rest retires.
-
-### 23.2 Definition of done, per layer
-
-1. Imports only from layers below. Verified by `tests/test_import_boundary.py`, which is written at layer 1 and runs from then on.
-2. Tests pass with no higher layer and no contrib package installed.
-3. Every row for that layer in §21 is resolved — no feature is ported merely because it exists.
-4. Its **section in this document** matches what was built — including its `Must not know` line. Where they disagree, one of them is wrong and it is decided before moving on.
-5. Its extension points have **skills** (§25), written against the layer as built.
-
-### 23.3 The couplings this must eliminate
-
-Every coupling found in the previous design, and where each is resolved. The rebuild is incomplete while any row is unresolved.
-
-| Coupling | Resolution |
-|---|---|
-| `blocks/api.py` → `actions.models.Action` (module scope) | **deleted with `actions`** (ADR 0008 (§24)); the row-extension registry still ships, exercised by a consumer app |
-| `components/kanbans/api.py:27` → `labels.models.LabeledItem` (module scope) | `labels` listens; kanban chips become a declared `enhances` (§2.5) |
-| `components/kanbans/api.py:30` → `workflow.transitions.get_workflows_for_model` (module scope) | declared `enhances`, substituting field-grouped columns (§2.5) |
-| `comments/api.py` → `notifications.triggers` (module scope) | emit `comment_posted` |
-| `actions/apps.py` → `notifications.triggers.register` | `notifications` subscribes to core signals |
-| `pages/capabilities.py` → `notifications.triggers._handlers` | capability probe stops consulting the handler registry |
-| `blocks/write_pipeline.py` → `labels.models.LabeledItem` | `labels` listens to `object_written` |
-| `blocks/write_pipeline.py` → `notifications.triggers.fire_notifications` | emit `object_written` |
-| `blocks/write_pipeline.py` → `audit.services` (snapshot + record) | emit `object_writing` / `object_written` with `changes` |
-| `workflow/mixins.py` → `notifications.triggers` | emit `state_changed` |
-| `workflow/transitions.py:158` → `audit.services.record_transition` | emit `state_changed` |
-| `workflow/transitions.py:205` → `audit.models.AuditLog` (reads transition history) | **not behavioural** — declared `enhances: audit`, substituting an empty history (§14.6) |
-| `pages/views.py` → `attachments.storage` | capability probe; storage registered by the app |
-| `blocks/api.py` → `reports.builder.ExcelReportBuilder` | `export` owns the export endpoint |
-| `urls.py` → unconditional `include('reports.urls')` | contrib apps mount their own routers |
-| `permissions/scoping.py` → organisation concepts by name | `FieldInUserSet` + provider |
-| `pages/views.py`, `datasources/api.py`, `components/{charts,pivots}` → `organization.utils` | calendar helpers to core `dates`; fiscal registers into the resolver |
-| Component registration split across `plinta/apps.py` and `components/apps.py` | each component registers from its own package |
-| 46 of 81 endpoints are HTML fragments hidden from the spec | fragments move to plain Django views; ninja keeps only the public API |
-| `notifications/api.py` `auth=None` — safety depends on the consumer's `LoginRequiredMiddleware` | `@login_required` on a Django view redirects natively |
-| `plinta/urls.py` is a deprecation-targeted `reverse()` shim | it becomes the fragment transport and stops being deprecated |
-
-Two template includes of the attachment section were also flagged during the audit and needed no change — both are already guarded on context variables that only populate when the app is installed.
-
-### 23.4 v1 is another repository, not a directory
-
-**v1 is not in this repository.** This history begins at an empty package; v1 keeps its own repository, and is read from a clone of it:
-
-```
-cd ../bmscore && git show HEAD:plinta/permissions/rules.py
-```
-
-An earlier draft kept v1 on disk, unrun, to be deleted layer by layer. That is worse for three reasons, and the third is the one that matters.
-
-- **The tree would be half-old and half-new for the whole rebuild**, both halves called `plinta`, with `permissions` importing nine apps beside `permissions` importing three. Nobody can tell which one they are reading, and "what stays" stops being answerable by looking.
-- **v1's migrations conflict with the fresh `0001_initial` §20.7 requires**, and its `app_label`s collide.
-- **The import-boundary test (§20.3) would be unenforceable** until the last v1 file left. With v1 absent from the working tree it passes from commit one, which is the point of writing it at layer 1.
-
-Reading v1 and *having* v1 are different needs. A separate repository serves the first without the second, makes an accidental import impossible rather than merely discouraged, and lets this repository be shared without sharing what preceded it.
-
-**The tests are rewritten per layer, never ported.** A v1 test asserts v1's shape — eighteen permission functions, a fifteen-stage pipeline, `block_name` as a string — so porting one ports the design it was written against. Read the v1 test for the behaviour it captures, then write the v2 test against §N.
-
-**One thing is ported rather than rewritten: `example/catalog`.** It is a consumer app built on the public API, and §1.4 makes it the guard that the API is real. It lands last, and anything it needs that is not in §18's twelve extension points is a gap in the API, not a reason to reach inside.
-
----
 
 ## 24. Decision records
 
@@ -5259,7 +4833,7 @@ Three supporting facts:
 - `core` holds no domain nouns.
 - `workflow` keeps a consumer — `example/catalog` — so it is not shipped untested.
 - Four test modules (`accounts`, `audit`, `workflow`, `notifications`) use `Action` as a convenient workflow-enabled fixture. Each gains a local test model, which removes three apparent contrib→contrib cycles that were never runtime dependencies.
-- Two mechanisms lose their only shipped consumer: page `tabs` and the `__CURRENT_USER__` create-default. Both are kept on the strength of the mechanism; §21 records that their usage count is now zero.
+- Two mechanisms lose their only shipped consumer: page `tabs` and the `__CURRENT_USER__` create-default. Both are kept on the strength of the mechanism; their usage count is zero, which is evidence and not proof.
 - ~1,900 lines of Python and five templates leave the repository.
 
 **Revision — 2026-08-29.** This ADR originally argued that the `WorkflowMixin` dependency *could not be permitted*, because no event bus inverts a base class or a migration dependency. That premise was wrong, and checking `django.contrib` is what showed it: `flatpages` holds a `ForeignKey` to `sites.Site` and a migration dependency on it, and `admin` imports four sibling apps at module scope. Django's rule is that such a dependency be **declared and checked**, not that it be absent. §2.5 now says the same, and `composes` is the declaration for exactly this shape.
@@ -5340,12 +4914,12 @@ the documentation speaks one tenant's language, that tenant stops being a
 consumer.
 
 The domain is fixed now and used from the first skill, though `example/catalog`
-itself is ported last (§23.4) — the vocabulary costs nothing to settle early and
+itself was ported last — the vocabulary costs nothing to settle early and
 everything to change late.
 
 ### 25.3 A skill is written with its layer, never before
 
-A skill written against a layer that does not exist yet is fiction. §21 records four documented behaviours the code never had, and a skill is documentation that people follow *more* literally than prose — so the failure mode is worse.
+A skill written against a layer that does not exist yet is fiction. The rebuild found four documented behaviours the code never had, and a skill is documentation that people follow *more* literally than prose — so the failure mode is worse.
 
 So: a layer is not done until its extension points have skills, and a skill is not written until the layer is.
 
@@ -5357,7 +4931,7 @@ So: a layer is not done until its extension points have skills, and a skill is n
 
 **They reach a consumer as a Claude Code plugin, never as a copy.** Claude Code reads skills from the project's `.claude/skills/`, from the user's own, and from installed plugins — never from `site-packages`. That is a security boundary rather than an oversight: a skill is instructions an agent follows, so `pip install` must not be able to grant a transitive dependency write access to how an agent behaves.
 
-**So plinta ships no command that writes into a consumer's `.claude/`.** A library editing a developer's tooling directory would have to answer what happens when they already wrote their own `add-component`, and every answer is wrong. It would bake one vendor's config format into a Django package. And the copies go stale silently on the next `pip install -U`, which §25.5 already names as worse than no skill.
+**So plinta ships no command that writes into a consumer's `.claude/`.** A library editing a developer's tooling directory would have to answer what happens when they already wrote their own `add-component`, and every answer is wrong. It would bake one vendor's config format into a Django package. And the copies go stale silently on the next `pip install -U`, which is worse than no skill.
 
 The repository is a marketplace, and the plugin's manifest **points at the authored directories rather than copying them** — `skills` in `plugin.json` takes a list of paths. There is one copy of every skill, in the package, and:
 
@@ -5370,28 +4944,8 @@ The repository is a marketplace, and the plugin's manifest **points at the autho
 
 **A skill for an optional app opens by saying so** — *"Requires `plinta.contrib.workflow` in `INSTALLED_APPS`"* — because the plugin cannot read a consumer's settings. That sentence is cheaper than a settings-aware installer and degrades better: it is a line to read rather than a file that is not there.
 
-### 25.5 The v1 skills are not ported
-
-Sixteen exist today — `add-block-type`, `setup-datasource`, `add-workflow` and the rest. They encode v1 structure: module paths that move, the `AJAX` class constant that becomes a mode, model-driven field permissions that become DSF-driven, `is_staff` gates that become permissions.
-
-**Re-derive each from its spec section; do not port it.** This is the same rule §21 sets for documentation — behaviour is established from the spec and the code, never carried over from prose that was written against something else.
-
-The old skills stay readable in git history for reference, exactly as the v1 code does.
-
 ### 25.6 A skill and its section change together
 
 If §7.2's component contract changes, `add-component` changes **in the same commit**. A skill that lags its section is worse than no skill, because it is confidently wrong.
 
 This is the same coupling the design applies elsewhere: permissions follow the column, adapters ship with their components, vendors ship with the package that needs them.
-
-### 25.7 Section-by-section, as we go
-
-The document is updated **as each layer is built**, not afterwards:
-
-1. Specify the section.
-2. Build the layer against it.
-3. Update the section to match what was actually built — including its `Must not know` line.
-4. Write the skills for its extension points.
-5. Resolve its §21 ledger rows.
-
-Steps 3–5 are part of §23's definition of done, not follow-up work. Where the built code and the section disagree, one of them is wrong and it is decided before moving on — the disagreement is the signal, and deferring it is how a spec becomes fiction.

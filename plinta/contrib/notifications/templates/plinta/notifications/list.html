@@ -8,7 +8,7 @@
         {% if unread %}<span class="pl-muted">{{ unread }} unread</span>{% endif %}
         <span class="pl-spacer"></span>
         {% if unread %}
-            <a class="pl-btn pl-btn--sm" href="{% url 'notifications:mark_all_read' %}">
+            <a class="pl-btn pl-btn--sm" href="{% url 'notifications:mark_all_read' %}" up-follow>
                 Mark all read</a>
         {% endif %}
         <a class="pl-btn pl-btn--sm" href="{% url 'notifications:preferences' %}">
@@ -29,7 +29,7 @@
                     </div>
                     {% if notification.body %}<p>{{ notification.body }}</p>{% endif %}
                     <a class="pl-btn pl-btn--sm"
-                       href="{% url 'notifications:mark_read' notification.pk %}">
+                       href="{% url 'notifications:mark_read' notification.pk %}" up-follow>
                         {% if notification.url %}Open{% else %}Mark read{% endif %}</a>
                 </div>
             </article>

@@ -318,6 +318,17 @@ def test_a_heading_is_a_sort_link(screen, client):
     assert "pl-table__sort" in body
 
 
+def test_a_sort_link_swaps_its_own_card(screen, client):
+    """The page hands the block its card, and the renderer puts it on the
+    link: sorting one table leaves the other cards where they were. The
+    URL still changes, so a sorted table is still something to share."""
+    page, _, _ = screen
+    placement = page.placements.get()
+    body = client.get(page.get_absolute_url()).content.decode()
+    heading = body[body.index("pl-table__sort") - 20:body.index("pl-table__sort") + 200]
+    assert f'up-follow up-target="#card-{placement.pk}" up-history="true"' in heading
+
+
 def test_clicking_it_reorders_the_rows(screen, client):
     page, _, block_ = screen
     placement = page.placements.get()

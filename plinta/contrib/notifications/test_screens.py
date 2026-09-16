@@ -67,6 +67,18 @@ def test_it_counts_only_what_is_unread(reader, client):
     assert "1 unread" in body
 
 
+def test_the_bell_polls_its_own_url(reader, client):
+    """A notification that arrives while a screen is open shows up without a
+    reload — and the poll costs one count, not one page."""
+    body = client.get("/notifications/").content.decode()
+    assert 'up-poll up-interval="30000" up-source="/notifications/bell/"' in body
+
+    note(reader, "one")
+    bell = client.get("/notifications/bell/").content.decode()
+    assert 'id="pl-bell"' in bell and "1 unread" in bell
+    assert "<html" not in bell, "the bell alone"
+
+
 def test_a_zero_badge_is_not_drawn(reader, client):
     """Nothing to say is better said by saying nothing."""
     body = client.get("/notifications/").content.decode()

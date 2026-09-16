@@ -29,8 +29,8 @@ posts them to the same rule — so this screen is complete without it.
                 the left half of its row.
             </p>
         </div>
-        <div class="{{ cls.card_body }}">
-            <form method="post">
+        <div class="{{ cls.card_body }}" id="pl-placements">
+            <form method="post" up-submit up-target="#pl-placements">
                 {% csrf_token %}
                 <input type="hidden" name="what" value="positions">
                 <div class="{{ cls.table_wrap }}">
@@ -94,7 +94,8 @@ posts them to the same rule — so this screen is complete without it.
             save whatever was half-typed. {% endcomment %}
             {% if may_change %}
                 {% for placement in placements %}
-                    <form method="post" class="{{ cls.form_actions }}">
+                    <form method="post" class="{{ cls.form_actions }}"
+                          up-submit up-target="#pl-placements">
                         {% csrf_token %}
                         <input type="hidden" name="what" value="remove">
                         <input type="hidden" name="placement" value="{{ placement.pk }}">
@@ -116,8 +117,11 @@ posts them to the same rule — so this screen is complete without it.
                     afterwards.
                 </p>
             </div>
-            <div class="{{ cls.card_body }}">
-                <form method="post" class="{{ cls.form }}">
+            <div class="{{ cls.card_body }}" id="pl-place">
+                {% comment %} Placing changes the list above as well as this
+                form, which comes back empty or with what was wrong. {% endcomment %}
+                <form method="post" class="{{ cls.form }}"
+                      up-submit up-target="#pl-placements, #pl-place">
                     {% csrf_token %}
                     <input type="hidden" name="what" value="place">
                     {% for field in placement_form %}
@@ -141,7 +145,7 @@ posts them to the same rule — so this screen is complete without it.
             <h2 class="{{ cls.card_title }}">Page settings</h2>
         </div>
         <div class="{{ cls.card_body }}">
-            <form method="post" class="{{ cls.form }}">
+            <form method="post" class="{{ cls.form }}" up-submit>
                 {% csrf_token %}
                 <input type="hidden" name="what" value="page">
                 {% for field in settings_form %}

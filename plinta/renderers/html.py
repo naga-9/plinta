@@ -135,7 +135,11 @@ class HtmlRenderer(Renderer):
             self.table_class(cls, config),
             header,
             body,
-            self.pager(context.get("page"), context.get("page_urls") or {}),
+            self.pager(
+                context.get("page"),
+                context.get("page_urls") or {},
+                context.get("fragment") or "",
+            ),
         )
 
     def linked(
@@ -214,8 +218,8 @@ class HtmlRenderer(Renderer):
         """A column heading, as a sort link when the caller supplied one.
 
         Sorting is a link because the server does it: a differently ordered
-        query is another request, and a link is what makes that work with no
-        JavaScript and stay a URL someone can share.
+        query is another request, and a link is what keeps it a URL someone
+        can share. Given a fragment, the link swaps that alone.
         """
         url = (context.get("sort_urls") or {}).get(field.field_name)
         if not url:
@@ -224,13 +228,25 @@ class HtmlRenderer(Renderer):
         arrow = ARROWS.get(direction, "")
         cls = classes()
         return format_html(
-            '<a class="{}{}" href="{}">{}{}</a>',
+            '<a class="{}{}" href="{}"{}>{}{}</a>',
             cls["table_sort"],
             f" {cls['table_sort_active']}" if direction else "",
             url,
+            self.swapping(context.get("fragment") or ""),
             field.label,
             format_html('<span aria-hidden="true"> {}</span>', arrow) if arrow else "",
         )
+
+    def swapping(self, fragment: str) -> SafeString:
+        """The attributes that make a link swap ``fragment`` in place.
+
+        Nothing when there is no fragment: a renderer asked for a table with
+        no page around it — an export, a test — draws plain links. History
+        stays on either way, so the sorted or paged table is still a URL.
+        """
+        if not fragment:
+            return SafeString("")
+        return format_html(' up-follow up-target="{}" up-history="true"', fragment)
 
     def empty_row(self, fields: list[Any], text: str) -> SafeString:
         """What a table with no rows says.
@@ -245,7 +261,9 @@ class HtmlRenderer(Renderer):
             text,
         )
 
-    def pager(self, page: Any, urls: dict[str, str]) -> SafeString:
+    def pager(
+        self, page: Any, urls: dict[str, str], fragment: str = ""
+    ) -> SafeString:
         """Where in the rows this is, and how to reach the rest.
 
         Absent when everything fits on one page: a pager offering nowhere to
@@ -264,6 +282,7 @@ class HtmlRenderer(Renderer):
         if page.has_next() and urls.get("next"):
             links.append(("next", urls["next"], "Next"))
         cls = classes()
+        swap = self.swapping(fragment)
         return format_html(
             '<nav class="{}" aria-label="Pages"><span class="{}">{} of {}</span>'
             '<ul class="{}">{}</ul></nav>',
@@ -274,8 +293,8 @@ class HtmlRenderer(Renderer):
             cls["pager_list"],
             format_html_join(
                 "",
-                '<li class="{}"><a class="{}" rel="{}" href="{}">{}</a></li>',
-                ((cls["pager_item"], cls["pager_link"], rel, url, label)
+                '<li class="{}"><a class="{}" rel="{}" href="{}"{}>{}</a></li>',
+                ((cls["pager_item"], cls["pager_link"], rel, url, swap, label)
                  for rel, url, label in links),
             ),
         )

@@ -136,6 +136,9 @@ class TableComponent(Component):
 
         Returns nothing when the caller passed no query: an export has no URL
         to hang a sort link on.
+
+        ``fragment`` travels with them: the card the page drew this table in,
+        which is what a link should swap rather than the whole page.
         """
         query = context.get("query")
         if query is None:
@@ -171,6 +174,7 @@ class TableComponent(Component):
                 for f in self.sortable(config, context)
             },
             "sorted_by": current,
+            "fragment": context.get("fragment", ""),
             "page": page,
             "page_urls": {
                 "previous": with_params(**{page_key: page.previous_page_number()})

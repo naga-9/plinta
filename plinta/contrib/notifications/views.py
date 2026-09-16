@@ -37,6 +37,17 @@ def notification_list(request):
 
 
 @login_required
+def bell(request):
+    """The topbar bell alone, for the poll that keeps its count current.
+
+    The same template the topbar draws, so the count cannot drift from what
+    a page load would show; its own view, so a poll costs one count rather
+    than one page.
+    """
+    return render(request, "plinta/notifications/bell.html")
+
+
+@login_required
 def mark_read(request, pk: int):
     """Mark one as read and go back to it, or to the list.
 

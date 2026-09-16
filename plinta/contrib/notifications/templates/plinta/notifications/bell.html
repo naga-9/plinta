@@ -1,7 +1,14 @@
 {% comment %} The topbar bell. Counts only what is unread, and says nothing when there is
-   nothing — a zero badge is noise. {% endcomment %}
+   nothing — a zero badge is noise.
+
+   Polled: every half minute Unpoly fetches the bell's own URL and swaps this
+   element, so a notification that arrives while the screen is open shows up
+   without a reload. Its own URL, not the page's, so the poll costs one
+   count and not one page. {% endcomment %}
 {% load plinta_notifications %}{% unread_count as unread %}
+<span id="pl-bell" up-poll up-interval="30000" up-source="{% url 'notifications:bell' %}">
 <a class="pl-btn pl-btn--ghost pl-btn--sm" href="{% url 'notifications:list' %}"
    aria-label="Notifications{% if unread %}, {{ unread }} unread{% endif %}">
     ✉{% if unread %} <span class="pl-chip">{{ unread }}</span>{% endif %}
 </a>
+</span>

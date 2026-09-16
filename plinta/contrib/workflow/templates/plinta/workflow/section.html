@@ -2,11 +2,15 @@
 {% comment %} Where this row is, where it may go, and where it has been.
 
    Refused moves are drawn greyed with their reason rather than hidden: a
-   button that vanishes reads as a missing feature. {% endcomment %}
+   button that vanishes reads as a missing feature.
+
+   A move posts and is redirected back to the page; Unpoly swaps this
+   section and the page's grid from it, since the cards may show the state
+   that just changed, and leaves the rest of the screen alone. {% endcomment %}
 {% workflow_panel record user as panel %}
 
 {% if panel.workflow %}
-<section class="pl-stack" data-plinta-capability="workflow">
+<section class="pl-stack" id="pl-workflow" data-plinta-capability="workflow">
     <h3>Status</h3>
 
     <div class="pl-row">
@@ -18,7 +22,8 @@
         <div class="pl-row">
             {% for move in panel.moves %}
                 {% if move.permitted %}
-                    <form method="post" action="{% url 'workflow:transition' move.transition.pk %}">
+                    <form method="post" action="{% url 'workflow:transition' move.transition.pk %}"
+                          up-submit up-target="#pl-grid, #pl-workflow">
                         {% csrf_token %}
                         <input type="hidden" name="record" value="{{ record.pk }}">
                         <input type="hidden" name="next" value="{{ request.get_full_path }}">

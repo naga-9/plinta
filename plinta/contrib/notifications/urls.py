@@ -10,6 +10,8 @@ app_name = "notifications"
 
 urlpatterns = [
     path("", views.notification_list, name="list"),
+    # What the topbar bell polls: itself, and nothing around it.
+    path("bell/", views.bell, name="bell"),
     path("preferences/", views.preferences, name="preferences"),
     path("<int:pk>/read/", views.mark_read, name="mark_read"),
     path("read-all/", views.mark_all_read, name="mark_all_read"),

@@ -384,6 +384,19 @@ def test_the_pager_says_where_it_is(books):
 
 
 @pytest.mark.django_db
+def test_the_links_swap_the_fragment_they_were_given(books):
+    """A page hands the block its card; sorting and paging swap that alone.
+    Without one — an export, a test — the links are plain."""
+    ds, ada = books
+    out = TableComponent().render(
+        TableConfig(page_size=1), ada, datasource=ds, query={}, fragment="#card-7"
+    )
+    assert out.count('up-follow up-target="#card-7" up-history="true"') >= 2
+    plain = TableComponent().render(TableConfig(page_size=1), ada, datasource=ds, query={})
+    assert "up-follow" not in plain
+
+
+@pytest.mark.django_db
 def test_paging_keeps_the_sort(books):
     """Or the second page would be the second page of a different query."""
     ds, ada = books

@@ -434,6 +434,10 @@ def render_page(
                 & Q(**resolve_filters(placement.context_filter, user, record)),
                 query=query,
                 param_prefix=prefix,
+                # What a link the block draws should swap: its own card. The
+                # renderer puts it on a sort or page link so the rest of the
+                # page stays where it is.
+                fragment=f"#card-{placement.pk}",
                 # Only the page knows which placement this is, and the feed is
                 # placement-scoped — so the URL is handed to the component
                 # rather than built by it. It names the view the card was

@@ -111,6 +111,12 @@ query there is a query per row.
 **Name it for what it is, not what it draws.** `comments`, not
 `comments_section` — the registry key is the capability.
 
+**Give the section an id if a form inside it changes the page.** A workflow
+transition posts and is redirected back to the record; its section says
+`up-submit up-target="#pl-grid, #pl-workflow"` so the section and the cards —
+which may show the state that just changed — are swapped, and the rest of the
+screen stays where it was. A section that only reads needs nothing.
+
 **Ship the template with your package.** A capability whose template lives in
 core is not a plugin.
 

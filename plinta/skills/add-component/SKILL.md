@@ -124,6 +124,10 @@ window.plinta.registerAdapter('heatmap_d3', {
         // ctx.config, ctx.columns, ctx.rows, ctx.page, ctx.load
         ctx.load({page: 1, size: 50, sort: ['-title'], filters: {region: 'North'}})
            .then(function (body) { draw(el, body.rows); });
+        return chart;   // whatever destroy will need
+    },
+    destroy: function (el, chart) {
+        chart.dispose();
     }
 });
 ```
@@ -132,9 +136,22 @@ window.plinta.registerAdapter('heatmap_d3', {
 the errors; you own the timing.** A grid calls it on every page and sort change;
 a chart calls it once and never again.
 
+**Mounting is an Unpoly compiler, so a card comes and goes.** A filter change,
+a saved-view switch or a tab swaps the card your widget is in; the client
+mounts your adapter again on the new one and calls `destroy` on the old,
+handing back whatever `mount` returned. Declare `destroy` if your widget holds
+anything outside its element — a listener on `window`, a resize observer, a
+timer — and nothing if it does not. Never wait for `DOMContentLoaded` or walk
+the document yourself: the compiler runs on whatever arrives, whenever.
+
 **Do not call `fetch` yourself** — the boundary test fails a contrib script that
 does. Your own fetch means your own URL building, your own error path and your
-own loading state, which is the duplication the client exists to delete.
+own loading state, which is the duplication the client exists to delete. The
+same rule covers Unpoly's own asking and rendering: `up.request`, `up.render`,
+`up.navigate`, `up.follow` and `up.submit` are core's and the markup's, not an
+adapter's. You may register a compiler of your own (`up.compiler`), and you may
+draw a link or form carrying `up-` attributes — a link saying what it swaps is
+the markup's job, and the Tabulator adapter's row pencil is exactly that.
 
 **Write a classic script, not a module.** The seam is `window.plinta`, on
 purpose: importing from core's client would make your package construct core's
@@ -162,12 +179,18 @@ what it has, their absence means it asks.
 
 ```js
 ctx.save(row._record, {priority: 'high'})
-   .then(function (body) { redraw(body.values); })
+   .then(function (body) { redraw(body.row); })   // the saved row, as the feed sends it
    .catch(function (error) {
        if (error.refused) { /* 403: it will never be accepted */ }
        else { /* 422: error.fields names what to fix */ }
    });
 ```
+
+**To open a record's form, draw a link.** `ctx.formUrl` is where this card's
+form lives when the block asks for one (blank otherwise); a link to
+`formUrl + '?record=' + pk` with `up-layer="new modal"` opens it over the page,
+and `up-on-accepted="up.reload(this.closest('[id^=card-]'))"` redraws the card
+when the save lands. Your adapter never learns what a dialog is.
 
 **One row and a field dict, whatever your widget calls it** — a dragged card,
 an edited cell, a submitted form. Do not invent a write shape for your

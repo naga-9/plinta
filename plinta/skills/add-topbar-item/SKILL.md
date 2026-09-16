@@ -49,6 +49,13 @@ rows:
 is charged to every screen in the product — count with a single aggregate, and
 cache it if it is not one.
 
+**To keep it current while a screen is open, poll — your own URL.** Wrap the
+control in an element with an id and `up-poll up-interval="30000"
+up-source="{% url 'alerts:badge' %}"`, and ship a view that renders just this
+template. Unpoly then swaps the element every half minute for the cost of one
+count, not one page. `contrib.notifications`' bell is the worked example
+(`bell.html`, `notifications:bell`).
+
 ## Draw nothing rather than nothing-to-do
 
 An item with a zero count should render empty, not render a control that says

@@ -50,12 +50,15 @@ hundred rows and a search above.
 | | |
 |---|---|
 | **A form on a detail page** | a `form_plinta` block on a page whose `page_type` is `detail` |
-| **A pencil on each row** | `row_form: true` on a `table_tabulator` block — opens the same form in a dialog |
+| **A pencil on each row** | `row_form: true` on a `table_tabulator` block — opens the same form in a layer over the page |
 | **An Add button** | automatic on any card whose model the viewer may `add` |
 | **A cell edited in place** | `editable: true` on `table_tabulator`. Core's `table_plinta` is server-rendered and does neither |
 
 The first three are the same form and the same endpoint; only the trigger
-differs, and none of them decides what may be written.
+differs, and none of them decides what may be written. The form posts itself
+— no script of its own — and comes back drawn again: what was wrong beside
+each field, or a word that it saved. In a layer, a save closes it and the card
+underneath is reloaded.
 
 ## What the viewer gets
 

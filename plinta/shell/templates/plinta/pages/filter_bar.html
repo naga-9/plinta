@@ -1,12 +1,20 @@
 {% load plinta_tags %}
 {% comment %} The controls a page exposes. Page furniture: always visible, driven by the
-   viewer, and submitted as a plain GET so a filtered page is a shareable URL. {% endcomment %}
+   viewer, and submitted as a plain GET so a filtered page is a shareable URL.
+
+   Applying swaps the grid and the bar and leaves the rest of the screen —
+   the sidebar, the header, the scroll position — where it was. History
+   stays on, so the URL still carries the filters and the back button still
+   walks through them. The cascade — choose a title, see which shops sold it
+   — is `up-validate`: leaving any control asks the server for the bar again
+   with the other controls narrowed to what is now chosen, and nothing
+   else. On the form rather than the controls, since the same control
+   templates draw the filter-set editor, where there is no bar to ask for.
+   {% endcomment %}
 {% if page.filters.all %}
-{% comment %} `data-options-url` turns on the live cascade. Absent, or with the
-   script absent, the bar still narrows on Apply — the server does the same
-   work either way. {% endcomment %}
 <form class="pl-filters" id="pl-filters" method="get"
-      data-options-url="{% url 'plinta:filter_options' page.pk %}">
+      up-submit up-target="{{ filter_targets }}" up-history="true"
+      up-validate="#pl-filters">
     {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
 
     {% block filter_controls %}
@@ -22,7 +30,8 @@
 
     <div class="pl-filters__actions">
         <button type="submit" class="pl-btn pl-btn--primary pl-btn--sm">Apply</button>
-        <a class="pl-btn pl-btn--sm" href="?reset=1">Clear</a>
+        <a class="pl-btn pl-btn--sm" href="?reset=1"
+           up-follow up-target="{{ filter_targets }}" up-history="true">Clear</a>
         {% if may_save_filters %}
             {% comment %} Carries the query string, so "save these filters"
             means the ones on screen rather than an empty form. Opens in a

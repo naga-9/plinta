@@ -1026,6 +1026,78 @@ def test_the_priority_is_the_row_order(page, live_server, signed_in, screen):
     ]
 
 
+# --- the filter bar ---------------------------------------------------------
+
+
+def test_applying_a_filter_swaps_the_grid_and_keeps_the_shell(
+    page, live_server, signed_in, screen
+):
+    """The grid and the bar are redrawn; the sidebar, the header and the
+    scroll position are where they were. The URL carries the filter, so the
+    page is still something to share and the back button still walks it."""
+    open_page(page, live_server, screen)
+    page.evaluate("() => { document.querySelector('.pl-sidebar').__kept = true }")
+
+    page.fill(".pl-filters [name='in_print']", "True")
+    with page.expect_request(
+        lambda r: "/data/" in r.url and "in_print=True" in r.url
+    ):
+        page.click(".pl-filters button[type='submit']")
+    page.wait_for_url("**/*in_print=True*", timeout=15000)
+    page.wait_for_selector(".tabulator-row", timeout=15000)
+
+    assert page.evaluate("() => document.querySelector('.pl-sidebar').__kept") is True
+    assert page.locator(".pl-filters [name='in_print']").input_value() == "True"
+    # The card was redrawn for the filtered page: its grid fetched with it.
+    total = page.evaluate("""async () => {
+        var m = document.querySelector('[data-plinta-mount]');
+        var r = await fetch(m.dataset.plintaUrl + '?in_print=True&page=1&size=5',
+                            {credentials: 'same-origin'});
+        return (await r.json()).page.total;
+    }""")
+    assert total == BOOKS // 2
+
+    # Back lands on the URL before the filter. What the bar then shows is
+    # the server's memory of the viewer's last filters, as on any visit
+    # without a query string — so the input still says True.
+    page.go_back()
+    page.wait_for_function("() => !location.search.includes('in_print')", timeout=15000)
+    page.wait_for_selector(".tabulator-row", timeout=15000)
+    assert page.locator(".pl-filters [name='in_print']").input_value() == "True"
+
+
+def test_choosing_narrows_the_other_controls(page, live_server, signed_in, screen):
+    """The cascade: choose a title, and the region control offers only the
+    regions that title was sold in — before anything is applied."""
+    from plinta.pages.models import PageFilter, Widget
+
+    subject, block, _ = screen
+    PageFilter.objects.create(page=subject, field_name="title", label="Title")
+    PageFilter.objects.create(
+        page=subject, field_name="region", label="Region",
+        widget=Widget.MULTISELECT, lookup="in", data_source=block.data_source,
+    )
+    open_page(page, live_server, screen)
+    assert page.locator(".pl-filters select[name='region'] option").count() == 2
+
+    page.fill(".pl-filters [name='title']", "Book 01")
+    with page.expect_request(
+        lambda r: r.headers.get("x-up-validate") is not None
+    ):
+        page.locator(".pl-filters [name='title']").blur()
+    page.wait_for_function(
+        "() => document.querySelectorAll('.pl-filters select[name=region] option')"
+        ".length === 1",
+        timeout=15000,
+    )
+    assert page.locator(
+        ".pl-filters select[name='region'] option"
+    ).first.inner_text().strip() == "South"
+    # Asked, not applied: the grid is untouched and the URL says nothing.
+    assert rows(page).count() == PAGE_SIZE
+    assert "title=" not in page.url
+
+
 # --- saving a page's filters ------------------------------------------------
 
 

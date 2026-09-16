@@ -3,8 +3,7 @@
    of falling back to its default. {% endcomment %}
 <input type="hidden" name="{{ control.field_name }}" value="">
 {% comment %} `data-plinta-tags` asks tag-select.js to draw this as chips. The
-   select is still what submits, so with the script absent the native control
-   is what the viewer gets — working, and plain. {% endcomment %}
+   select is still what submits. {% endcomment %}
 <select class="{{ cls.select }}" id="{{ control_id }}" multiple
         name="{{ control.field_name }}" size="4"
         data-plinta-tags data-chip-class="{{ cls.chip }}">

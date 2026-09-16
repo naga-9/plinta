@@ -92,17 +92,22 @@ cannot appear unless a row carrying it is visible.
 **`options` arrives already cascaded.** Your template renders what it is
 given; deciding what to offer is not the widget's job.
 
-**If your widget caches those options, listen for `plinta:options`.** The bar
-refreshes the other controls as soon as one is chosen — it rewrites the native
-`<select>` and fires that event on it. A widget that keeps its own copy, as
-Tom Select does, must resync there and drop any selection no longer offered:
+**The bar is redrawn as soon as a control is chosen** — `up-validate` on the
+choosing controls asks the server for the bar again, narrowed — so your
+widget is created afresh each time. Enhance it in an Unpoly compiler and
+return a destructor that takes the widget's own markup down with the select,
+as `contrib.filters_tomselect` does:
 
 ```js
-select.addEventListener('plinta:options', () => resync(select));
+up.compiler('select[data-my-widget]', (select) => {
+    const widget = new MyWidget(select);
+    return () => widget.destroy();
+});
 ```
 
-Without it your control shows yesterday's list while the page filters on
-today's.
+A widget that kept its own copy of the options across the swap would show
+yesterday's list while the page filters on today's; one that is rebuilt from
+the select cannot.
 
 If your widget fetches options as you type, the endpoint it calls has the same
 obligation. A search that returns rows the viewer may not see is the same leak

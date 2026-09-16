@@ -808,62 +808,56 @@ def test_the_bar_draws_the_widget_s_own_template(multi, client):
 
 
 # --- the live cascade --------------------------------------------------------
+#
+# The bar asks for itself again as a control is chosen: `up-validate` sends
+# the page's own URL with the values so far and `X-Up-Validate`, and the bar
+# comes back narrowed. Applying first to find out what to apply is the wrong
+# order. No endpoint of its own — the same view, the same `drawn_controls`,
+# so the cascade cannot drift from what applying would show.
 
 
-def test_the_options_endpoint_answers_with_every_control(multi, client):
-    """So the bar can narrow while somebody is choosing, rather than only
-    after they apply. Applying first to find out what to apply is the wrong
-    order."""
-    import json
-
-    response = client.get(f"/pages/{multi.pk}/filter-options/")
-    assert response.status_code == 200
-    assert "region" in json.loads(response.content)
+def region_options(body: str) -> list[str]:
+    """The labels the region control offers, out of a rendered page."""
+    select = body.split('name="region"', 1)[1].split("</select>", 1)[0]
+    return re.findall(r"<option[^>]*>\s*([^<]+?)\s*</option>", select)
 
 
-def test_it_narrows_by_the_other_controls(multi, client, screen):
-    """The same narrowing a reload does, at the moment of choosing."""
-    import json
-
-    page, block, _ = screen
-    body = json.loads(
-        client.get(f"/pages/{multi.pk}/filter-options/", {"title": "Dune"}).content
-    )
-    assert [label for _, label in body.get("region", [])] == ["North"]
+def test_asking_narrows_by_the_other_controls(multi, client, screen):
+    """The same narrowing applying does, at the moment of choosing."""
+    body = client.get(
+        multi.get_absolute_url(), {"title": "Dune"},
+        headers={"X-Up-Validate": "title", "X-Up-Target": "#pl-filters"},
+    ).content.decode()
+    assert region_options(body) == ["North"]
 
 
 def test_a_control_is_not_narrowed_by_itself(multi, client, screen):
     """Its own selection is excluded, or the first choice could not be
     changed."""
-    import json
-
-    body = json.loads(
-        client.get(f"/pages/{multi.pk}/filter-options/", {"region": ["1"]}).content
-    )
-    assert len(body.get("region", [])) >= 1
-
-
-def test_a_page_the_viewer_may_not_see_is_a_404(multi, client, django_user_model):
-    """The endpoint answers with values from rows; the gate must be the page's
-    own, not merely being signed in."""
-    other = django_user_model.objects.create_user("intruder", password="x")  # noqa: S106
-    client.force_login(other)
-    assert client.get(f"/pages/{multi.pk}/filter-options/").status_code == 404
+    body = client.get(
+        multi.get_absolute_url(), {"region": ["1"]},
+        headers={"X-Up-Validate": "region", "X-Up-Target": "#pl-filters"},
+    ).content.decode()
+    assert len(region_options(body)) >= 1
 
 
-def test_anonymous_is_redirected_not_answered(multi):
-    """`@login_required` on a plain view redirects, which is what a browser
-    wants — the reason fragments left ninja (§15.4)."""
-    from django.test import Client
+def test_asking_applies_nothing(multi, client, screen):
+    """Nothing is remembered and no card is drawn: the choice has not been
+    applied, and the request keeps the bar alone."""
+    page, _, ada = screen
+    body = client.get(
+        multi.get_absolute_url(), {"title": "Dune"},
+        headers={"X-Up-Validate": "title", "X-Up-Target": "#pl-filters"},
+    ).content.decode()
+    assert not PageFilterPreference.objects.filter(page=page, owner=ada).exists()
+    assert 'id="card-' not in body
+    assert 'id="pl-filters"' in body
 
-    response = Client().get(f"/pages/{multi.pk}/filter-options/")
-    assert response.status_code == 302
-    assert "/accounts/login/" in response["Location"]
 
-
-def test_the_bar_carries_the_endpoint(multi, client):
+def test_the_bar_asks_and_applies_through_unpoly(multi, client):
     body = client.get(multi.get_absolute_url()).content.decode()
-    assert f'data-options-url="/pages/{multi.pk}/filter-options/"' in body
+    assert 'up-validate="#pl-filters"' in body
+    assert 'up-target="#pl-grid, #pl-filters:maybe, #pl-filter-sets:maybe"' in body
 
 
 # --- the operator picker -----------------------------------------------------
@@ -960,7 +954,7 @@ def test_a_saved_set_is_a_page_action(screen, client, django_user_model):
     page, _, ada = screen
     FilterSet.objects.create(page=page, name="Mine", owner=ada, values={})
     body = client.get(page.get_absolute_url()).content.decode()
-    header = body[body.index("pl-page__header"):body.index("pl-grid")]
+    header = body[body.index("pl-page__header"):body.index('id="pl-grid"')]
     assert 'name="filterset"' in header
 
 
@@ -991,21 +985,21 @@ def test_the_current_tab_is_marked(tabbed, client):
     import re
 
     body = client.get(tabbed.get_absolute_url(), {"tab": "stock"}).content.decode()
-    strip = body[body.index("pl-tabs"):body.index("pl-grid")]
+    strip = body[body.index("pl-tabs"):body.index('id="pl-grid"')]
     marked = re.findall(r'href="\?tab=(\w+)"[^>]*aria-current="page"', strip, re.S)
     assert marked == ["stock"]
 
 
 def test_no_tab_chosen_marks_none(tabbed, client):
     body = client.get(tabbed.get_absolute_url()).content.decode()
-    strip = body[body.index("pl-tabs"):body.index("pl-grid")]
+    strip = body[body.index("pl-tabs"):body.index('id="pl-grid"')]
     assert 'aria-current="page"' not in strip
 
 
 def test_the_strip_is_a_list(tabbed, client):
     """Two links are two items; a screen reader says how many there are."""
     body = client.get(tabbed.get_absolute_url()).content.decode()
-    strip = body[body.index("pl-tabs"):body.index("pl-grid")]
+    strip = body[body.index("pl-tabs"):body.index('id="pl-grid"')]
     assert strip.count('class="pl-tabs__item"') == 2
 
 

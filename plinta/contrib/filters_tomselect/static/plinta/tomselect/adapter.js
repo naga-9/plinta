@@ -29,28 +29,6 @@
         return control;
     }
 
-    /** The cascade replaced the select's options; Tom Select caches its own. */
-    function resync(select) {
-        var control = select.tomselect;
-        if (!control) {
-            return;
-        }
-        var offered = Array.prototype.map.call(select.options, function (option) {
-            return { value: option.value, text: option.textContent };
-        });
-        control.clearOptions();
-        control.addOptions(offered);
-        // Keep only what is still on offer: a value that now matches nothing
-        // would filter the page to nothing while looking like a live choice.
-        var available = new Set(offered.map(function (o) { return o.value; }));
-        control.items.slice().forEach(function (item) {
-            if (!available.has(item)) {
-                control.removeItem(item, true);
-            }
-        });
-        control.refreshOptions(false);
-    }
-
     if (!window.TomSelect) {
         // Vendored and registered before this, so the only way here is a
         // failed asset. Saying so beats a filter bar that silently does
@@ -59,18 +37,13 @@
         return;
     }
 
-    // A compiler, so a bar that arrives by fragment swap is enhanced the
-    // same as one that arrived with the page. The destructor takes Tom
-    // Select's own markup down with the select, rather than leaving a
-    // control that answers to nothing.
+    // A compiler, so a bar that arrives by fragment swap — which is how the
+    // cascade redraws it — is enhanced the same as one that arrived with the
+    // page. The destructor takes Tom Select's own markup down with the
+    // select, rather than leaving a control that answers to nothing.
     up.compiler('select[data-plinta-tomselect]', function (select) {
         var control = enhance(select);
-        function onOptions() {
-            resync(select);
-        }
-        select.addEventListener('plinta:options', onOptions);
         return function () {
-            select.removeEventListener('plinta:options', onOptions);
             if (control) {
                 control.destroy();
             }

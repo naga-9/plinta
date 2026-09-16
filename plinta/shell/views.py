@@ -46,6 +46,10 @@ CARD = re.compile(r"^#card-(\d+)$")
 #: How a browser posts a form. Both reach `request.POST`.
 FORM_TYPES = ("application/x-www-form-urlencoded", "multipart/form-data")
 
+#: What a filter change swaps: the grid, and the bar and the saved-set picker
+#: where the page has them. The rest of the screen stays where it was.
+FILTER_TARGETS = "#pl-grid, #pl-filters:maybe, #pl-filter-sets:maybe"
+
 
 def closes_a_layer(request: HttpRequest) -> bool:
     """Whether this page was asked for by something inside an overlay.
@@ -202,30 +206,6 @@ def visible_page(request: HttpRequest, pk: int) -> Page:
     if not page.is_active or not can(request.user, "view", page):
         raise Http404("no such page")
     return page
-
-
-@login_required
-def filter_options(request: HttpRequest, pk: int) -> JsonResponse:
-    """The options every control should offer, given what is chosen now.
-
-    So the cascade can happen while somebody is choosing rather than only
-    after they apply: pick a title, see which shops sold it, then pick one.
-    Applying first to find out what to apply is the wrong order.
-
-    Private UI transport (§15.4) — a plain view, not part of the public API,
-    and free to change with the interface it serves. It computes nothing of
-    its own: `drawn_controls` is what the page render already calls, so the
-    scoping and the cascade cannot drift from what a reload would show.
-    """
-    page = visible_page(request, pk)
-    values = submitted_filters(request, page) or {}
-    return JsonResponse(
-        {
-            drawn.control.field_name: drawn.options
-            for drawn in drawn_controls(page, values, request.user)
-            if drawn.options
-        }
-    )
 
 
 def placement_of(request: HttpRequest, pk: int, placement: int):
@@ -1111,10 +1091,16 @@ def page_view(
     sets = saved_filter_sets(page, request.user)
     chosen = chosen_set(page, request, sets)
 
+    # The bar asking, as a control is chosen, what the others should now
+    # offer — the cascade. Nothing has been applied: the choice is not
+    # remembered, and no card is drawn for a request that keeps the bar
+    # alone. Applying first to find out what to apply is the wrong order.
+    asking = bool(request.headers.get("X-Up-Validate"))
+
     # Choosing a set is the more deliberate act, so it wins over whatever the
     # controls were showing when it was chosen.
     submitted = dict(chosen.values) if chosen else submitted_filters(request, page)
-    if submitted is not None:
+    if submitted is not None and not asking:
         remember_filters(page, request.user, submitted)
     values = submitted if submitted is not None else default_filters(page, request.user)
 
@@ -1131,7 +1117,7 @@ def page_view(
             "tab": tab,
             "record": row,
             "capabilities": capability_sections(row, request.user),
-            "placements": render_page(
+            "placements": [] if asking else render_page(
                 page,
                 request.user,
                 tab=tab,
@@ -1144,6 +1130,7 @@ def page_view(
             "filter_controls": drawn_controls(page, values, request.user),
             "filter_sets": sets,
             "chosen_set": chosen,
+            "filter_targets": FILTER_TARGETS,
             # Whether the bar offers to save what is on screen. The permission
             # decides the control; the pipeline decides the save.
             "may_save_filters": request.user.has_perm("plinta_pages.add_filterset"),

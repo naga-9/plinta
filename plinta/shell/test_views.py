@@ -4,16 +4,14 @@ import re
 
 import pytest
 from django.contrib.auth.models import Permission, User
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.test import RequestFactory
-from django.contrib.contenttypes.models import ContentType
 
 from plinta.blocks.models import Block, SavedView
-from plinta.datasources.models import DataSource, DataSourceField
+from plinta.datasources.models import DataSourceField
 from plinta.pages.models import (
     FilterSet,
-    MenuGroup,
-    MenuSection,
     Page,
     PageBlock,
     PageFilter,
@@ -22,55 +20,22 @@ from plinta.pages.models import (
 )
 from plinta.permissions.fields import sync_model
 from plinta.shell.links import register_shell_link, visible_links
+from tests.support import fresh, grant, grant_config_views
 from tests.testapp.models import Book, Region
 
 pytestmark = pytest.mark.django_db
 
-MODELS = (Block, SavedView, Page, FilterSet)
-
-
 @pytest.fixture
-def screen(db, client):
-    ada = User.objects.create_user(username="ada", password="secret")  # noqa: S106
+def screen(catalog, client):
+    """*Catalog* with two books in it, and `ada` signed in as a reader."""
+    ada = catalog.user
     north = Region.objects.create(name="North")
     Book.objects.create(title="Dune", owner=ada, region=north, in_print=True)
     Book.objects.create(title="Emma", owner=ada, region=north, in_print=False)
-
-    ds = DataSource.objects.create(
-        name="books",
-        label="Books",
-        content_type=ContentType.objects.get_for_model(Book),
-    )
-    DataSourceField.objects.create(data_source=ds, field_name="title", label="Title")
-    sync_model(Book, {"title": False})
-
-    ct = ContentType.objects.get_for_model(Book)
-    for codename in ("view_book", "view_book_title"):
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=ct, defaults={"name": codename}
-        )
-        ada.user_permissions.add(perm)
-    for model in MODELS:
-        codename = f"view_{model._meta.model_name}"
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename,
-            content_type=ContentType.objects.get_for_model(model),
-            defaults={"name": codename},
-        )
-        ada.user_permissions.add(perm)
-
-    section = MenuSection.objects.create(name="Reference")
-    group = MenuGroup.objects.create(section=section, name="Catalog")
-    page = Page.objects.create(
-        name="Catalog", slug="catalog", owner=ada, menu_group=group
-    )
-    block = Block.objects.create(
-        name="books-table", component_type="table_plinta", data_source=ds, owner=ada
-    )
-    PageBlock.objects.create(page=page, block=block, column=0, row=0, width=6, height=4)
-
-    client.force_login(User.objects.get(pk=ada.pk))
-    return page, block, User.objects.get(pk=ada.pk)
+    grant(ada, Book, "view", "view_book_title")
+    grant_config_views(ada)
+    client.force_login(fresh(ada))
+    return catalog.page, catalog.block, fresh(ada)
 
 
 # --- the gate --------------------------------------------------------------
@@ -593,7 +558,7 @@ def test_a_consumers_own_set_is_used_when_named(screen, client, icon_registry):
     """`set:name`, so a project already loading a font keeps using it."""
     from django.utils.html import format_html
 
-    from plinta.utils.icons import register_icon_set, register_defaults
+    from plinta.utils.icons import register_defaults, register_icon_set
 
     register_defaults()
     register_icon_set(

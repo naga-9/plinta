@@ -1,4 +1,5 @@
-"""Fixtures that isolate plinta's module-level registries between tests."""
+"""Fixtures that isolate plinta's module-level registries between tests, and
+the few rows most tests start from (`tests/support.py`)."""
 import pytest
 
 from plinta.blocks import actions as block_actions
@@ -9,6 +10,32 @@ from plinta.pages import widgets
 from plinta.permissions import actions, policies
 from plinta.forms import overrides
 from plinta.utils import assets, icons, placeholders
+from tests import support
+
+
+# --- the rows most tests start from ------------------------------------------
+
+
+@pytest.fixture
+def ada(db):
+    """A person with no permissions. Tests grant what they are about."""
+    return support.person()
+
+
+@pytest.fixture
+def books(db):
+    """A DataSource over `Book` with a `title` column."""
+    return support.books_source()
+
+
+@pytest.fixture
+def catalog(ada, books):
+    """*Catalog*: a page in the menu with one core table over `books`, owned
+    by `ada`. No permissions granted and nobody signed in."""
+    return support.build_screen(ada, books)
+
+
+# --- the registries ----------------------------------------------------------
 
 
 @pytest.fixture

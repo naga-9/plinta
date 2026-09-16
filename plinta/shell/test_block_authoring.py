@@ -6,54 +6,26 @@ that, and about the one rule the catalogue adds — a block you may not see is
 not in it, which is where this differs from the admin.
 """
 import pytest
-from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.models import User
 
 from plinta.blocks.models import Block
-from plinta.datasources.models import DataSource, DataSourceField
-from plinta.permissions.fields import sync_model
+from tests.support import books_source, grant
 from tests.testapp.models import Book
 
 pytestmark = pytest.mark.django_db
 
 
-def grant(user, model, *actions):
-    ct = ContentType.objects.get_for_model(model)
-    for action in actions:
-        codename = f"{action}_{model._meta.model_name}"
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=ct, defaults={"name": codename}
-        )
-        user.user_permissions.add(perm)
-
-
 @pytest.fixture
 def books(db):
-    source = DataSource.objects.create(
-        name="books",
-        label="Books",
-        content_type=ContentType.objects.get_for_model(Book),
-    )
-    for name, label in (("title", "Title"), ("in_print", "In print")):
-        DataSourceField.objects.create(
-            data_source=source, field_name=name, label=label
-        )
-    sync_model(Book, {"title": False, "in_print": False})
-    return source
+    return books_source("title", "in_print")
 
 
 @pytest.fixture
-def author(db, client, books):
-    user = User.objects.create_user(username="ada", password="secret")  # noqa: S106
-    grant(user, Block, "view", "add", "change", "delete")
-    ct = ContentType.objects.get_for_model(Book)
-    for codename in ("view_book", "view_book_title", "view_book_in_print"):
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=ct, defaults={"name": codename}
-        )
-        user.user_permissions.add(perm)
-    client.force_login(user)
-    return user
+def author(ada, client, books):
+    grant(ada, Block, "view", "add", "change", "delete")
+    grant(ada, Book, "view", "view_book_title", "view_book_in_print")
+    client.force_login(ada)
+    return ada
 
 
 @pytest.fixture

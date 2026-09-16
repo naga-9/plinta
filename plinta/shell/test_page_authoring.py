@@ -7,48 +7,27 @@ being complete with numbers alone.
 import json
 
 import pytest
-from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.models import User
 
 from plinta.blocks.models import Block
-from plinta.datasources.models import DataSource, DataSourceField
 from plinta.pages.models import Page, PageBlock
-from plinta.permissions.fields import sync_model
-from tests.testapp.models import Book
+from tests.support import grant
 
 pytestmark = pytest.mark.django_db
 
 
-def grant(user, model, *actions):
-    ct = ContentType.objects.get_for_model(model)
-    for action in actions:
-        codename = f"{action}_{model._meta.model_name}"
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=ct, defaults={"name": codename}
-        )
-        user.user_permissions.add(perm)
+@pytest.fixture
+def author(ada, client):
+    grant(ada, Page, "view", "add", "change")
+    grant(ada, PageBlock, "view", "add", "change", "delete")
+    grant(ada, Block, "view", "add", "change")
+    client.force_login(ada)
+    return ada
 
 
 @pytest.fixture
-def author(db, client):
-    user = User.objects.create_user(username="ada", password="secret")  # noqa: S106
-    grant(user, Page, "view", "add", "change")
-    grant(user, PageBlock, "view", "add", "change", "delete")
-    grant(user, Block, "view", "add", "change")
-    client.force_login(user)
-    return user
-
-
-@pytest.fixture
-def sales(db, author):
-    source = DataSource.objects.create(
-        name="books", label="Books",
-        content_type=ContentType.objects.get_for_model(Book),
-    )
-    DataSourceField.objects.create(
-        data_source=source, field_name="title", label="Title"
-    )
-    sync_model(Book, {"title": False})
+def sales(books, author):
+    source = books
     page = Page.objects.create(name="Sales", slug="sales", owner=author)
     block = Block.objects.create(
         name="books", component_type="table_plinta", data_source=source, owner=author

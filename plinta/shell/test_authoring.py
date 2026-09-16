@@ -12,32 +12,23 @@ from django.contrib.contenttypes.models import ContentType
 
 from plinta.datasources.models import DataSource, DataSourceField
 from plinta.shell.authoring import registerable
+from tests.support import grant
 from tests.testapp.models import Book, Region
 
 pytestmark = pytest.mark.django_db
 
 
-def grant(user, model, *actions):
-    ct = ContentType.objects.get_for_model(model)
-    for action in actions:
-        codename = f"{action}_{model._meta.model_name}"
-        perm, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=ct, defaults={"name": codename}
-        )
-        user.user_permissions.add(perm)
-
-
 @pytest.fixture
-def author(db, client):
-    user = User.objects.create_user(username="ada", password="secret")  # noqa: S106
-    grant(user, DataSource, "view", "add", "change")
-    grant(user, DataSourceField, "view", "add", "change", "delete")
-    client.force_login(user)
-    return user
+def author(ada, client):
+    grant(ada, DataSource, "view", "add", "change")
+    grant(ada, DataSourceField, "view", "add", "change", "delete")
+    client.force_login(ada)
+    return ada
 
 
 @pytest.fixture
 def books(db):
+    """The registration alone: this screen is where the columns are made."""
     return DataSource.objects.create(
         name="books",
         label="Books",

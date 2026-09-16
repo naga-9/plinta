@@ -10,30 +10,16 @@ import json
 import pytest
 from django.contrib.auth.models import Permission, User
 from django.contrib.contenttypes.models import ContentType
-
-from plinta.blocks.models import Block, SavedView
 from pydantic import Field
 
+from plinta.blocks.models import Block, SavedView
 from plinta.components.base import ColumnsConfig, Component, ComponentConfig
 from plinta.components.registry import register_component
-from plinta.datasources.models import DataSource, DataSourceField
-from plinta.pages.models import MenuGroup, MenuSection, Page, PageBlock
-from plinta.permissions.fields import sync_model
+from plinta.pages.models import Page
+from tests.support import books_source, build_screen, fresh, grant, grant_config_views
 from tests.testapp.models import Book
 
 pytestmark = pytest.mark.django_db
-
-CONFIG_MODELS = (Block, Page)
-
-
-def grant(user, model, *codenames):
-    content_type = ContentType.objects.get_for_model(model)
-    for codename in codenames:
-        permission, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=content_type, defaults={"name": codename}
-        )
-        user.user_permissions.add(permission)
-
 
 @pytest.fixture
 def writing_component(component_registry):
@@ -67,35 +53,16 @@ def writing_component(component_registry):
 
 
 @pytest.fixture
-def screen(db, client, writing_component):
-    ada = User.objects.create_user(username="ada", password="secret")  # noqa: S106
-    grant(ada, Book, "view_book", "add_book", "change_book", "view_book_title",
-          "change_book_title")
-    for model in CONFIG_MODELS:
-        grant(ada, model, f"view_{model._meta.model_name}")
-
+def screen(ada, client, writing_component):
+    """*Catalog* over a writable `title`, with one book, and `ada` signed in
+    able to read and write it."""
+    grant(ada, Book, "view", "add", "change", "view_book_title", "change_book_title")
+    grant_config_views(ada)
     book = Book.objects.create(title="Ariel", owner=ada)
-    source = DataSource.objects.create(
-        name="books",
-        label="Books",
-        content_type=ContentType.objects.get_for_model(Book),
-    )
-    DataSourceField.objects.create(
-        data_source=source, field_name="title", label="Title", editable=True
-    )
-    sync_model(Book, {"title": True})
-
-    section = MenuSection.objects.create(name="Reference")
-    group = MenuGroup.objects.create(section=section, name="Catalog")
-    page = Page.objects.create(
-        name="Catalog", slug="catalog", owner=ada, menu_group=group
-    )
-    block = Block.objects.create(
-        name="books", component_type="writer", data_source=source, owner=ada
-    )
-    placement = PageBlock.objects.create(page=page, block=block, column=0, row=0)
-    client.force_login(User.objects.get(pk=ada.pk))
-    return page, placement, block, book
+    source = books_source("title", editable=("title",))
+    built = build_screen(ada, source, component_type="writer")
+    client.force_login(fresh(ada))
+    return built.page, built.placement, built.block, book
 
 
 def url(page, placement):

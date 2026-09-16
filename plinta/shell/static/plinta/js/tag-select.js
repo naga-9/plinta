@@ -1,10 +1,9 @@
 // A multi-select drawn as removable chips.
 //
-// Progressive enhancement over a real `<select multiple>`: the select is what
-// the form submits, and this only changes how it looks and how it is operated.
-// With JavaScript off, or before this runs, the native control is there and
-// works — which is why the markup is a select rather than a div this has to
-// fill in.
+// Over a real `<select multiple>`: the select is what the form submits, and
+// this only changes how it looks and how it is operated — which is why the
+// markup is a select rather than a div this has to fill in, and why the
+// server can redraw the bar and this can simply run again.
 //
 // No vendor. Searching the *server* as you type needs an endpoint to search
 // against, and that is what `contrib.filters_tomselect` is for.

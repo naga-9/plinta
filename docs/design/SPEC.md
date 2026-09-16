@@ -2906,7 +2906,9 @@ These are passthrough, not plinta's contract, and flattening them into `Block.co
 
 **`table_plinta`** — core, the reference implementation, and **server-rendered with no vendor at all**. `inline` mode: the rows are in the HTML.
 
-Sorting, paging and filtering happen on the server, reached by ordinary links and the page's filter bar — `?sort=title&page=2`, the shape Django's own admin has always had. It works with JavaScript disabled and needs no client at all.
+Sorting, paging and filtering happen on the server, reached by ordinary links and the page's filter bar — `?sort=title&page=2`, the shape Django's own admin has always had. It needs no client at all: Unpoly swaps the card a link names, and the link is still a URL.
+
+JavaScript-disabled is not a supported configuration, here or anywhere. The discipline stays — core renders every screen as HTML the server drew; links navigate, forms submit, layout is CSS; JavaScript changes *how* those happen, never *whether* they can — and it is a discipline, not a guarantee: it was only ever true of this table and the filter bar, and a guarantee that holds for a third of the product is not one.
 
 **A heading is a link and so is the pager**, built from the current query string rather than from nothing — so sorting keeps the filters, paging keeps the sort, and sorting returns to page one, because page four of a different order is a different four rows. Each placement's parameters are prefixed with its id, so two tables on one page sort independently.
 

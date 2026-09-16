@@ -1,7 +1,6 @@
 // Collapsing a menu group, and remembering it.
 //
-// Progressive enhancement: the markup is a button beside a list, both usable
-// before this runs and if it never does. All this adds is the collapse and
+// The markup is a button beside a list; all this adds is the collapse and
 // the memory of it.
 //
 // **The group holding the current page is always opened**, whatever was

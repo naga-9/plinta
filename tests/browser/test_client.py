@@ -889,6 +889,40 @@ def test_switching_a_view_leaves_the_other_cards_alone(
     ).inner_text() == f"Book {PAGE_SIZE:02d}"
 
 
+def test_a_view_saved_on_a_detail_page_lands_back_on_the_record(
+    page, live_server, signed_in, detail
+):
+    """The redirect after a save used to go to the page's own URL, which for
+    a detail page names no record and 404s — into the layer. The opener
+    carries where it was, and the save goes back there."""
+    from plinta.blocks.models import Block, SavedView
+    from plinta.pages.models import PageBlock
+
+    subject, record = detail
+    table = Block.objects.get(name="books-table")
+    related = PageBlock.objects.create(
+        page=subject, block=table, column=0, row=6, width=12, height=6, title="Related"
+    )
+    page.goto(f"{live_server.url}{subject.get_absolute_url()}{record.pk}/")
+    page.wait_for_selector(".tabulator-row", timeout=15000)
+
+    page.click(f"#card-{related.pk} .pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal form", timeout=15000)
+    page.fill('up-modal [name="name"]', "Five")
+    page.fill('up-modal [name="page_size"]', "5")
+    page.click('up-modal button[type="submit"]')
+    page.wait_for_selector("up-modal", state="detached", timeout=15000)
+
+    assert SavedView.objects.filter(name="Five").exists()
+    assert page.url.endswith(f"{subject.get_absolute_url()}{record.pk}/")
+    assert page.locator(".pl-alert--danger").count() == 0
+    page.wait_for_function(
+        "() => document.querySelectorAll('.tabulator-row').length === 5",
+        timeout=15000,
+    )
+    assert page.locator(f"#card-{related.pk} .tabulator-row").count() == 5
+
+
 def test_publishing_is_not_offered_without_the_permission(
     page, live_server, signed_in, screen
 ):

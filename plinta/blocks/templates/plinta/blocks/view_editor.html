@@ -13,6 +13,7 @@ what a table is.
 <form method="post" action="{{ action }}" class="pl-form" up-submit>
     {% csrf_token %}
     <input type="hidden" name="view" value="{{ view.pk|default_if_none:'' }}">
+    <input type="hidden" name="next" value="{{ next }}">
 
     <h2 class="pl-card__title">
         {% if view %}{{ view.name }}{% else %}New view{% endif %}
@@ -31,12 +32,12 @@ what a table is.
             <ul class="pl-views">
                 {% for each in views %}
                     <li>
-                        <a href="{{ action }}?view={{ each.pk }}" up-follow>{{ each.name }}</a>
+                        <a href="{{ action }}?view={{ each.pk }}&next={{ next|urlencode }}" up-follow>{{ each.name }}</a>
                         {% if not each.owner %}<span class="pl-chip">Everyone</span>{% endif %}
                     </li>
                 {% endfor %}
                 {% if view %}
-                    <li><a href="{{ action }}" up-follow>New view…</a></li>
+                    <li><a href="{{ action }}?next={{ next|urlencode }}" up-follow>New view…</a></li>
                 {% endif %}
             </ul>
         </div>

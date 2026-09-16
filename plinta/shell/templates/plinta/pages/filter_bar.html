@@ -40,7 +40,7 @@
             then shows — history and all, since a filtered page is a URL.
             {% endcomment %}
             <a class="pl-btn pl-btn--sm"
-               href="{% url 'plinta:page_filters' page.pk %}?{{ request.GET.urlencode }}"
+               href="{% url 'plinta:page_filters' page.pk %}?next={{ request.path|urlencode }}&{{ request.GET.urlencode }}"
                up-layer="new modal" up-history="false"
                            up-on-accepted="up.render({ target: ':main', response: response, layer: 'root', history: true })">
                 Save these

@@ -1363,6 +1363,20 @@ def test_saving_returns_to_the_page_using_it(may_filter, client):
     assert response["Location"].endswith(f"?filterset={FilterSet.objects.get().pk}")
 
 
+def test_saving_returns_to_where_the_editor_was_opened(may_filter, client):
+    """A detail page's record URL, which the page's own URL is not. And
+    `next` is the bar's own, not a filter: it is never stored as one."""
+    page, ada = may_filter
+    client.force_login(ada)
+    response = client.post(
+        f"/pages/{page.pk}/filters/",
+        {"name": "Mine", "in_print": "True", "next": f"/pages/{page.pk}-catalog/7/"},
+    )
+    saved = FilterSet.objects.get()
+    assert response["Location"] == f"/pages/{page.pk}-catalog/7/?filterset={saved.pk}"
+    assert saved.values == {"in_print": "True"}
+
+
 def test_publishing_without_the_permission_is_refused(may_filter, client):
     page, ada = may_filter
     client.force_login(ada)

@@ -23,7 +23,13 @@ than push when one is dropped on the other, which is its collision rule.
 Part 5 has landed as well: the spec says what is, ADR 0005 carries its
 second amendment and ADR 0009 the no-JS rule. Of part 6, §6.1 is answered
 — no: the packs are gone, for the stronger reason that a class map cannot
-reach a framework's form shapes at all. The rest of part 6 is still open.
+reach a framework's form shapes at all. §6.2 is done: `shell/views/` is
+`page.py`, `card.py` and `authoring.py` behind a re-exporting `__init__`
+(singular names, because `pages` and `blocks` are views), the two editors
+build their context once each, the authoring gates are `gated` and
+`reachable`, and a save in a layer goes back to where the layer was opened
+— which on a detail page is the record's URL, where the page's own used to
+404. §6.3 onward is still open.
 
 What this document changes in `SPEC.md` when it lands is listed at the end.
 

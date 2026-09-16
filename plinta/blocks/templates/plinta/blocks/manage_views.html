@@ -5,12 +5,14 @@ Offered even when the block has no views yet, which is why it is a separate
 action from the picker: the picker has nothing to choose between until this
 has been used once.
 
-The editor opens in a layer. Saving redirects to the page, opened on the
-view just saved; a page asked to draw inside a layer closes it instead
-(`page_view`), and the response it closed with is what redraws this card —
-so the card shows the new view without the page's URL having to change.
+The editor opens in a layer. Saving redirects to `next` — this page, or
+this record's page when the card is on a detail page, where the page's own
+URL would find no record — opened on the view just saved; a page asked to
+draw inside a layer closes it instead (`page_view`), and the response it
+closed with is what redraws this card, so the card shows the new view
+without the page's URL having to change.
 {% endcomment %}
-<a class="pl-btn pl-btn--sm" href="{{ slot.views_url }}"
+<a class="pl-btn pl-btn--sm" href="{{ slot.views_url }}?next={{ request.path|urlencode }}"
    up-layer="new modal" up-history="false"
    up-on-accepted="up.render({ target: '#card-{{ slot.placement.pk }}', response: response, layer: 'root' })">
     {% icon "plinta:settings" %} Views

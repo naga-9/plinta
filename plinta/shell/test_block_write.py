@@ -467,6 +467,30 @@ def test_saving_returns_to_this_placements_view(client, may_save):
     assert response["Location"].endswith(f"?b{placement.pk}_view={view.pk}")
 
 
+def test_saving_returns_to_where_the_editor_was_opened(client, may_save):
+    """The opener says where it was — a detail page's record URL, which the
+    page's own URL is not — and the editor carries it back. On a detail page
+    the page's own URL finds no record and 404s, which is the bug."""
+    page, placement, _, _ = may_save
+    response = client.post(
+        views_url(page, placement), {"name": "Mine", "next": f"/pages/{page.pk}-catalog/7/"}
+    )
+    view = SavedView.objects.get()
+    assert response["Location"] == f"/pages/{page.pk}-catalog/7/?b{placement.pk}_view={view.pk}"
+
+    body = client.get(views_url(page, placement), {"next": "/somewhere/"}).content.decode()
+    assert 'name="next" value="/somewhere/"' in body, "kept through the form"
+
+
+def test_a_next_that_leaves_this_host_is_ignored(client, may_save):
+    """Checked to be ours, so a typed `next` cannot send a viewer elsewhere."""
+    page, placement, _, _ = may_save
+    response = client.post(
+        views_url(page, placement), {"name": "Mine", "next": "https://evil.example/"}
+    )
+    assert response["Location"].startswith(page.get_absolute_url())
+
+
 def test_an_invalid_value_is_answered_not_saved(client, may_save):
     page, placement, _, _ = may_save
     response = client.post(views_url(page, placement), {

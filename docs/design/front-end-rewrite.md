@@ -14,6 +14,7 @@ What this document changes in `SPEC.md` when it lands is listed at the end.
 3. [Libraries for the hand-written scripts](#3-libraries-for-the-hand-written-scripts)
 4. [GridStack for the composer, and the composer into core](#4-gridstack-for-the-composer-and-the-composer-into-core)
 5. [Spec changes](#5-spec-changes)
+6. [Later: other reductions, not yet decided](#6-later-other-reductions-not-yet-decided)
 
 ---
 
@@ -368,3 +369,96 @@ When the above lands, `SPEC.md` changes in these places:
 | §14 | Remove `filters_tomselect` and `composer`; both are core's. |
 | ADR 0005 | Amend: core carries vendors for **shell chrome** — navigation, dialogs, a select control, a sortable list, the layout editor — and none for **components**. The upgrade-burden argument applies to components, which is where it came from. |
 | New ADR | *JavaScript-disabled is not a supported configuration*, with part 2's rule as the text. |
+
+---
+
+## 6. Later: other reductions, not yet decided
+
+Surveyed alongside the above and parked. Each is a question to answer
+when its turn comes, not a plan. Numbers are from the tree at the time of
+writing: 16.4k lines of production Python (about a third prose), 16.7k of
+tests, 1.9k of templates, 1.2k of CSS, a 5.4k-line spec, 26 skills.
+
+### 6.1 Style packs
+
+332 `{{ cls.* }}` substitutions in templates, the `classes()` registry, the
+`styles` context processor and `contrib/styles_bootstrap5` exist so a
+consumer with Bootstrap can have plinta's screens carry Bootstrap class
+names. Every template line reads `class="{{ cls.btn }} {{ cls.btn_sm }}"`
+instead of `class="pl-btn pl-btn--sm"`.
+
+**Question:** will anyone run plinta's screens inside somebody else's CSS
+framework? If not, drop the indirection: templates read plainly, the
+Bootstrap pack and the `add-style-pack` skill go, and theming is what it
+already is — `tokens.json`. Tokens cover colours and spacing; packs cover
+only class names, which is the weaker feature.
+**Impact if yes:** ~−150 Python, ~−300 template substitutions, −1 contrib
+package, −1 skill.
+
+### 6.2 `shell/views.py`
+
+1,062 lines, 25 views. Three things:
+
+- `"cls": _classes()` is passed by hand in 11 views while the `styles`
+  context processor already supplies it. One of the two is dead.
+- 18 occurrences of `if not can(user, "view", x): raise Http404("no such …")`.
+  A `visible(user, action, obj)` helper that raises.
+- Split into `views/pages.py`, `views/blocks.py`, `views/authoring.py`.
+  Same lines; a thousand-line file is where duplication hides.
+
+### 6.3 Notification channels → apprise
+
+`builtin_channels.py` and the transport half of `delivery.py` become
+configuration; the queue and preferences stay. The
+`add-notification-channel` skill becomes a line in the settings docs.
+**Impact:** ~−150 prod, −1 skill.
+
+### 6.4 Audit → django-auditlog
+
+Of `contrib/audit`'s 422 lines, the diff capture — m2m, FK labels, bulk —
+is what a library does better. Keep the policy and the screen.
+**Impact:** ~−200.
+
+### 6.5 Test fixtures
+
+Tests run 1:1 with production, which is healthy, but `shell` alone is
+3,372 test lines and `User.objects.create_user(…)`, a local `grant(…)`,
+`Page.objects.create(…)` repeat in nearly every file. A `conftest.py` with
+shared fixtures (`author`, `viewer`, `page_with_table`) — factory-boy or
+plain functions.
+**Impact:** ~−400 test lines, and the next 400 are not written.
+
+### 6.6 Spec-recorded dead weight
+
+The spec marks "0 uses" from v1's usage data and says it is evidence, not
+proof. A judgement pass over `pages/models.py` (465 lines: page types,
+tabs, filter sets, filter preferences, placement defaults) and
+`permissions/rules.py` (333 lines, eleven rules): anything v1 never
+exercised and `example/` does not exercise either is a candidate. No
+number without reading them.
+
+### 6.7 Skills
+
+26, each naming code paths. Parts 1–4 touch `add-block-action`,
+`add-page-action`, `add-topbar-item`, `add-component`, `add-filter-widget`,
+`add-style-pack`, `add-notification-channel` at least. Half are "add a
+registry entry of kind X" and could collapse into one skill with a table,
+or defer to the `docs/` pages they duplicate. A maintenance cost rather
+than a line count.
+
+### 6.8 The spec
+
+5,398 lines, much of it "v1 did X, and here is why that changed". That
+history belongs in the decision records (§24); the sections would then say
+only what is. Halving it is realistic.
+
+### Not touched
+
+Comment density — a third of the code being prose is the house style and
+is why the code is easy to reason about. The permissions engine,
+datasources, renderers and the write pipeline — they are the product. The
+public API — small and correct.
+
+Ranked by value: 6.1 and 6.5 change how every future line is written;
+6.2 is an afternoon; 6.3 and 6.4 are library swaps inside contrib;
+6.6–6.8 are judgement passes.

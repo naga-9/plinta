@@ -37,8 +37,7 @@
                         </form>
                     {% endif %}
                     {% comment %} Whatever an app contributes to this page's
-                       header. Core draws them and names no package, which is
-                       what lets the layout composer be contrib (§12.4).
+                       header. Core draws them and names no package.
                        {% endcomment %}
                     {% for action in page_actions %}{% include action.template %}{% endfor %}
                 {% endblock %}

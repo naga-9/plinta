@@ -5,6 +5,17 @@ because they share one premise: **plinta is not deployed anywhere yet, so
 nothing here needs a compatibility path.** Each part is a sequence of
 commits, and the site works after every one.
 
+**Status.** Parts 1 and 2 have landed, one commit per step, with these
+departures from the text below: the server closes a layer
+(`X-Up-Accept-Layer` from `page_view` when asked from inside one) rather
+than the opener matching a URL pattern, which a mounting prefix would have
+broken; the cascade is `up-validate` on the bar rather than `up-watch` on
+each control; the bell polls its own `bell/` URL rather than the page; the
+tabs stay links, since `role="tab"` without arrow keys is a promise the
+keyboard cannot keep; and the client keeps `aria-busy` on a mount while
+its own fetch is in flight, which is not a request Unpoly sees. Parts 3
+and 4, and the spec changes in part 5, are still to do.
+
 What this document changes in `SPEC.md` when it lands is listed at the end.
 
 ## Contents

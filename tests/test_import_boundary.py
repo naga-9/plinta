@@ -227,6 +227,13 @@ def test_core_js_names_no_vendor(path: pathlib.Path):
         )
 
 
+#: The ways a script asks the server or redraws the page itself. Core's
+#: client owns the first; Unpoly, told by an attribute on a link or a form,
+#: owns the second. Naming one in a package is the package doing either.
+ASKING = ("fetch(", "up.request(", "up.render(", "up.navigate(", "up.follow(",
+          "up.submit(")
+
+
 @pytest.mark.parametrize(
     "path", _scripts(CONTRIB), ids=lambda p: p.name if hasattr(p, "name") else str(p)
 )
@@ -235,13 +242,19 @@ def test_only_the_client_fetches(path: pathlib.Path):
 
     An adapter calling `fetch` itself is one that has its own URL building,
     its own error path and its own loading state — which is the duplication
-    the client exists to delete.
+    the client exists to delete. The same for Unpoly's own asking and
+    rendering: a package that renders a fragment itself has decided what a
+    swap is, which is the client's and the markup's to decide. A package
+    *may* register a compiler (`up.compiler`) — that is the lifecycle seam —
+    and may draw a link or form carrying `up-` attributes, which is a link
+    saying what it does.
     """
     body = path.read_text(encoding="utf-8")
-    assert "fetch(" not in body, (
-        f"{path.name} calls fetch. Ask through the `load` it is handed, so "
-        f"the parameter names and the error path stay in one place."
-    )
+    for call in ASKING:
+        assert call not in body, (
+            f"{path.name} calls {call.rstrip('(')}. Ask through the `load` and "
+            f"`save` it is handed, and let a link or form say what it swaps."
+        )
 
 
 @pytest.mark.parametrize(

@@ -28,7 +28,6 @@ ASSETS = [
     "plinta/js/tag-select.js",
     "plinta/js/filter-cascade.js",
     "plinta/js/menu-groups.js",
-    "plinta/js/keep-scroll.js",
     "plinta/js/client.js",
 ]
 

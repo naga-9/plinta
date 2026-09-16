@@ -1131,13 +1131,16 @@ def test_a_placement_may_not_name_another_blocks_view(screen):
         placement.full_clean()
 
 
-def test_the_view_picker_keeps_your_place(screen, client):
+def test_the_view_picker_swaps_its_own_card(screen, client):
     """Switching a card halfway down a dashboard should not throw you to the
-    top: a GET is a fresh navigation however little changed."""
+    top, nor rebuild the other cards: only this card is targeted, and the
+    URL is left alone."""
     page, block, ada = screen
     SavedView.objects.create(block=block, name="A", owner=None, config={})
+    placement = page.placements.get()
     body = client.get(page.get_absolute_url()).content.decode()
-    assert "data-plinta-keep-scroll" in body
+    assert f'up-target="#card-{placement.pk}"' in body
+    assert 'up-autosubmit' in body and 'up-history="false"' in body
 
 
 # --- the widget data feed ----------------------------------------------------

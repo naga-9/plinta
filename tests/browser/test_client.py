@@ -779,6 +779,57 @@ def test_a_saved_view_is_what_the_card_then_draws(
     assert rows(page).count() == 5
 
 
+def test_switching_a_view_leaves_the_other_cards_alone(
+    page, live_server, signed_in, screen
+):
+    """Only the card whose view changed is swapped.
+
+    The other card's grid was on page two, which the server never knew and
+    a whole-page reload threw away. And the card that changed fetches the
+    view's rows — its data URL names the view — though the page's URL
+    never learned of the switch.
+    """
+    from plinta.blocks.models import SavedView
+    from plinta.pages.models import PageBlock
+
+    subject, block, first = screen
+    view = SavedView.objects.create(
+        block=block, name="Five", owner=None, config={"page_size": 5}
+    )
+    second = PageBlock.objects.create(
+        page=subject, block=block, column=0, row=6, width=12, height=6,
+        title="Twin",
+    )
+    open_page(page, live_server, screen)
+    page.wait_for_function(
+        "() => document.querySelectorAll('.tabulator-row').length === "
+        f"{2 * PAGE_SIZE}",
+        timeout=15000,
+    )
+
+    # Page the twin, then switch the first card's view.
+    twin = page.locator(f"#card-{second.pk}")
+    twin.locator(".tabulator-page[data-page='2']").click()
+    page.wait_for_function(
+        f"() => document.querySelector('#card-{second.pk} .tabulator-row "
+        "[tabulator-field$=\"title\"]').textContent.trim() !== 'Book 00'",
+        timeout=15000,
+    )
+
+    with page.expect_request(lambda r: f"view={view.pk}" in r.url and "/data/" in r.url):
+        page.select_option(f"#card-{first.pk} select[name$='_view']", str(view.pk))
+    page.wait_for_function(
+        f"() => document.querySelectorAll('#card-{first.pk} .tabulator-row').length === 5",
+        timeout=15000,
+    )
+
+    assert "view=" not in page.url
+    assert twin.locator(".tabulator-row").count() == PAGE_SIZE
+    assert twin.locator(".tabulator-row").first.locator(
+        "[tabulator-field$='title']"
+    ).inner_text() == f"Book {PAGE_SIZE:02d}"
+
+
 def test_publishing_is_not_offered_without_the_permission(
     page, live_server, signed_in, screen
 ):

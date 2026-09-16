@@ -6,14 +6,19 @@
 
    The parameter carries the placement's prefix, so two blocks on one page
    choose independently — the same rule their sort and page numbers follow.
+
+   Only this card is swapped: the other cards' state — a grid's page, a
+   header sort — was still meaningful, and a whole-page reload threw it
+   away. No history entry either; switching a view is not a place the back
+   button should return to, and the page's URL keeps the filters it had.
    {% endcomment %}
-{% comment %} `data-plinta-keep-scroll`: switching a card halfway down a
-   dashboard should not throw you back to the top. {% endcomment %}
-<form method="get" class="{{ cls.row }}" data-plinta-keep-scroll>
+<form method="get" action="{{ request.path }}" class="{{ cls.row }}"
+      up-submit up-autosubmit up-target="#card-{{ slot.placement.pk }}"
+      up-history="false">
     {% if tab %}<input type="hidden" name="tab" value="{{ tab }}">{% endif %}
     <label class="{{ cls.visually_hidden }}" for="{{ slot.param }}view">View</label>
     <select class="{{ cls.select }} {{ cls.select_sm }}" id="{{ slot.param }}view"
-            name="{{ slot.param }}view" onchange="this.form.submit()">
+            name="{{ slot.param }}view">
         <option value="">Default</option>
         {% for saved in slot.views %}
             <option value="{{ saved.pk }}"

@@ -850,6 +850,7 @@ def test_switching_a_view_leaves_the_other_cards_alone(
         timeout=15000,
     )
 
+    entries = page.evaluate("() => history.length")
     with page.expect_request(lambda r: f"view={view.pk}" in r.url and "/data/" in r.url):
         page.select_option(f"#card-{first.pk} select[name$='_view']", str(view.pk))
     page.wait_for_function(
@@ -857,7 +858,9 @@ def test_switching_a_view_leaves_the_other_cards_alone(
         timeout=15000,
     )
 
+    # Not a place the back button should return to: no entry, no URL change.
     assert "view=" not in page.url
+    assert page.evaluate("() => history.length") == entries
     assert twin.locator(".tabulator-row").count() == PAGE_SIZE
     assert twin.locator(".tabulator-row").first.locator(
         "[tabulator-field$='title']"

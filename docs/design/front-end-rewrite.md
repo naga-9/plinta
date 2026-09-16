@@ -14,7 +14,14 @@ each control; the bell polls its own `bell/` URL rather than the page; the
 tabs stay links, since `role="tab"` without arrow keys is a promise the
 keyboard cannot keep; and the client keeps `aria-busy` on a mount while
 its own fetch is in flight, which is not a request Unpoly sees. Parts 3
-and 4, and the spec changes in part 5, are still to do.
+and 4 have landed too: `sort-builder.js` stays for its add and remove
+buttons, which were never the drag; Tom Select has no server search to
+keep, since no options endpoint ever existed; GridStack (13.3) is
+fetched on the first *Edit layout* click from URLs the template hands
+over, not registered as an asset, and two cards of a size swap rather
+than push when one is dropped on the other, which is its collision rule.
+The spec changes in part 5 are still to do, beyond the §12.4 and §17.3
+lines that would otherwise have been false.
 
 What this document changes in `SPEC.md` when it lands is listed at the end.
 

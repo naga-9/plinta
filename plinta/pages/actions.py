@@ -5,15 +5,14 @@ The topbar is the shell's chrome and is the same on every screen. This is the
 the page it is drawn on — which is the whole difference, and the reason the
 topbar's registry could not serve.
 
-It exists so the layout composer can be a contrib app (§12.4). Core stores a
-placement's four integers and writes them; dragging them is an enhancement,
-and an enhancement that core names by package is not one. So core draws
-whatever is registered and knows nothing about GridStack.
+Core draws whatever is registered and names no package. Its own *Edit
+layout* registers through the same door (`pages/apps.py`), so a package's
+export button or subscribe link sits beside it as an equal.
 
     register_page_action(
-        "compose",
-        template="composer/edit_layout.html",
-        permission="plinta_pages.change_pageblock",
+        "subscribe",
+        template="alerts/subscribe.html",
+        permission="alerts.add_subscription",
         order=10,
     )
 

@@ -43,7 +43,7 @@ urlpatterns = [
     # "compose" and "positions" as record ids.
     path("pages/", views.pages, name="page_list"),
     path("pages/<int:pk>/compose/", views.page_composer, name="page_composer"),
-    # What a drag posts to. Core owns the rule; contrib.composer owns the drag.
+    # What a drag on the page's *Edit layout* posts to.
     path("pages/<int:pk>/positions/", views.page_positions, name="page_positions"),
     # A detail page: the record in the path, so the URL is shareable and the
     # page is what somebody sends a colleague.

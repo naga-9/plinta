@@ -31,6 +31,9 @@ ASSETS = [
     "plinta/js/tag-select.js",
     "plinta/js/menu-groups.js",
     "plinta/js/client.js",
+    "plinta/js/composer.js",
+    "plinta/vendor/gridstack-all.js",
+    "plinta/vendor/gridstack.min.css",
 ]
 
 

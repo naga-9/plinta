@@ -10,17 +10,17 @@ wants a control there says so from its own `AppConfig`:
 
 ```python
 # yourapp/apps.py
-class ComposerConfig(AppConfig):
-    name = "yourapp.composer"
+class AlertsConfig(AppConfig):
+    name = "yourapp.alerts"
 
     def ready(self):
         from plinta.pages.actions import register_page_action
         from plinta.pages.models import PageType
 
         register_page_action(
-            "composer",
-            template="composer/edit_layout.html",
-            permission="plinta_pages.change_pageblock",
+            "subscribe",
+            template="alerts/subscribe.html",
+            permission="alerts.add_subscription",
             page_types=(PageType.DASHBOARD,),
             order=20,
         )
@@ -32,14 +32,13 @@ circular import waiting to happen.
 
 ## What it is for
 
-This is what lets a feature about a page live outside core. `contrib.composer`
-is the worked example: core stores a placement's four integers and owns the
-rule that writes them, and the app supplies dragging — so core never names
-GridStack, or the composer, or anything else.
+This is what lets a feature about a page live outside core. Core's own *Edit
+layout* control registers through the same door (`pages/apps.py`), so yours
+sits beside it as an equal: a page's header is a list of registrations, and
+nothing in it is built in.
 
 If your control needs to address one card, the grid markup carries
-`data-plinta-placement`. Core never reads it; it is there so something else
-can.
+`data-plinta-placement` and each card an `id="card-N"`.
 
 ## The template renders with the page
 
@@ -86,9 +85,8 @@ for `change_pageblock`, so does the control.
 **One name, one action.** A second registration under the same name raises
 rather than replacing.
 
-**Degrade, do not depend.** Core must be complete without you. The composer's
-test is that `/pages/<pk>/compose/` still arranges a page by typing numbers
-when the app is uninstalled.
+**Degrade, do not depend.** Core must be complete without you: a page with
+your app uninstalled is a page with one control fewer, not a broken one.
 
 ## Not a topbar item
 
@@ -103,14 +101,14 @@ when the app is uninstalled.
 
 ```python
 def test_the_control_is_gated(page_action_registry):
-    register_page_action("composer", template="composer/edit_layout.html",
-                         permission="plinta_pages.change_pageblock")
+    register_page_action("subscribe", template="alerts/subscribe.html",
+                         permission="alerts.add_subscription")
     assert visible_actions(page, without_permission) == []
-    assert [a.name for a in visible_actions(page, with_permission)] == ["composer"]
+    assert [a.name for a in visible_actions(page, with_permission)] == ["subscribe"]
 ```
 
 Use the `page_action_registry` fixture so a test's registration does not leak.
 
 If your action ships JavaScript, test it in the **browser** suite. The one bug
-in the composer that no Python test could see was exactly the URL mistake
-above: every assertion passed while the drag posted to a 404.
+in core's layout editor that no Python test could see was exactly the URL
+mistake above: every assertion passed while the drag posted to a 404.

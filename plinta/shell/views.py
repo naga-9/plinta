@@ -959,9 +959,9 @@ def pages(request: HttpRequest) -> HttpResponse:
 def page_composer(request: HttpRequest, pk: int) -> HttpResponse:
     """One page: its settings, the blocks on it, and where each one sits.
 
-    The grid is a form of plain numbers. `contrib.composer` makes the same
-    four integers draggable and posts them to the same rule (§12.4), so this
-    screen is complete on its own and better with it.
+    The grid is a form of plain numbers. The page's own *Edit layout* makes
+    the same four integers draggable and posts them to the same rule
+    (§12.4); this is the precise-adjust path.
     """
     from plinta.pages.composition import (
         CompositionError,
@@ -1026,7 +1026,7 @@ def page_composer(request: HttpRequest, pk: int) -> HttpResponse:
 @require_POST
 @login_required
 def page_positions(request: HttpRequest, pk: int) -> JsonResponse:
-    """Persist a drag. The endpoint `contrib.composer` posts to.
+    """Persist a drag. The endpoint the layout editor posts to.
 
     JSON rather than form fields, because a drag has no reason to speak in
     them — but the same rule, so an enhancement cannot move a block its

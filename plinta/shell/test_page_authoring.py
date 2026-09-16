@@ -1,8 +1,8 @@
 """The page composer (§12.4).
 
-Core owns the four integers and the rule that writes them; `contrib.composer`
-owns the dragging. So the tests here are about the rule, and about the screen
-being complete without any JavaScript at all.
+Core owns the four integers and the rule that writes them; the drag is a
+browser test. So the tests here are about the rule, and about the screen
+being complete with numbers alone.
 """
 import json
 

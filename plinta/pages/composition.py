@@ -1,13 +1,12 @@
 """Arranging a page: which blocks are on it, and where each one sits.
 
-**Core owns the write, not the dragging.** A placement's `column`, `row`,
-`width` and `height` are four integers that map straight onto CSS grid (§9.3),
-so a viewer renders the layout with no JavaScript. Changing them by dragging
-is an enhancement, and `contrib.composer` supplies it by posting here — the
-same endpoint the plain number form posts to. Uninstall it and you type the
-numbers, which is a worse screen and an identical result.
+**One rule, two clients.** A placement's `column`, `row`, `width` and
+`height` are four integers that map straight onto CSS grid (§9.3), so a
+viewer renders the layout with no JavaScript. The page's *Edit layout* drags
+them and posts here; the composer screen's form of plain numbers posts the
+same four for the adjustment a drag is too coarse for.
 
-That split is the reason the rule lives in one place: whatever moves a block,
+That is the reason the rule lives in one place: whatever moves a block,
 `positions` is what decides whether it may.
 """
 from __future__ import annotations
@@ -110,9 +109,9 @@ def positions(page: Page, user, wanted: dict[int, dict[str, Any]]) -> list[PageB
 def submitted_positions(post) -> dict[int, dict[str, Any]]:
     """Read ``position-<pk>-<field>`` out of a form submission.
 
-    The plain number form's shape. `contrib.composer` posts JSON instead and
-    reaches `positions` directly, so the two clients share the rule without
-    sharing a wire format — a drag has no reason to speak in form fields.
+    The plain number form's shape. A drag posts JSON instead and reaches
+    `positions` directly, so the two clients share the rule without sharing
+    a wire format — a drag has no reason to speak in form fields.
     """
     wanted: dict[int, dict[str, Any]] = {}
     for key, value in post.items():

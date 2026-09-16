@@ -108,7 +108,7 @@ def test_a_column_can_be_added_to_a_data_source(
     assert source.fields.filter(field_name="published_on").exists()
 
 
-# --- the composer, which is contrib ----------------------------------------
+# --- the layout editor ------------------------------------------------------
 
 
 @pytest.fixture
@@ -129,25 +129,57 @@ def composing(viewer, screen):
     return screen
 
 
+def compose(page, live_server, subject):
+    """Open the page and turn the layout editor on, GridStack fetched."""
+    page.goto(f"{live_server.url}{subject.get_absolute_url()}")
+    page.wait_for_selector("[data-plinta-compose]", timeout=15000)
+    assert page.evaluate("() => !window.GridStack"), "fetched on the first click"
+    page.click("[data-plinta-compose]")
+    page.wait_for_selector(".pl-grid.grid-stack", timeout=15000)
+
+
+def drag(page, placement_pk, dx, dy):
+    """Drag one card by its header, by some columns and rows."""
+    card = page.locator(f"[data-plinta-placement='{placement_pk}']")
+    header = card.locator(".pl-card__header")
+    box = header.bounding_box()
+    grid_box = page.locator(".pl-grid").bounding_box()
+    column = grid_box["width"] / 12
+    row = page.evaluate(
+        "() => parseFloat(getComputedStyle(document.documentElement)"
+        ".getPropertyValue('--pl-grid-cell')) + parseFloat(getComputedStyle("
+        "document.documentElement).getPropertyValue('--pl-grid-gap'))"
+    )
+    x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x + 5, y + 5)
+    page.mouse.move(x + column * dx, y + row * dy, steps=12)
+    with page.expect_response(lambda r: r.url.endswith("/positions/")):
+        page.mouse.up()
+
+
 def test_the_layout_is_not_draggable_until_asked(
     page, live_server, signed_in, composing
 ):
-    """The control turns it on. A dashboard nobody is composing must not move
-    when somebody drags to select text."""
+    """The control turns it on, and fetches GridStack then rather than for
+    every viewer. A dashboard nobody is composing must not move when
+    somebody drags to select text."""
     subject, _, _ = composing
     page.goto(f"{live_server.url}{subject.get_absolute_url()}")
     page.wait_for_selector("[data-plinta-compose]", timeout=15000)
     assert not page.locator("body.pl-composing").count()
+    assert not page.locator(".pl-grid.grid-stack").count()
 
     page.click("[data-plinta-compose]")
-    assert page.locator("body.pl-composing").count() == 1
+    page.wait_for_selector("body.pl-composing .pl-grid.grid-stack", timeout=15000)
+    assert page.locator("[data-plinta-compose]").inner_text() == "Done"
 
 
 def test_dragging_a_card_moves_it_and_persists(
     page, live_server, signed_in, composing
 ):
-    """The whole point of the app, and the reason it is a browser test: none
-    of this is reachable from Python."""
+    """The gesture is GridStack's; where the card ends up is the server's."""
     from plinta.pages.models import PageBlock
 
     subject, _, placement = composing
@@ -156,23 +188,58 @@ def test_dragging_a_card_moves_it_and_persists(
     placement.width = 6
     placement.save()
 
-    page.goto(f"{live_server.url}{subject.get_absolute_url()}")
-    page.wait_for_selector("[data-plinta-compose]", timeout=15000)
-    page.click("[data-plinta-compose]")
+    compose(page, live_server, subject)
+    drag(page, placement.pk, dx=3, dy=0)
 
-    card = page.locator("[data-plinta-placement]").first
-    box = card.bounding_box()
-    grid_box = page.locator(".pl-grid").bounding_box()
-    column = grid_box["width"] / 12
-
-    page.mouse.move(box["x"] + 20, box["y"] + 8)
-    page.mouse.down()
-    page.mouse.move(box["x"] + 20 + column * 3, box["y"] + 8, steps=10)
-    page.mouse.up()
-
-    page.wait_for_timeout(500)
     moved = PageBlock.objects.get(pk=placement.pk)
     assert moved.column == 3
+
+
+def test_a_card_dropped_on_another_pushes_it_aside(
+    page, live_server, signed_in, composing
+):
+    """Collision handling, which is the bulk of what GridStack is for: the
+    card it lands on moves out of the way — two of a size swap places — and
+    both moves are one POST."""
+    from plinta.pages.models import PageBlock
+
+    subject, block, left = composing
+    left.width, left.height = 6, 4
+    left.save()
+    right = PageBlock.objects.create(
+        page=subject, block=block, column=6, row=0, width=6, height=4, title="Twin"
+    )
+
+    compose(page, live_server, subject)
+    drag(page, right.pk, dx=-6, dy=0)
+
+    left.refresh_from_db()
+    right.refresh_from_db()
+    assert (right.column, right.row) == (0, 0)
+    assert (left.column, left.row) == (6, 0), "swapped, not covered"
+
+
+def test_done_redraws_the_layout_from_the_server(
+    page, live_server, signed_in, composing
+):
+    """GridStack is used for the gesture and never for the resting layout:
+    *Done* hands the grid back to the CSS grid, drawn again from what the
+    server stored."""
+    subject, _, placement = composing
+    placement.width = 6
+    placement.save()
+
+    compose(page, live_server, subject)
+    drag(page, placement.pk, dx=3, dy=0)
+    page.click("[data-plinta-compose]")
+
+    page.wait_for_selector(".pl-grid:not(.grid-stack)", timeout=15000)
+    page.wait_for_function(
+        f"() => document.querySelector('[data-plinta-placement=\"{placement.pk}\"]')"
+        ".style.getPropertyValue('--col').trim() === '3'",
+        timeout=15000,
+    )
+    assert not page.locator("body.pl-composing").count()
 
 
 def test_the_control_is_absent_without_the_permission(

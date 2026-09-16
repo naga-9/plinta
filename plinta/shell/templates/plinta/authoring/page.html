@@ -1,10 +1,10 @@
 {% extends "plinta/shell/base.html" %}
 {% comment %} Composing one page.
 
-The grid below is a form of plain numbers, and that is deliberate: the four
-integers map straight onto CSS grid (§9.3), so a viewer renders the layout
-with no JavaScript. `contrib.composer` makes the same four draggable and
-posts them to the same rule — so this screen is complete without it.
+The grid below is a form of plain numbers: the four integers map straight
+onto CSS grid (§9.3), so a viewer renders the layout with no JavaScript. The
+page's own *Edit layout* makes the same four draggable and posts them to the
+same rule; this is the precise-adjust path.
 {% endcomment %}
 
 {% block title %}{{ subject.name }} · Pages · {{ site_name }}{% endblock %}

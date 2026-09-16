@@ -80,12 +80,15 @@
            cards inside carry their own ids for anything narrower. {% endcomment %}
         <div class="pl-grid" id="pl-grid">
             {% for slot in placements %}
-                {% comment %} `data-plinta-placement` is a hook, not behaviour:
-                   core never reads it. It is what lets a composer address one
-                   card without core knowing a composer exists (§12.4).
-                   {% endcomment %}
-                <div class="pl-grid__item{% if slot.is_empty %} pl-slot--empty{% endif %}"
+                {% comment %} The same four integers twice: as custom properties
+                   for the CSS grid that draws the page, and as `gs-` attributes
+                   for GridStack while the layout is being edited — inert
+                   until then, since its stylesheet only reaches a
+                   `.grid-stack`. `data-plinta-placement` is what a drag posts
+                   by. {% endcomment %}
+                <div class="pl-grid__item grid-stack-item{% if slot.is_empty %} pl-slot--empty{% endif %}"
                      data-plinta-placement="{{ slot.placement.pk }}"
+                     gs-x="{{ slot.column }}" gs-y="{{ slot.row }}" gs-w="{{ slot.width }}" gs-h="{{ slot.height }}"
                      style="--col: {{ slot.column }}; --row: {{ slot.row }}; --w: {{ slot.width }}; --h: {{ slot.height }}">
                     {% include "plinta/pages/block.html" %}
                 </div>

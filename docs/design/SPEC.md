@@ -3092,9 +3092,9 @@ A value for a filter the page does not declare is dropped rather than stored, an
 
 `/pages/` lists the pages this viewer may compose; `/pages/<pk>/compose/` edits one — its settings, the blocks placed on it, and where each one sits.
 
-**Core owns the four integers; dragging is contrib.** `column` / `row` / `width` / `height` map straight onto CSS grid (§9.3), so a viewer renders the layout with no JavaScript. Core ships the rule that writes them (`pages/composition.py`) and two clients for it: a form of plain numbers, and `POST /pages/<pk>/positions/` taking JSON. `contrib.composer` supplies the dragging and posts to the second. Uninstall it and the screen still composes pages, with numbers typed instead of dragged.
+**Core owns the four integers, and the drag.** `column` / `row` / `width` / `height` map straight onto CSS grid (§9.3), so a viewer renders the layout with no JavaScript. Core ships the rule that writes them (`pages/composition.py`) and two clients for it: a form of plain numbers on the composer screen — the precise-adjust path — and *Edit layout* on the page itself, which posts a drag to `POST /pages/<pk>/positions/` as JSON. Nobody composes a dashboard by typing four integers; the numbers form is a fixture, not a fallback, and composition is authoring, which is a core chapter.
 
-**Not GridStack, and not any vendor.** `register_script` refuses a remote path — an install must work offline and under a strict CSP — so a grid library would have to be vendored into the package, and a vendored library decides what our markup looks like. Twelve CSS columns and four integers per card is little enough to move ourselves.
+**GridStack, for the gesture and never for the resting layout.** While the layout is open it owns the grid — cards a drag would land on slide out of the way, the ones below follow, a placeholder shows where the drop will land, and a collision that moves five cards is one POST. On *Done* the grid is reloaded from the server, which draws the same four integers with CSS grid. Two renderers of one layout would drift; a gesture and a resting state do not. The vendor is fetched on the first click, behind `change_pageblock`, so a viewer never downloads it.
 
 **A position is clamped, never refused.** A drag ending past the right edge means the edge; an unreadable number leaves that one value alone rather than losing the other eleven the same drag carried. A placement id naming another page is **ignored rather than refused**, so a guessed id teaches nothing.
 
@@ -3108,7 +3108,7 @@ It also edits page settings: name, menu placement, type, filters.
 
 A control drawn in a **page's** header, handed the page it sits on. The topbar is the shell's chrome and is the same on every screen, which is why it could not serve. Narrowed by permission and by page type, so an action about a grid is absent on a page that has no grid rather than present and refusing.
 
-It exists so the composer can be contrib at all: core draws whatever is registered and names no package. The grid markup carries `data-plinta-placement` for the same reason — a hook core never reads, so that something else can address one card.
+Core draws whatever is registered and names no package; its own *Edit layout* registers through the same door. The grid markup carries `data-plinta-placement`, which is what a drag posts by.
 
 ### 12.5 Decisions
 
@@ -3126,8 +3126,8 @@ It exists so the composer can be contrib at all: core draws whatever is register
 | Form derivation | from the component's pydantic schema (§8.9) |
 | Untyped config fields (`list[dict[str, Any]]`) | **typed sub-models**, so the engine can derive a repeating sub-form and validation is real |
 | Editors typing cannot produce | an **override registry** — a component declares a template per config field |
-| Grid persistence | `PageBlock` positions; core owns the write, `contrib.composer` owns the drag |
-| The drag library | **none** — vendoring one would let it decide our markup, and remote scripts are refused |
+| Grid persistence | `PageBlock` positions; core owns the write and the drag |
+| The drag library | **GridStack**, vendored in the shell and fetched on the first *Edit layout* — for the gesture only; the resting layout is always the server's CSS grid |
 | Dragging | **edit mode only, and optional** — view mode is CSS grid with no JavaScript |
 | A page's header controls | `register_page_action`, narrowed by permission and page type |
 | A bad position | clamped, not refused; an id from another page is ignored |

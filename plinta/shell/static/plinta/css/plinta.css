@@ -274,6 +274,27 @@ hr {
     min-height: 0;
 }
 
+/* While the layout is being edited, GridStack positions the cards and the
+ * CSS grid stands aside; nothing here applies until `pl-composing` is on the
+ * body, so a page nobody is composing looks untouched. View mode above is
+ * unchanged. */
+.pl-composing .pl-grid { display: block; }
+
+.pl-composing .pl-grid__item {
+    cursor: move;
+    outline: 1px dashed var(--pl-border);
+    outline-offset: 2px;
+}
+
+.pl-composing .grid-stack-item-content { overflow: hidden; }
+
+/* Where the drop will land. */
+.grid-stack-placeholder > .placeholder-content {
+    background: color-mix(in srgb, var(--pl-primary) 15%, transparent);
+    border: 1px dashed var(--pl-primary);
+    border-radius: var(--pl-radius-lg);
+}
+
 /* 4. card ------------------------------------------------------------------ */
 
 .pl-card {
@@ -799,6 +820,9 @@ up-modal-dismiss:hover { color: var(--pl-fg); }
         grid-row: auto;
         min-height: calc(var(--h) * var(--pl-grid-cell));
     }
+
+    /* One column has no stored meaning to drag into. */
+    .pl-compose { display: none; }
 }
 
 /* 12. tag select ------------------------------------------------------------ */

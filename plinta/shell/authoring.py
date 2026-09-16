@@ -236,8 +236,8 @@ class PageForm(forms.ModelForm):
 class PlacementForm(forms.ModelForm):
     """Putting one block on a page.
 
-    Position is absent: it is edited by the grid form, or by dragging when
-    `contrib.composer` is installed. Adding a block and arranging it are
+    Position is absent: it is edited by the grid form, or by dragging on the
+    page itself. Adding a block and arranging it are
     different acts, and one form doing both makes every drag a chance to
     re-point a card at another block.
     """

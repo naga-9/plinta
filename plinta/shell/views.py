@@ -6,6 +6,7 @@ checked, so renaming a page does not break a link someone shared (§9.0).
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from django.contrib.auth.decorators import login_required
@@ -38,6 +39,29 @@ from plinta.permissions import can
 
 #: Query parameters the filter bar uses for itself.
 RESERVED = {"tab", "page", "sort", "reset", "view", "filterset"}
+
+#: One card's id, as the fragment swap addresses it (`pages/block.html`).
+CARD = re.compile(r"^#card-(\d+)$")
+
+
+def cards_asked_for(request: HttpRequest) -> set[int] | None:
+    """The placements a fragment request will keep, or None for all of them.
+
+    Unpoly names what it is about to swap in ``X-Up-Target``. When that is
+    one card, or several, the rest of the page is rendered for nobody — so
+    the view draws those alone. Anything else in the list, or no header at
+    all, is the whole page.
+    """
+    header = request.headers.get("X-Up-Target", "")
+    if not header:
+        return None
+    found = set()
+    for selector in header.split(","):
+        match = CARD.match(selector.strip())
+        if match is None:
+            return None
+        found.add(int(match.group(1)))
+    return found or None
 
 
 def submitted_filters(
@@ -1034,6 +1058,7 @@ def page_view(
                 filters=values,
                 query=request.GET,
                 record=row,
+                only=cards_asked_for(request),
             ),
             "filter_values": values,
             "filter_controls": drawn_controls(page, values, request.user),

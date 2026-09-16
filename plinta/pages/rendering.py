@@ -67,12 +67,18 @@ class Placement:
         return not self.html and not self.error
 
 
-def placements_for(page: Page, user, *, tab: str = "") -> list[PageBlock]:
+def placements_for(
+    page: Page, user, *, tab: str = "", only: set[int] | None = None
+) -> list[PageBlock]:
     """The placements to draw, in order.
 
     Filtered by the placement's own visibility and its tab. Whether the viewer
     may see the *block* is decided when it renders, because an unviewable block
     is an empty slot rather than a missing one — the grid keeps its shape.
+
+    ``only`` narrows to some placements by pk, for a request that will keep
+    one card of the response and discard the rest: drawing the other seven
+    for nobody is work, and a fetching widget's worth of it.
     """
     # The content type is joined because every block resolves its model
     # through it, which would otherwise be a query per placement.
@@ -81,6 +87,8 @@ def placements_for(page: Page, user, *, tab: str = "") -> list[PageBlock]:
     )
     if tab:
         placements = placements.filter(tab__in=["", tab])
+    if only is not None:
+        placements = placements.filter(pk__in=only)
     return list(placements)
 
 
@@ -369,8 +377,9 @@ def render_page(
     filters: dict[str, Any] | None = None,
     query: Any = None,
     record: Any = None,
+    only: set[int] | None = None,
 ) -> list[Placement]:
-    """Draw every placement on ``page`` for ``user``.
+    """Draw every placement on ``page`` for ``user`` — or ``only`` some.
 
     Returns one `Placement` per slot, including the empty ones, so the grid
     keeps its shape when a block is hidden or its component is uninstalled.
@@ -393,7 +402,7 @@ def render_page(
     from plinta.blocks.rendering import chosen_view, views_for
     from plinta.components.registry import find as find_component
 
-    slots = placements_for(page, user, tab=tab)
+    slots = placements_for(page, user, tab=tab, only=only)
     # One query for every block on the page, before the loop: asking inside it
     # would make each extra block cost more than the last.
     by_block = views_for([slot.block for slot in slots], user)

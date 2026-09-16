@@ -115,6 +115,28 @@ def test_the_grid_carries_the_stored_position(screen, client):
     assert "--col: 0; --row: 0; --w: 6; --h: 4" in body
 
 
+def test_a_request_for_one_card_draws_that_card_alone(screen, client):
+    """Unpoly says which fragment it will keep; the rest is drawn for nobody."""
+    page, block, ada = screen
+    other = PageBlock.objects.create(
+        page=page, block=block, column=6, row=0, width=6, height=4, title="Twin"
+    )
+    first = page.placements.exclude(pk=other.pk).get()
+
+    body = client.get(
+        page.get_absolute_url(), headers={"X-Up-Target": f"#card-{first.pk}"}
+    ).content.decode()
+    assert f'id="card-{first.pk}"' in body
+    assert f'id="card-{other.pk}"' not in body
+
+    # Anything wider than cards is the whole page, however it is spelled.
+    body = client.get(
+        page.get_absolute_url(),
+        headers={"X-Up-Target": f"#card-{first.pk}, #pl-grid"},
+    ).content.decode()
+    assert f'id="card-{first.pk}"' in body and f'id="card-{other.pk}"' in body
+
+
 def test_the_slug_is_decorative(screen, client):
     """A rename must not break a link someone shared."""
     page, _, _ = screen

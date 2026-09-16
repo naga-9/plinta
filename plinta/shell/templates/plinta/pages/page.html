@@ -73,7 +73,9 @@
     {% endif %}
 
     {% block page_body %}
-        <div class="pl-grid">
+        {% comment %} `#pl-grid` is what a filter change or a tab swaps; the
+           cards inside carry their own ids for anything narrower. {% endcomment %}
+        <div class="pl-grid" id="pl-grid">
             {% for slot in placements %}
                 {% comment %} `data-plinta-placement` is a hook, not behaviour:
                    core never reads it. It is what lets a composer address one

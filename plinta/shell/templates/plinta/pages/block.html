@@ -3,7 +3,10 @@
 
    No footer. Nothing fills one — a table's pager belongs to the renderer,
    which is the only thing that knows there are more rows. {% endcomment %}
-<article class="{{ cls.card }}">
+{% comment %} The id is what a fragment swap addresses: switching this card's
+   view, sorting its table or saving its form redraws `#card-N` and nothing
+   beside it. {% endcomment %}
+<article class="{{ cls.card }}" id="card-{{ slot.placement.pk }}">
     {% block block_header %}
         <header class="{{ cls.card_header }}">
             <div class="{{ cls.card_heading }}">

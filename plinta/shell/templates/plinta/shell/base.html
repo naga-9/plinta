@@ -25,19 +25,19 @@
     {% endcomment %}
     <script src="{% static 'plinta/js/sidebar.js' %}"></script>
     <script type="module" src="{% static 'plinta/js/theme-toggle.js' %}"></script>
+    {% comment %} Unpoly, vendored (§17). A classic deferred script, first of
+       them: deferred scripts run in document order, every one below
+       registers a compiler with it, and it boots on DOMContentLoaded —
+       after all of them have run. Its defaults follow nothing: a link or
+       form takes part only where it carries an `up-` attribute.
+       {% endcomment %}
+    <script defer src="{% static 'plinta/vendor/unpoly.min.js' %}"></script>
     <script defer src="{% static 'plinta/js/tag-select.js' %}"></script>
     <script defer src="{% static 'plinta/js/filter-cascade.js' %}"></script>
     <script defer src="{% static 'plinta/js/menu-groups.js' %}"></script>
-    {% comment %} Unpoly, vendored (§17). A classic deferred script, before the
-       client: deferred scripts run in document order, and it boots on
-       DOMContentLoaded — after every deferred script below has registered
-       what it compiles. Its defaults follow nothing: a link or form takes
-       part only where it carries an `up-` attribute. {% endcomment %}
-    <script defer src="{% static 'plinta/vendor/unpoly.min.js' %}"></script>
     {% comment %} Before any adapter: an adapter registers with the client, and
        deferred scripts run in document order. {% endcomment %}
     <script defer src="{% static 'plinta/js/client.js' %}"></script>
-    <script defer src="{% static 'plinta/js/modal.js' %}"></script>
     {% for script in plinta_scripts %}
         <script {% if script.module %}type="module"{% elif script.defer %}defer{% endif %}
                 src="{% static script.path %}"></script>
@@ -47,7 +47,11 @@
 <div class="pl-shell">
     {% block topbar %}{% include "plinta/shell/topbar.html" %}{% endblock %}
     {% block sidebar %}{% include "plinta/shell/sidebar.html" %}{% endblock %}
-    <main class="pl-main">
+    {% comment %} `up-main` as well as the element: a dialog names its own main
+       the same way, and a page that arrives inside a layer — the redirect
+       after a save — has to match something there before the layer can
+       close on it. {% endcomment %}
+    <main class="pl-main" up-main>
         <div class="pl-main__inner">
             {% block body %}{% endblock %}
         </div>

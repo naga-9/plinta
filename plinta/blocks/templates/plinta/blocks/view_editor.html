@@ -1,14 +1,16 @@
 {% load plinta_tags %}
 {% comment %} Managing one block's saved views.
 
-A plain form: saving changes what the card shows, so the page redraws for the
-same reason a filter change does (§7.12). The dialog is where this is drawn,
-not how it is sent.
+A plain form: saving changes what the card shows, so it posts and redirects
+to the page like anything else that does. The layer it is drawn in is the
+opener's business, not this template's — `up-main` only says which element
+of this document the layer shows.
 
 Every field below came from the component's config schema. Nothing here knows
 what a table is.
 {% endcomment %}
-<form method="post" action="{{ action }}" class="{{ cls.form }}">
+<div class="pl-dialog" up-main>
+<form method="post" action="{{ action }}" class="{{ cls.form }}" up-submit>
     {% csrf_token %}
     <input type="hidden" name="view" value="{{ view.pk|default_if_none:'' }}">
 
@@ -19,22 +21,22 @@ what a table is.
     {% if views %}
         <div class="{{ cls.field }}">
             <label class="{{ cls.label }}">Views on this block</label>
-            {% comment %} Each opens in the dialog it is already in.
+            {% comment %} Each opens in the layer it is already in: a followed
+            link updates the layer it sits in.
 
             The href must be the **endpoint's**, not a bare `?view=`: a
-            relative query resolves against the page's URL, so the browser
-            navigates the whole page and the dialog goes with it.
+            relative query resolves against the page's URL, and the page is
+            not what should be fetched.
             {% endcomment %}
             <ul class="pl-views">
                 {% for each in views %}
                     <li>
-                        <a href="{{ action }}?view={{ each.pk }}"
-                           data-plinta-open-form="{{ action }}?view={{ each.pk }}">{{ each.name }}</a>
+                        <a href="{{ action }}?view={{ each.pk }}" up-follow>{{ each.name }}</a>
                         {% if not each.owner %}<span class="{{ cls.chip }}">Everyone</span>{% endif %}
                     </li>
                 {% endfor %}
                 {% if view %}
-                    <li><a href="{{ action }}" data-plinta-open-form="{{ action }}">New view…</a></li>
+                    <li><a href="{{ action }}" up-follow>New view…</a></li>
                 {% endif %}
             </ul>
         </div>
@@ -95,3 +97,4 @@ what a table is.
         {% endif %}
     </div>
 </form>
+</div>

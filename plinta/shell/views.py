@@ -44,6 +44,20 @@ RESERVED = {"tab", "page", "sort", "reset", "view", "filterset"}
 CARD = re.compile(r"^#card-(\d+)$")
 
 
+def closes_a_layer(request: HttpRequest) -> bool:
+    """Whether this page was asked for by something inside an overlay.
+
+    Unpoly says which layer a request is for in ``X-Up-Mode``. A page is
+    never drawn inside an overlay: the form that was — a view editor, a
+    filter-set editor — has posted and been redirected here, and what it
+    means is "done". So the page answers with `X-Up-Accept-Layer`, which
+    closes the overlay, and whoever opened it decides what to redraw from
+    the response. No URL pattern on the opener, which a mounting prefix or a
+    detail page would have broken.
+    """
+    return request.headers.get("X-Up-Mode", "root") != "root"
+
+
 def cards_asked_for(request: HttpRequest) -> set[int] | None:
     """The placements a fragment request will keep, or None for all of them.
 
@@ -416,16 +430,18 @@ def block_form(request: HttpRequest, pk: int, placement: int) -> HttpResponse:
     config = component.config_schema(
         layout=getattr(opened, "form_layout", "") or ""
     )
-    return HttpResponse(
-        component.render(
-            config,
-            request.user,
-            datasource=source,
-            record=record,
-            write_url=f"/pages/{pk}/blocks/{placement}/write/",
-            options_url=f"/pages/{pk}/blocks/{placement}/options/",
-        )
+    form = component.render(
+        config,
+        request.user,
+        datasource=source,
+        record=record,
+        write_url=f"/pages/{pk}/blocks/{placement}/write/",
+        options_url=f"/pages/{pk}/blocks/{placement}/options/",
     )
+    # Wrapped here and not in the form's template: the same template draws
+    # a form block on a detail page, and `up-main` there would make the
+    # block the page's main element. This response is only ever a layer's.
+    return HttpResponse(f'<div class="pl-dialog" up-main>{form}</div>')
 
 
 @login_required
@@ -1043,7 +1059,7 @@ def page_view(
         if page.page_type == PageType.DETAIL
         else "plinta/pages/page.html"
     )
-    return render(
+    response = render(
         request,
         template,
         {
@@ -1072,6 +1088,11 @@ def page_view(
             "page_actions": visible_actions(page, request.user),
         },
     )
+    if closes_a_layer(request):
+        response["X-Up-Accept-Layer"] = json.dumps(
+            {"location": request.get_full_path()}
+        )
+    return response
 
 
 def capability_sections(record, user) -> list:

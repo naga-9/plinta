@@ -1,6 +1,11 @@
 {% load plinta_tags %}{% comment %} Opens the same form a pencil does, with no record — which is
-what makes it a create rather than a second screen. {% endcomment %}
-<button type="button" class="{{ cls.btn }} {{ cls.btn_sm }}"
-        data-plinta-open-form="{{ slot.form_url }}">
+what makes it a create rather than a second screen.
+
+A link, opened in a layer: the form is a page of its own, and Unpoly draws
+it over this one. A save accepts the layer — the server says so — and the
+card is then reloaded, since it now has one more row. {% endcomment %}
+<a class="{{ cls.btn }} {{ cls.btn_sm }}" href="{{ slot.form_url }}"
+   up-layer="new modal" up-history="false"
+   up-on-accepted="up.reload(this.closest('[id^=card-]'))">
     {% icon "plinta:plus" %} Add
-</button>
+</a>

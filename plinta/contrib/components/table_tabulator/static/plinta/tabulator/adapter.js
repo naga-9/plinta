@@ -77,8 +77,9 @@
     /**
      * A pencil per row, opening that record's own form.
      *
-     * The markup carries the URL and nothing else — `modal.js` is listening
-     * for it — so the table never learns what a dialog is.
+     * A link, opened in a layer by Unpoly: the table never learns what a
+     * dialog is. Saving lands on the page, which accepts the layer, and the
+     * card is reloaded — the row may show a value the write changed.
      */
     function opener(formUrl) {
         return {
@@ -90,13 +91,14 @@
             resizable: false,
             formatter: function (cell) {
                 return (
-                    '<button type="button" class="pl-btn pl-btn--ghost ' +
-                    'pl-btn--sm" aria-label="Open record" ' +
-                    'data-plinta-open-form="' +
+                    '<a class="pl-btn pl-btn--ghost pl-btn--sm" ' +
+                    'aria-label="Open record" href="' +
                     formUrl +
                     '?record=' +
                     encodeURIComponent(cell.getValue()) +
-                    '">✎</button>'
+                    '" up-layer="new modal" up-history="false" ' +
+                    'up-on-accepted="up.reload(this.closest(\'[id^=card-]\'))"' +
+                    '>✎</a>'
                 );
             }
         };

@@ -650,9 +650,14 @@ hr {
 
 /* 9. overlays -------------------------------------------------------------- */
 
-.pl-modal {
+/* Unpoly draws the layer — backdrop, focus trap, Escape, the dismiss button —
+ * and its stylesheet paints the box white. These hand the box to the tokens,
+ * so a dialog follows the theme the page is in. */
+:root { --up-overlay-backdrop: var(--pl-backdrop); }
+
+up-modal-box {
     width: min(40rem, calc(100vw - var(--pl-space-6)));
-    padding: 0;
+    padding: var(--pl-space-4);
     color: var(--pl-fg);
     background: var(--pl-surface);
     border: 1px solid var(--pl-border);
@@ -660,25 +665,14 @@ hr {
     box-shadow: var(--pl-shadow-lg);
 }
 
-.pl-modal::backdrop { background: var(--pl-backdrop); }
+up-modal-dismiss { color: var(--pl-fg-muted); }
+up-modal-dismiss:hover { color: var(--pl-fg); }
 
-.pl-modal__header,
-.pl-modal__footer {
-    display: flex;
-    align-items: center;
-    gap: var(--pl-space-2);
-    padding: var(--pl-space-4);
-}
+/* What a layer shows: a heading sits against the box's own padding. */
+.pl-dialog h2:first-child { margin-top: 0; }
 
-.pl-modal__header { border-bottom: 1px solid var(--pl-border); }
-.pl-modal__footer { border-top: 1px solid var(--pl-border); justify-content: flex-end; }
-.pl-modal__title { margin: 0; font-size: var(--pl-font-md); }
-.pl-modal__body { padding: var(--pl-space-4); }
-
-/* The dialog scrolls its own body rather than the page behind it, and says
- * something while the form it was opened for is on its way. */
-.pl-modal__body { overflow-y: auto; max-height: calc(100vh - 8rem); }
-.pl-modal__loading { margin: 0; color: var(--pl-fg-muted); }
+/* What Unpoly marks while a fragment is on its way. */
+.up-loading { opacity: 0.6; transition: opacity var(--pl-transition); }
 
 .pl-toasts {
     position: fixed;

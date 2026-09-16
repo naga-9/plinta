@@ -25,11 +25,17 @@
         <a class="pl-btn pl-btn--sm" href="?reset=1">Clear</a>
         {% if may_save_filters %}
             {% comment %} Carries the query string, so "save these filters"
-            means the ones on screen rather than an empty form. {% endcomment %}
-            <button type="button" class="pl-btn pl-btn--sm"
-                    data-plinta-open-form="{% url 'plinta:page_filters' page.pk %}?{{ request.GET.urlencode }}">
+            means the ones on screen rather than an empty form. Opens in a
+            layer; saving redirects to the page filtered by the new set,
+            which closes the layer, and that response is what the page
+            then shows — history and all, since a filtered page is a URL.
+            {% endcomment %}
+            <a class="pl-btn pl-btn--sm"
+               href="{% url 'plinta:page_filters' page.pk %}?{{ request.GET.urlencode }}"
+               up-layer="new modal" up-history="false"
+                           up-on-accepted="up.render({ target: ':main', response: response, layer: 'root', history: true })">
                 Save these
-            </button>
+            </a>
         {% endif %}
     </div>
 </form>

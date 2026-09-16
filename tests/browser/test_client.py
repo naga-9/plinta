@@ -635,9 +635,9 @@ def test_a_pencil_opens_the_record_in_a_dialog(page, live_server, signed_in, scr
     open_page(page, live_server, screen)
     first = Book.objects.order_by("title").first()
 
-    rows(page).first.locator("[data-plinta-open-form]").click()
-    page.wait_for_selector("dialog[open] .pl-form", timeout=15000)
-    assert page.locator('dialog [name="title"]').input_value() == first.title
+    rows(page).first.locator("a[up-layer]").click()
+    page.wait_for_selector("up-modal .pl-form", timeout=15000)
+    assert page.locator('up-modal [name="title"]').input_value() == first.title
 
 
 def test_the_dialog_form_writes(page, live_server, signed_in, screen):
@@ -647,11 +647,11 @@ def test_the_dialog_form_writes(page, live_server, signed_in, screen):
     open_page(page, live_server, screen)
     first = Book.objects.order_by("title").first()
 
-    rows(page).first.locator("[data-plinta-open-form]").click()
-    page.wait_for_selector("dialog[open] .pl-form", timeout=15000)
-    page.fill('dialog [name="title"]', "From the dialog")
+    rows(page).first.locator("a[up-layer]").click()
+    page.wait_for_selector("up-modal .pl-form", timeout=15000)
+    page.fill('up-modal [name="title"]', "From the dialog")
     with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
-        page.click('dialog button[type="submit"]')
+        page.click('up-modal button[type="submit"]')
 
     assert answer.value.status == 200
     assert Book.objects.get(pk=first.pk).title == "From the dialog"
@@ -673,13 +673,13 @@ def test_add_opens_the_same_form_with_nothing_in_it(
     viewer.user_permissions.add(grant)
 
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/form/']")
-    page.wait_for_selector("dialog[open] .pl-form", timeout=15000)
-    assert page.locator('dialog [name="title"]').input_value() == ""
+    page.click(".pl-card__actions a[up-layer][href*='/form/']")
+    page.wait_for_selector("up-modal .pl-form", timeout=15000)
+    assert page.locator('up-modal [name="title"]').input_value() == ""
 
-    page.fill('dialog [name="title"]', "Brand new")
+    page.fill('up-modal [name="title"]', "Brand new")
     with page.expect_response(lambda r: r.url.endswith("/write/")) as answer:
-        page.click('dialog button[type="submit"]')
+        page.click('up-modal button[type="submit"]')
     assert answer.value.status == 200
     assert Book.objects.filter(title="Brand new").exists()
 
@@ -692,17 +692,17 @@ def test_add_is_not_offered_without_the_permission(
     # Specific to the record form: the card also carries a Views button,
     # which is a different permission.
     assert page.locator(
-        ".pl-card__actions [data-plinta-open-form*='/form/']"
+        ".pl-card__actions a[up-layer][href*='/form/']"
     ).count() == 0
 
 
 def test_escape_closes_the_dialog(page, live_server, signed_in, screen):
-    """`<dialog>`, so the browser owns this rather than the page."""
+    """A layer is dismissible: Unpoly owns this rather than the page."""
     open_page(page, live_server, screen)
-    rows(page).first.locator("[data-plinta-open-form]").click()
-    page.wait_for_selector("dialog[open]", timeout=15000)
+    rows(page).first.locator("a[up-layer]").click()
+    page.wait_for_selector("up-modal", timeout=15000)
     page.keyboard.press("Escape")
-    assert page.locator("dialog[open]").count() == 0
+    page.wait_for_selector("up-modal", state="detached", timeout=15000)
 
 
 def test_a_record_outside_the_blocks_narrowing_is_not_opened(
@@ -722,20 +722,20 @@ def test_a_record_outside_the_blocks_narrowing_is_not_opened(
 
 def test_the_view_editor_opens_in_the_dialog(page, live_server, signed_in, screen):
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector("dialog[open] form", timeout=15000)
-    assert page.locator('dialog [name="name"]').count() == 1
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal form", timeout=15000)
+    assert page.locator('up-modal [name="name"]').count() == 1
     # Derived from the component's own schema, not written by hand.
-    assert page.locator('dialog [name="page_size"]').count() == 1
+    assert page.locator('up-modal [name="page_size"]').count() == 1
 
 
 def test_the_chooser_offers_every_permitted_column(
     page, live_server, signed_in, screen
 ):
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector("dialog .pl-columns", timeout=15000)
-    offered = page.locator('dialog .pl-columns [name="columns"]').evaluate_all(
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal .pl-columns", timeout=15000)
+    offered = page.locator('up-modal .pl-columns [name="columns"]').evaluate_all(
         "els => els.map(e => e.value)"
     )
     assert offered == ["title", "in_print", "region", "watchers"]
@@ -748,13 +748,13 @@ def test_saving_a_view_stores_only_what_was_ticked(
     from plinta.blocks.models import SavedView
 
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector("dialog form", timeout=15000)
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal form", timeout=15000)
 
-    page.fill('dialog [name="name"]', "Wide")
-    page.fill('dialog [name="page_size"]', "5")
-    page.click('dialog button[type="submit"]')
-    page.wait_for_url("**/*view=*", timeout=15000)
+    page.fill('up-modal [name="name"]', "Wide")
+    page.fill('up-modal [name="page_size"]', "5")
+    page.click('up-modal button[type="submit"]')
+    page.wait_for_selector("up-modal", state="detached", timeout=15000)
 
     view = SavedView.objects.get()
     assert view.config["page_size"] == 5
@@ -769,14 +769,19 @@ def test_a_saved_view_is_what_the_card_then_draws(
     page, live_server, signed_in, screen
 ):
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector("dialog form", timeout=15000)
-    page.fill('dialog [name="name"]', "Five")
-    page.fill('dialog [name="page_size"]', "5")
-    page.click('dialog button[type="submit"]')
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal form", timeout=15000)
+    page.fill('up-modal [name="name"]', "Five")
+    page.fill('up-modal [name="page_size"]', "5")
+    page.click('up-modal button[type="submit"]')
 
-    page.wait_for_selector(".tabulator-row", timeout=15000)
-    assert rows(page).count() == 5
+    # The card is redrawn from the response that closed the layer, and its
+    # grid then fetches the view's rows — five of them.
+    page.wait_for_selector("up-modal", state="detached", timeout=15000)
+    page.wait_for_function(
+        "() => document.querySelectorAll('.tabulator-row').length === 5",
+        timeout=15000,
+    )
 
 
 def test_switching_a_view_leaves_the_other_cards_alone(
@@ -835,15 +840,15 @@ def test_publishing_is_not_offered_without_the_permission(
 ):
     """`change_savedview_owner` gates one field, and the control for it."""
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector("dialog form", timeout=15000)
-    assert page.locator('dialog [name="public"]').count() == 0
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal form", timeout=15000)
+    assert page.locator('up-modal [name="public"]').count() == 0
 
 
 def test_an_existing_view_opens_in_the_dialog(page, live_server, signed_in, screen):
-    """A bare `?view=` link resolves against the *page's* URL, so the browser
-    navigates the whole page and the dialog goes with it. The link carries the
-    endpoint's own URL, and reopens where it already is."""
+    """A bare `?view=` link resolves against the *page's* URL, which is not
+    what should be fetched. The link carries the endpoint's own URL, and a
+    followed link updates the layer it sits in."""
     from plinta.blocks.models import SavedView
 
     subject, block, _ = screen
@@ -851,18 +856,18 @@ def test_an_existing_view_opens_in_the_dialog(page, live_server, signed_in, scre
         block=block, name="Existing", owner=block.owner, config={"page_size": 3}
     )
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector("dialog form", timeout=15000)
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal form", timeout=15000)
 
-    page.click("dialog .pl-views a")
+    page.click("up-modal .pl-views a")
     page.wait_for_function(
-        "() => { var n = document.querySelector('dialog [name=\\\"name\\\"]');"
+        "() => { var n = document.querySelector('up-modal [name=\\\"name\\\"]');"
         " return n && n.value === 'Existing'; }",
         timeout=15000,
     )
-    assert page.locator("dialog[open]").count() == 1
+    assert page.locator("up-modal").count() == 1
     # And it opens showing what that view overrides, not the block's values.
-    assert page.locator('dialog [name="page_size"]').input_value() == "3"
+    assert page.locator('up-modal [name="page_size"]').input_value() == "3"
 
 
 def test_editing_an_existing_view_updates_it(page, live_server, signed_in, screen):
@@ -873,19 +878,19 @@ def test_editing_an_existing_view_updates_it(page, live_server, signed_in, scree
         block=block, name="Existing", owner=block.owner, config={"page_size": 3}
     )
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector("dialog form", timeout=15000)
-    page.click("dialog .pl-views a")
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal form", timeout=15000)
+    page.click("up-modal .pl-views a")
     page.wait_for_function(
-        "() => { var n = document.querySelector('dialog [name=\\\"name\\\"]');"
+        "() => { var n = document.querySelector('up-modal [name=\\\"name\\\"]');"
         " return n && n.value === 'Existing'; }",
         timeout=15000,
     )
 
-    page.fill('dialog [name="name"]', "Renamed")
-    page.fill('dialog [name="page_size"]', "7")
-    page.click('dialog button[type="submit"]')
-    page.wait_for_url("**/*view=*", timeout=15000)
+    page.fill('up-modal [name="name"]', "Renamed")
+    page.fill('up-modal [name="page_size"]', "7")
+    page.click('up-modal button[type="submit"]')
+    page.wait_for_selector("up-modal", state="detached", timeout=15000)
 
     view.refresh_from_db()
     assert view.name == "Renamed"
@@ -897,11 +902,11 @@ def test_the_default_label_says_which_default(page, live_server, signed_in, scre
     """`is_default` means "mine" on a personal view and "everyone's" on a
     shared one. The form says which, rather than leaving it to be found out."""
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector('dialog [name="is_default"]', timeout=15000)
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector('up-modal [name="is_default"]', timeout=15000)
 
-    personal = page.locator('dialog [data-plinta-default-scope="personal"]')
-    shared = page.locator('dialog [data-plinta-default-scope="shared"]')
+    personal = page.locator('up-modal [data-plinta-default-scope="personal"]')
+    shared = page.locator('up-modal [data-plinta-default-scope="shared"]')
     # No publish permission here, so there is no shared case to describe.
     assert personal.is_visible()
     assert not shared.is_visible()
@@ -921,14 +926,14 @@ def test_the_label_follows_the_shared_box(page, live_server, signed_in, screen, 
         )[0]
     )
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector('dialog [name="is_default"]', timeout=15000)
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector('up-modal [name="is_default"]', timeout=15000)
 
-    personal = page.locator('dialog [data-plinta-default-scope="personal"]')
-    shared = page.locator('dialog [data-plinta-default-scope="shared"]')
+    personal = page.locator('up-modal [data-plinta-default-scope="personal"]')
+    shared = page.locator('up-modal [data-plinta-default-scope="shared"]')
     assert personal.is_visible() and not shared.is_visible()
 
-    page.check('dialog [name="public"]')
+    page.check('up-modal [name="public"]')
     assert shared.is_visible() and not personal.is_visible()
 
 
@@ -936,17 +941,17 @@ def test_the_sort_builder_adds_and_removes_rows(page, live_server, signed_in, sc
     """Rows of column and direction, never JSON. Untested JS is what this
     suite exists for."""
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector("dialog [data-plinta-sort]", timeout=15000)
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal [data-plinta-sort]", timeout=15000)
 
-    assert page.locator("dialog .pl-sort__row").count() == 0
-    page.click("dialog [data-plinta-sort-add]")
-    assert page.locator("dialog .pl-sort__row").count() == 1
-    page.click("dialog [data-plinta-sort-add]")
-    assert page.locator("dialog .pl-sort__row").count() == 2
+    assert page.locator("up-modal .pl-sort__row").count() == 0
+    page.click("up-modal [data-plinta-sort-add]")
+    assert page.locator("up-modal .pl-sort__row").count() == 1
+    page.click("up-modal [data-plinta-sort-add]")
+    assert page.locator("up-modal .pl-sort__row").count() == 2
 
-    page.locator("dialog [data-plinta-sort-remove]").first.click()
-    assert page.locator("dialog .pl-sort__row").count() == 1
+    page.locator("up-modal [data-plinta-sort-remove]").first.click()
+    assert page.locator("up-modal .pl-sort__row").count() == 1
 
 
 def test_a_sort_is_saved_as_column_and_direction(page, live_server, signed_in, screen):
@@ -954,15 +959,15 @@ def test_a_sort_is_saved_as_column_and_direction(page, live_server, signed_in, s
     from plinta.blocks.models import SavedView
 
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector("dialog [data-plinta-sort]", timeout=15000)
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal [data-plinta-sort]", timeout=15000)
 
-    page.fill('dialog [name="name"]', "Newest")
-    page.click("dialog [data-plinta-sort-add]")
-    page.select_option('dialog [name="sort_field"]', "title")
-    page.select_option('dialog [name="sort_direction"]', "desc")
-    page.click('dialog button[type="submit"]')
-    page.wait_for_url("**/*view=*", timeout=15000)
+    page.fill('up-modal [name="name"]', "Newest")
+    page.click("up-modal [data-plinta-sort-add]")
+    page.select_option('up-modal [name="sort_field"]', "title")
+    page.select_option('up-modal [name="sort_direction"]', "desc")
+    page.click('up-modal button[type="submit"]')
+    page.wait_for_selector("up-modal", state="detached", timeout=15000)
 
     assert SavedView.objects.get().config["sort"] == [
         {"field": "title", "direction": "desc"}
@@ -974,17 +979,17 @@ def test_the_priority_is_the_row_order(page, live_server, signed_in, screen):
     from plinta.blocks.models import SavedView
 
     open_page(page, live_server, screen)
-    page.click(".pl-card__actions [data-plinta-open-form*='/views/']")
-    page.wait_for_selector("dialog [data-plinta-sort]", timeout=15000)
+    page.click(".pl-card__actions a[up-layer][href*='/views/']")
+    page.wait_for_selector("up-modal [data-plinta-sort]", timeout=15000)
 
-    page.fill('dialog [name="name"]', "Two deep")
-    page.click("dialog [data-plinta-sort-add]")
-    page.click("dialog [data-plinta-sort-add]")
-    fields = page.locator('dialog [name="sort_field"]')
+    page.fill('up-modal [name="name"]', "Two deep")
+    page.click("up-modal [data-plinta-sort-add]")
+    page.click("up-modal [data-plinta-sort-add]")
+    fields = page.locator('up-modal [name="sort_field"]')
     fields.nth(0).select_option("region")
     fields.nth(1).select_option("title")
-    page.click('dialog button[type="submit"]')
-    page.wait_for_url("**/*view=*", timeout=15000)
+    page.click('up-modal button[type="submit"]')
+    page.wait_for_selector("up-modal", state="detached", timeout=15000)
 
     assert [row["field"] for row in SavedView.objects.get().config["sort"]] == [
         "region", "title",
@@ -1003,12 +1008,12 @@ def test_saving_the_filters_on_screen(page, live_server, signed_in, screen):
     page.goto(f"{live_server.url}{subject.get_absolute_url()}?in_print=True")
     page.wait_for_selector(".tabulator-row", timeout=15000)
 
-    page.click(".pl-filters [data-plinta-open-form]")
-    page.wait_for_selector("dialog form", timeout=15000)
-    assert page.locator('dialog [name="in_print"]').input_value() == "True"
+    page.click(".pl-filters a[up-layer]")
+    page.wait_for_selector("up-modal form", timeout=15000)
+    assert page.locator('up-modal [name="in_print"]').input_value() == "True"
 
-    page.fill('dialog [name="name"]', "In print only")
-    page.click('dialog button[type="submit"]')
+    page.fill('up-modal [name="name"]', "In print only")
+    page.click('up-modal button[type="submit"]')
     page.wait_for_url("**/*filterset=*", timeout=15000)
 
     assert FilterSet.objects.get().values == {"in_print": "True"}
@@ -1048,6 +1053,6 @@ def test_publishing_a_set_is_not_offered_without_the_permission(
     subject, _, _ = screen
     page.goto(f"{live_server.url}{subject.get_absolute_url()}")
     page.wait_for_selector(".pl-filters", timeout=15000)
-    page.click(".pl-filters [data-plinta-open-form]")
-    page.wait_for_selector("dialog form", timeout=15000)
-    assert page.locator('dialog [name="public"]').count() == 0
+    page.click(".pl-filters a[up-layer]")
+    page.wait_for_selector("up-modal form", timeout=15000)
+    assert page.locator('up-modal [name="public"]').count() == 0

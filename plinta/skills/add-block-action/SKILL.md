@@ -67,20 +67,18 @@ go down because one control could not decide whether to draw.
 {{ cls }}              the style vocabulary
 ```
 
-**To open a record's form, carry the URL and nothing else:**
+**To open a record's form, link to it and let Unpoly draw the layer:**
 
 ```html
-<button type="button" data-plinta-open-form="{{ slot.form_url }}">Add</button>
+<a href="{{ slot.form_url }}"
+   up-layer="new modal" up-history="false"
+   up-on-accepted="up.reload(this.closest('[id^=card-]'))">Add</a>
 ```
 
-Core's dialog is listening for that attribute anywhere on the page, so your
-action never learns what a modal is. No `?record=` is a create; core's
-`add_record` action is exactly this and nothing more.
-
-**Use `data-plinta-open-form`, never the attribute a mount carries for the
-same URL.** The listener matches with `closest`, which walks *upwards*: share
-a name with the mount and every click inside the card opens a form, including
-the clicks meant for the widget.
+A link, so your action never learns what a modal is: Unpoly opens the form
+over the page, the server closes the layer when the save lands, and the
+card is reloaded because it now has one more row. No `?record=` is a
+create; core's `add_record` action is exactly this and nothing more.
 
 **Prefix every parameter you own with `slot.param`.** Two of the same block on
 one page must act independently — it is why sorting, paging and the view

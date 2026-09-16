@@ -1,4 +1,5 @@
 """A logged-in viewer reaching a page, through the whole stack."""
+import json
 import re
 
 import pytest
@@ -135,6 +136,21 @@ def test_a_request_for_one_card_draws_that_card_alone(screen, client):
         headers={"X-Up-Target": f"#card-{first.pk}, #pl-grid"},
     ).content.decode()
     assert f'id="card-{first.pk}"' in body and f'id="card-{other.pk}"' in body
+
+
+def test_a_page_asked_for_inside_an_overlay_closes_it(screen, client):
+    """A page is never drawn in a layer: reaching one from inside a layer is a
+    form that posted and was redirected, and means "done"."""
+    page, _, _ = screen
+    response = client.get(page.get_absolute_url(), headers={"X-Up-Mode": "modal"})
+    assert response.status_code == 200
+    assert json.loads(response["X-Up-Accept-Layer"]) == {
+        "location": page.get_absolute_url()
+    }
+    assert "X-Up-Accept-Layer" not in client.get(page.get_absolute_url())
+    assert "X-Up-Accept-Layer" not in client.get(
+        page.get_absolute_url(), headers={"X-Up-Mode": "root"}
+    )
 
 
 def test_the_slug_is_decorative(screen, client):

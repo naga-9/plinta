@@ -65,10 +65,14 @@ def person(username: str = "ada") -> User:
 
 
 def books_source(
-    *fields: str, editable: tuple[str, ...] = (), filterable: tuple[str, ...] = ()
+    *fields: str,
+    editable: tuple[str, ...] = (),
+    filterable: tuple[str, ...] = (),
+    options: dict[str, dict] | None = None,
 ) -> DataSource:
     """A DataSource over `Book`, with ``fields`` as columns and their
-    permissions minted. ``title`` alone when none are named."""
+    permissions minted. ``title`` alone when none are named; ``options`` is
+    anything else one column's `DataSourceField` should carry, by name."""
     names = fields or ("title",)
     source = DataSource.objects.create(
         name="books",
@@ -82,6 +86,7 @@ def books_source(
             label=name.split("__")[0].replace("_", " ").capitalize(),
             editable=name in editable,
             filterable=name in filterable,
+            **(options or {}).get(name, {}),
         )
     sync_model(Book, {name: name in editable for name in names})
     return source
@@ -96,9 +101,17 @@ class Screen(NamedTuple):
     user: User
 
 
-def build_screen(user, source, *, component_type: str = "table_plinta", **config) -> Screen:
+def build_screen(
+    user,
+    source,
+    *,
+    component_type: str = "table_plinta",
+    size: tuple[int, int] = (6, 4),
+    **config,
+) -> Screen:
     """The page every screen test starts from: *Catalog*, in the menu under
-    *Reference*, with one block over ``source`` filling the left half."""
+    *Reference*, with one block over ``source`` — the left half of the grid
+    unless ``size`` says otherwise."""
     section = MenuSection.objects.create(name="Reference")
     group = MenuGroup.objects.create(section=section, name="Catalog")
     page = Page.objects.create(name="Catalog", slug="catalog", owner=user, menu_group=group)
@@ -110,6 +123,6 @@ def build_screen(user, source, *, component_type: str = "table_plinta", **config
         config=config,
     )
     placement = PageBlock.objects.create(
-        page=page, block=block, column=0, row=0, width=6, height=4
+        page=page, block=block, column=0, row=0, width=size[0], height=size[1]
     )
     return Screen(page, block, placement, user)

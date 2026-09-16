@@ -33,7 +33,12 @@ build their context once each, the authoring gates are `gated` and
 apprise to take, and the audit diff lives in the write pipeline on purpose,
 where every listener gets it. §6.6 is done: the eleven rules all earn their
 place, and `Page.config` and `Page.context_param` — the two fields nothing
-wrote — are gone. §6.5, §6.7 and §6.8 are still open.
+wrote — are gone. §6.5 is done: `tests/support.py` and three root
+fixtures (`ada`, `books`, `catalog`) are what a test starts from, the
+fifteen local `grant`s and three `screen`s are gone, and the unusual
+shapes stay local where a reader can see them — plain functions, not a
+factory library, since the grant is usually the point. §6.7 and §6.8 are
+still open.
 
 What this document changes in `SPEC.md` when it lands is listed at the end.
 

@@ -11,43 +11,28 @@ the browser is the only thing that can guard them.
 import pytest
 from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY
-from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.models import User
 from django.contrib.sessions.backends.db import SessionStore
 
 from plinta.blocks.models import Block, SavedView
-from plinta.datasources.models import DataSource, DataSourceField, Sorter
+from plinta.datasources.models import Sorter
 from plinta.pages.models import (
     FilterSet,
-    MenuGroup,
-    MenuSection,
     Page,
     PageBlock,
     PageFilter,
 )
-from plinta.permissions.fields import sync_model
 from tests.testapp.models import Book, Region
-
-#: What a viewer must be able to see for a page to draw at all.
-CONFIG_MODELS = (Block, SavedView, Page, FilterSet)
+from tests.support import books_source, build_screen, grant, grant_config_views
 
 #: More than one page of them, so paging is a real request and not a no-op.
 BOOKS = 25
 PAGE_SIZE = 10
 
 
-def grant(user, model, *codenames):
-    content_type = ContentType.objects.get_for_model(model)
-    for codename in codenames:
-        permission, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=content_type, defaults={"name": codename}
-        )
-        user.user_permissions.add(permission)
-
-
 @pytest.fixture
-def viewer(db):
-    user = User.objects.create_user(username="ada", password="secret")  # noqa: S106
+def viewer(ada):
+    user = ada
     grant(
         user,
         Book,
@@ -66,8 +51,7 @@ def viewer(db):
           "delete_filterset", "change_filterset_name", "change_filterset_values")
     grant(user, User, "view_user")
     grant(user, Book, "view_book_watchers", "change_book_watchers")
-    for model in CONFIG_MODELS:
-        grant(user, model, f"view_{model._meta.model_name}")
+    grant_config_views(user)
     # Saving views, and publishing one: two different acts (§6.1b).
     grant(user, SavedView, "add_savedview", "change_savedview",
           "delete_savedview", "change_savedview_name",
@@ -88,60 +72,27 @@ def screen(viewer):
             in_print=bool(index % 2),
         )
 
-    source = DataSource.objects.create(
-        name="books",
-        label="Books",
-        content_type=ContentType.objects.get_for_model(Book),
-    )
-    DataSourceField.objects.create(
-        data_source=source,
-        field_name="title",
-        label="Title",
-        sorter=Sorter.STRING,
-        filterable=True,
-        editable=True,
-    )
-    DataSourceField.objects.create(
-        data_source=source, field_name="in_print", label="In print"
-    )
     # A boolean and a relation, both editable: the two that a text box got
     # wrong, so the suite has one of each rather than three strings.
-    DataSourceField.objects.create(
-        data_source=source, field_name="region", label="Region",
-        editable=True, filterable=True,
+    source = books_source(
+        "title", "in_print", "region", "watchers",
+        editable=("title", "region", "watchers"),
+        filterable=("title", "region", "watchers"),
+        options={"title": {"sorter": Sorter.STRING}},
     )
-    DataSourceField.objects.create(
-        data_source=source, field_name="watchers", label="Watchers",
-        editable=True, filterable=True,
-    )
-    sync_model(
-        Book,
-        {"title": True, "in_print": False, "region": True, "watchers": True},
-    )
-
-    section = MenuSection.objects.create(name="Reference")
-    group = MenuGroup.objects.create(section=section, name="Catalog")
-    page = Page.objects.create(
-        name="Catalog", slug="catalog", owner=viewer, menu_group=group
-    )
-    block = Block.objects.create(
-        name="books-table",
+    built = build_screen(
+        viewer,
+        source,
         component_type="table_tabulator",
-        data_source=source,
-        owner=viewer,
-        config={
-            "page_size": PAGE_SIZE,
-            "header_filters": True,
-            "editable": True,
-            # A pencil per row, opening the record's own form.
-            "row_form": True,
-        },
+        size=(12, 6),
+        page_size=PAGE_SIZE,
+        header_filters=True,
+        editable=True,
+        # A pencil per row, opening the record's own form.
+        row_form=True,
     )
-    PageFilter.objects.create(page=page, field_name="in_print", label="In print")
-    placement = PageBlock.objects.create(
-        page=page, block=block, column=0, row=0, width=12, height=6
-    )
-    return page, block, placement
+    PageFilter.objects.create(page=built.page, field_name="in_print", label="In print")
+    return built.page, built.block, built.placement
 
 
 @pytest.fixture

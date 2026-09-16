@@ -7,27 +7,18 @@ the absence of a field-level API flag safe, so it is what the tests are for.
 import json
 
 import pytest
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 
 from plinta.contrib.api.models import ApiKey, digest
 from plinta.datasources.models import DataSource, DataSourceField
 from plinta.permissions.fields import sync_model
 from tests.testapp.models import Book, Region
+from tests.support import grant
 
 pytestmark = pytest.mark.django_db
 
 BASE = "/api/v1/data/"
-
-
-def grant(user, model, *codenames):
-    content_type = ContentType.objects.get_for_model(model)
-    for codename in codenames:
-        permission, _ = Permission.objects.get_or_create(
-            codename=codename, content_type=content_type, defaults={"name": codename}
-        )
-        user.user_permissions.add(permission)
-    return User.objects.get(pk=user.pk)
 
 
 @pytest.fixture
